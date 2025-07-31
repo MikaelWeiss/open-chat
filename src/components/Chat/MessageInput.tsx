@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { Send, Paperclip } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -8,8 +8,19 @@ interface MessageInputProps {
   onSend: () => void
 }
 
-export default function MessageInput({ value, onChange, onSend }: MessageInputProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+export interface MessageInputHandle {
+  focus: () => void
+}
+
+const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
+  ({ value, onChange, onSend }, ref) => {
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+    useImperativeHandle(ref, () => ({
+      focus: () => {
+        textareaRef.current?.focus()
+      }
+    }))
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -65,4 +76,8 @@ export default function MessageInput({ value, onChange, onSend }: MessageInputPr
       </p>
     </div>
   )
-}
+})
+
+MessageInput.displayName = 'MessageInput'
+
+export default MessageInput
