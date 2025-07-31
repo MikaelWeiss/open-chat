@@ -20,13 +20,53 @@ function App() {
     createConversation
   } = useConversationStore()
   
-  const { loadSettings } = useSettingsStore()
+  const { settings, loadSettings } = useSettingsStore()
 
   useEffect(() => {
     // Load initial data
     loadConversations()
     loadSettings()
   }, [loadConversations, loadSettings])
+
+  // Theme handling
+  useEffect(() => {
+    const applyTheme = (theme: string) => {
+      const root = document.documentElement
+      
+      if (theme === 'system') {
+        // Use system preference
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (systemPrefersDark) {
+          root.classList.add('dark')
+        } else {
+          root.classList.remove('dark')
+        }
+      } else if (theme === 'dark') {
+        root.classList.add('dark')
+      } else {
+        root.classList.remove('dark')
+      }
+    }
+
+    if (settings?.theme) {
+      applyTheme(settings.theme)
+    }
+
+    // Listen for system theme changes when using system theme
+    if (settings?.theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+        if (e.matches) {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
+      }
+
+      mediaQuery.addEventListener('change', handleSystemThemeChange)
+      return () => mediaQuery.removeEventListener('change', handleSystemThemeChange)
+    }
+  }, [settings?.theme])
 
   // Keyboard shortcuts
   useEffect(() => {

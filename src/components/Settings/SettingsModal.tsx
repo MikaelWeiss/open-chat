@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import clsx from 'clsx'
+import { useSettingsStore } from '../../stores/settingsStore'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -9,8 +10,34 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState('general')
+  const { settings, updateSettings } = useSettingsStore()
+  
+  // Local state for form inputs
   const [theme, setTheme] = useState('system')
   const [sendKey, setSendKey] = useState('enter')
+
+  // Sync local state with settings store
+  useEffect(() => {
+    if (settings) {
+      setTheme(settings.theme || 'system')
+      setSendKey(settings.keyboard?.sendMessage || 'enter')
+    }
+  }, [settings])
+
+  const handleThemeChange = async (newTheme: string) => {
+    setTheme(newTheme)
+    await updateSettings({ theme: newTheme })
+  }
+
+  const handleSendKeyChange = async (newSendKey: string) => {
+    setSendKey(newSendKey)
+    await updateSettings({ 
+      keyboard: { 
+        ...settings?.keyboard,
+        sendMessage: newSendKey 
+      } 
+    })
+  }
   
   if (!isOpen) return null
 
@@ -62,7 +89,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
           {/* Tab Content */}
           <div className="flex-1 p-6 overflow-y-auto">
-            {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={setTheme} sendKey={sendKey} setSendKey={setSendKey} />}
+            {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} />}
             {activeTab === 'providers' && <ProvidersSettings />}
             {activeTab === 'mcp' && <MCPSettings />}
           </div>
