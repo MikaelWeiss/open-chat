@@ -19,12 +19,76 @@ class LLMManager {
         providers.push({
           id: key,
           name: key.charAt(0).toUpperCase() + key.slice(1),
-          models: config.models
+          models: config.models || []
         })
       }
     }
     
     return providers
+  }
+
+  async fetchModelsFromProvider(providerId) {
+    const settings = await this.settingsManager.getSettings()
+    const config = settings.providers[providerId]
+    
+    if (!config || !config.configured) {
+      throw new Error(`Provider ${providerId} is not configured`)
+    }
+
+    try {
+      let response
+      
+      switch (providerId) {
+        case 'openai':
+        case 'groq':
+        case 'openrouter':
+          response = await fetch(`${config.endpoint}/models`, {
+            headers: {
+              'Authorization': `Bearer ${config.apiKey}`,
+              'Content-Type': 'application/json'
+            }
+          })
+          break
+          
+        case 'anthropic':
+          // Anthropic doesn't have a models endpoint, return known models
+          return [
+            'claude-3-5-sonnet-20241022',
+            'claude-3-5-haiku-20241022', 
+            'claude-3-opus-20240229',
+            'claude-3-sonnet-20240229',
+            'claude-3-haiku-20240307'
+          ]
+          
+        case 'local':
+          response = await fetch(`${config.endpoint}/v1/models`, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          })
+          break
+          
+        default:
+          // For custom providers, try OpenAI-compatible endpoint
+          response = await fetch(`${config.endpoint}/models`, {
+            headers: {
+              'Authorization': `Bearer ${config.apiKey}`,
+              'Content-Type': 'application/json'
+            }
+          })
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models: ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      return data.data ? data.data.map(model => model.id) : []
+      
+    } catch (error) {
+      console.error(`Error fetching models for ${providerId}:`, error)
+      throw error
+    }
   }
 
   async getCompletion(provider, model, messages) {

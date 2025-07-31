@@ -7,6 +7,7 @@ interface MessageInputProps {
   value: string
   onChange: (value: string) => void
   onSend: () => void
+  disabled?: boolean
 }
 
 export interface MessageInputHandle {
@@ -14,7 +15,7 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ value, onChange, onSend }, ref) => {
+  ({ value, onChange, onSend, disabled = false }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const { settings } = useSettingsStore()
 
@@ -32,6 +33,8 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
   }, [value])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled) return
+    
     const sendKey = settings?.keyboard?.sendMessage || 'enter'
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
     const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey
@@ -55,8 +58,14 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     <div className="border-t border-border p-4">
       <div className="flex items-end gap-2">
         <button
-          className="p-2 hover:bg-accent rounded-lg transition-colors"
+          className={clsx(
+            'p-2 rounded-lg transition-colors',
+            disabled 
+              ? 'text-muted-foreground cursor-not-allowed' 
+              : 'hover:bg-accent'
+          )}
           title="Attach file"
+          disabled={disabled}
         >
           <Paperclip className="h-4 w-4" />
         </button>
@@ -64,21 +73,27 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         <textarea
           ref={textareaRef}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => !disabled && onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message..."
-          className="flex-1 resize-none bg-secondary rounded-lg px-4 py-2 min-h-[40px] max-h-[200px] focus:outline-none focus:ring-2 focus:ring-primary"
+          placeholder={disabled ? "Add an AI provider to start chatting..." : "Type a message..."}
+          className={clsx(
+            'flex-1 resize-none rounded-lg px-4 py-2 min-h-[40px] max-h-[200px] focus:outline-none',
+            disabled
+              ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed'
+              : 'bg-secondary focus:ring-2 focus:ring-primary'
+          )}
           rows={1}
+          disabled={disabled}
         />
         
         <button
           onClick={onSend}
-          disabled={!value.trim()}
+          disabled={disabled || !value.trim()}
           className={clsx(
             'p-2 rounded-lg transition-colors',
-            value.trim()
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-secondary text-muted-foreground cursor-not-allowed'
+            disabled || !value.trim()
+              ? 'bg-secondary text-muted-foreground cursor-not-allowed'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
           )}
           title="Send message"
         >

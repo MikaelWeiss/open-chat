@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, Plus, Settings } from 'lucide-react'
 import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns'
 import type { Conversation } from '@/types/electron'
 import clsx from 'clsx'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 interface SidebarProps {
   isOpen: boolean
@@ -22,6 +23,12 @@ export default function Sidebar({
   onOpenSettings,
   onNewConversation,
 }: SidebarProps) {
+  const { settings } = useSettingsStore()
+  
+  // Check if there are any configured providers
+  const hasConfiguredProviders = settings?.providers 
+    ? Object.values(settings.providers).some(provider => provider.configured) 
+    : false
   const getConversationsByDate = () => {
     const grouped = new Map<string, Conversation[]>()
     
@@ -103,7 +110,11 @@ export default function Sidebar({
                     {conversation.title}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {conversation.model} • {format(conversation.updatedAt, 'h:mm a')}
+                    {hasConfiguredProviders && conversation.model ? (
+                      `${conversation.model} • ${format(conversation.updatedAt, 'h:mm a')}`
+                    ) : (
+                      format(conversation.updatedAt, 'h:mm a')
+                    )}
                   </div>
                 </button>
               ))}

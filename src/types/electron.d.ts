@@ -3,7 +3,7 @@ export interface ElectronAPI {
   
   conversations: {
     getAll: () => Promise<Conversation[]>
-    create: () => Promise<Conversation>
+    create: (provider?: string, model?: string) => Promise<Conversation>
     delete: (conversationId: string) => Promise<boolean>
     rename: (conversationId: string, newTitle: string) => Promise<Conversation | null>
     addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => Promise<Message | null>
@@ -22,6 +22,7 @@ export interface ElectronAPI {
       stream: boolean
     }) => Promise<string | { streamId: string }>
     getProviders: () => Promise<Provider[]>
+    fetchModels: (providerId: string) => Promise<string[]>
     onStreamChunk: (callback: (data: { streamId: string; chunk: string }) => void) => void
     onStreamError: (callback: (data: { streamId: string; error: Error }) => void) => void
     onStreamEnd: (callback: (data: { streamId: string }) => void) => void

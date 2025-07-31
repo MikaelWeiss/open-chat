@@ -51,14 +51,14 @@ class ConversationManager {
     return this.conversations.find(c => c.id === conversationId)
   }
 
-  async createConversation() {
+  async createConversation(provider = 'openai', model = 'gpt-4') {
     const conversation = {
       id: `conv-${crypto.randomBytes(8).toString('hex')}`,
       title: 'New Conversation',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      provider: 'openai',
-      model: 'gpt-4',
+      provider,
+      model,
       messages: []
     }
     

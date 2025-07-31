@@ -10,7 +10,7 @@ interface ConversationStore {
   // Actions
   loadConversations: () => Promise<void>
   selectConversation: (conversation: Conversation | null) => void
-  createConversation: () => Promise<void>
+  createConversation: (provider?: string, model?: string) => Promise<void>
   deleteConversation: (conversationId: string) => Promise<void>
   renameConversation: (conversationId: string, newTitle: string) => Promise<void>
   addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => Promise<void>
@@ -51,7 +51,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     set({ selectedConversation: conversation })
   },
   
-  createConversation: async () => {
+  createConversation: async (provider, model) => {
     try {
       const state = get()
       
@@ -60,7 +60,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
         return
       }
       
-      const newConversation = await window.electronAPI.conversations.create()
+      const newConversation = await window.electronAPI.conversations.create(provider, model)
       set(state => ({
         conversations: [newConversation, ...state.conversations],
         selectedConversation: newConversation

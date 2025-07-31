@@ -146,73 +146,335 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey }: any) {
 }
 
 function ProvidersSettings() {
-  const [providers] = useState([
-    { id: 'openai', name: 'OpenAI', configured: true },
-    { id: 'anthropic', name: 'Anthropic', configured: false },
-    { id: 'local', name: 'Local LLM', configured: false },
-  ])
+  const { settings, updateSettings } = useSettingsStore()
+  const [showAddProvider, setShowAddProvider] = useState(false)
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
+  const [customProvider, setCustomProvider] = useState({ name: '', endpoint: '', apiKey: '' })
+  const [loadingModels, setLoadingModels] = useState<string | null>(null)
+
+  const providerPresets = [
+    { 
+      id: 'openai', 
+      name: 'OpenAI', 
+      endpoint: 'https://api.openai.com/v1',
+      description: 'GPT-4, GPT-3.5, and other OpenAI models'
+    },
+    { 
+      id: 'anthropic', 
+      name: 'Anthropic', 
+      endpoint: 'https://api.anthropic.com',
+      description: 'Claude 3.5 Sonnet, Claude 3 Opus, and other Claude models'
+    },
+    { 
+      id: 'groq', 
+      name: 'Groq', 
+      endpoint: 'https://api.groq.com/openai/v1',
+      description: 'Fast inference for Llama, Mixtral models'
+    },
+    { 
+      id: 'openrouter', 
+      name: 'OpenRouter', 
+      endpoint: 'https://openrouter.ai/api/v1',
+      description: 'Access to multiple model providers'
+    }
+  ]
+
+  const configuredProviders = settings?.providers 
+    ? Object.entries(settings.providers).filter(([_, provider]) => provider.configured) 
+    : []
+  const hasProviders = configuredProviders.length > 0
+
+  const handleAddPreset = (preset: typeof providerPresets[0]) => {
+    setSelectedPreset(preset.id)
+    setCustomProvider({ name: preset.name, endpoint: preset.endpoint, apiKey: '' })
+  }
+
+  const handleSaveProvider = async () => {
+    if (!customProvider.name || !customProvider.endpoint || (!customProvider.apiKey && selectedPreset !== 'local')) return
+
+    try {
+      const newProviders = {
+        ...settings?.providers,
+        [selectedPreset || customProvider.name.toLowerCase().replace(/\s+/g, '-')]: {
+          apiKey: customProvider.apiKey,
+          endpoint: customProvider.endpoint,
+          models: [],
+          configured: true,
+          ...(selectedPreset === 'local' && { startCommand: customProvider.apiKey })
+        }
+      }
+
+      await updateSettings({ providers: newProviders })
+      setShowAddProvider(false)
+      setSelectedPreset(null)
+      setCustomProvider({ name: '', endpoint: '', apiKey: '' })
+    } catch (error) {
+      console.error('Failed to save provider:', error)
+      alert(`Failed to save provider: ${error.message}`)
+    }
+  }
+
+  const handleUpdateApiKey = async (providerId: string, apiKey: string) => {
+    const newProviders = {
+      ...settings?.providers,
+      [providerId]: {
+        ...settings?.providers[providerId],
+        apiKey,
+        configured: !!apiKey
+      }
+    }
+    await updateSettings({ providers: newProviders })
+  }
+
+  const handleRefreshModels = async (providerId: string) => {
+    setLoadingModels(providerId)
+    try {
+      // This will call the backend to fetch models via /models endpoint
+      const models = await window.electronAPI.llm.fetchModels(providerId)
+      
+      // The backend automatically updates the settings, but we should reload them
+      const updatedSettings = await window.electronAPI.settings.get()
+      // Update our local settings through the store
+      await updateSettings(updatedSettings)
+    } catch (error) {
+      console.error('Failed to fetch models:', error)
+      // Show error to user
+      alert(`Failed to fetch models for ${providerId}: ${error.message}`)
+    } finally {
+      setLoadingModels(null)
+    }
+  }
+
+  const handleRemoveProvider = async (providerId: string) => {
+    const newProviders = { ...settings?.providers }
+    delete newProviders[providerId]
+    await updateSettings({ providers: newProviders })
+  }
+
+  if (showAddProvider) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium">Add Provider</h3>
+          <button
+            onClick={() => {
+              setShowAddProvider(false)
+              setSelectedPreset(null)
+              setCustomProvider({ name: '', endpoint: '', apiKey: '' })
+            }}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Cancel
+          </button>
+        </div>
+
+        {!selectedPreset ? (
+          <div className="space-y-4">
+            <h4 className="font-medium">Choose a preset or add custom</h4>
+            
+            <div className="grid gap-3">
+              {providerPresets.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => handleAddPreset(preset)}
+                  className="text-left p-4 border border-border rounded-lg hover:bg-accent transition-colors"
+                >
+                  <div className="font-medium">{preset.name}</div>
+                  <div className="text-sm text-muted-foreground">{preset.description}</div>
+                </button>
+              ))}
+              
+              <button
+                onClick={() => {
+                  setSelectedPreset('custom')
+                  setCustomProvider({ name: '', endpoint: '', apiKey: '' })
+                }}
+                className="text-left p-4 border border-border rounded-lg hover:bg-accent transition-colors"
+              >
+                <div className="font-medium">Custom Provider</div>
+                <div className="text-sm text-muted-foreground">Add a custom OpenAI-compatible endpoint</div>
+              </button>
+              
+              <button
+                onClick={() => {
+                  setSelectedPreset('local')
+                  setCustomProvider({ name: 'Local LLM', endpoint: 'http://localhost:11434/v1', apiKey: '' })
+                }}
+                className="text-left p-4 border border-border rounded-lg hover:bg-accent transition-colors"
+              >
+                <div className="font-medium">Local LLM</div>
+                <div className="text-sm text-muted-foreground">Connect to Ollama or other local model server</div>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <h4 className="font-medium">
+              Configure {selectedPreset === 'custom' ? 'Custom Provider' : selectedPreset === 'local' ? 'Local LLM' : customProvider.name}
+            </h4>
+            
+            {selectedPreset === 'custom' && (
+              <div>
+                <label className="text-sm font-medium">Provider Name</label>
+                <input
+                  type="text"
+                  value={customProvider.name}
+                  onChange={(e) => setCustomProvider({ ...customProvider, name: e.target.value })}
+                  placeholder="My Custom Provider"
+                  className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            )}
+            
+            <div>
+              <label className="text-sm font-medium">Endpoint URL</label>
+              <input
+                type="url"
+                value={customProvider.endpoint}
+                onChange={(e) => setCustomProvider({ ...customProvider, endpoint: e.target.value })}
+                placeholder="https://api.example.com/v1"
+                className={`w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                  customProvider.endpoint && !customProvider.endpoint.startsWith('http') 
+                    ? 'border border-red-500' 
+                    : ''
+                }`}
+              />
+              {customProvider.endpoint && !customProvider.endpoint.startsWith('http') && (
+                <p className="text-xs text-red-500 mt-1">URL must start with http:// or https://</p>
+              )}
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium">
+                {selectedPreset === 'local' ? 'API Key (optional for local)' : 'API Key'}
+              </label>
+              <input
+                type="password"
+                value={customProvider.apiKey}
+                onChange={(e) => setCustomProvider({ ...customProvider, apiKey: e.target.value })}
+                placeholder={selectedPreset === 'local' ? 'leave empty for local' : 'sk-...'}
+                className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            
+            <button
+              onClick={handleSaveProvider}
+              disabled={
+                !customProvider.name || 
+                !customProvider.endpoint || 
+                !customProvider.endpoint.startsWith('http') ||
+                (!customProvider.apiKey && selectedPreset !== 'local')
+              }
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add Provider
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium mb-4">LLM Providers</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-medium">LLM Providers</h3>
+        <button
+          onClick={() => setShowAddProvider(true)}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          Add Provider
+        </button>
+      </div>
+
+      {!hasProviders ? (
+        <div className="text-center py-12">
+          <div className="text-muted-foreground mb-4">
+            <svg className="mx-auto h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <p className="text-lg">No providers configured yet</p>
+            <p className="text-sm">Add a provider to start chatting with AI models</p>
+          </div>
+          <button
+            onClick={() => setShowAddProvider(true)}
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            Add Your First Provider
+          </button>
+        </div>
+      ) : (
         <div className="space-y-4">
-          {providers.map((provider) => (
-            <div key={provider.id} className="border border-border rounded-lg p-4">
+          {configuredProviders.map(([providerId, provider]) => (
+            <div key={providerId} className="border border-border rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">
-                <h4 className="font-medium">{provider.name}</h4>
-                <span
-                  className={clsx(
-                    'text-xs px-2 py-1 rounded',
-                    provider.configured
-                      ? 'bg-green-500/20 text-green-500'
-                      : 'bg-yellow-500/20 text-yellow-500'
-                  )}
-                >
-                  {provider.configured ? 'Configured' : 'Not Configured'}
-                </span>
+                <h4 className="font-medium capitalize">{providerId.replace(/-/g, ' ')}</h4>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={clsx(
+                      'text-xs px-2 py-1 rounded',
+                      provider.configured
+                        ? 'bg-green-500/20 text-green-500'
+                        : 'bg-yellow-500/20 text-yellow-500'
+                    )}
+                  >
+                    {provider.configured ? 'Configured' : 'Not Configured'}
+                  </span>
+                  <button
+                    onClick={() => handleRemoveProvider(providerId)}
+                    className="text-xs text-red-500 hover:text-red-400"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
               
               <div className="space-y-3">
                 <div>
                   <label className="text-sm font-medium">API Key</label>
-                  <input
-                    type="password"
-                    placeholder="sk-..."
-                    className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                
-                {provider.id === 'local' && (
-                  <div>
-                    <label className="text-sm font-medium">Start Command</label>
+                  <div className="flex gap-2 mt-1">
                     <input
-                      type="text"
-                      placeholder="ollama serve"
-                      className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      type="password"
+                      value={provider.apiKey || ''}
+                      onChange={(e) => handleUpdateApiKey(providerId, e.target.value)}
+                      placeholder="sk-..."
+                      className="flex-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     />
+                    <button
+                      onClick={() => handleRefreshModels(providerId)}
+                      disabled={!provider.apiKey || loadingModels === providerId}
+                      className="px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {loadingModels === providerId ? '...' : 'Refresh Models'}
+                    </button>
                   </div>
-                )}
+                </div>
                 
                 <div>
-                  <label className="text-sm font-medium">Endpoint URL</label>
+                  <label className="text-sm font-medium">Endpoint</label>
                   <input
-                    type="url"
-                    placeholder={
-                      provider.id === 'openai'
-                        ? 'https://api.openai.com/v1'
-                        : provider.id === 'anthropic'
-                        ? 'https://api.anthropic.com'
-                        : 'http://localhost:8080'
-                    }
-                    className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    type="text"
+                    value={provider.endpoint}
+                    readOnly
+                    className="w-full mt-1 px-3 py-2 bg-secondary/50 rounded-lg text-muted-foreground"
                   />
                 </div>
+                
+                {provider.models && provider.models.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium">Available Models ({provider.models.length})</label>
+                    <div className="mt-1 p-2 bg-secondary/50 rounded-lg max-h-20 overflow-y-auto">
+                      <div className="text-xs text-muted-foreground">
+                        {provider.models.join(', ')}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
-      </div>
+      )}
     </div>
   )
 }

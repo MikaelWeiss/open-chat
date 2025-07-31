@@ -43,8 +43,8 @@ ipcMain.handle('conversations:getAll', async () => {
   return await conversationManager.getAllConversations()
 })
 
-ipcMain.handle('conversations:create', async () => {
-  return await conversationManager.createConversation()
+ipcMain.handle('conversations:create', async (event, provider, model) => {
+  return await conversationManager.createConversation(provider, model)
 })
 
 ipcMain.handle('conversations:delete', async (event, conversationId) => {
@@ -90,6 +90,23 @@ ipcMain.handle('llm:sendMessage', async (event, { provider, model, messages, str
 
 ipcMain.handle('llm:getProviders', async () => {
   return await llmManager.getAvailableProviders()
+})
+
+ipcMain.handle('llm:fetchModels', async (event, providerId) => {
+  try {
+    const models = await llmManager.fetchModelsFromProvider(providerId)
+    
+    // Update the provider's models in settings
+    const settings = await settingsManager.getSettings()
+    if (settings.providers[providerId]) {
+      settings.providers[providerId].models = models
+      await settingsManager.updateSettings({ providers: settings.providers })
+    }
+    
+    return models
+  } catch (error) {
+    throw error
+  }
 })
 
 // IPC Handlers for File Operations

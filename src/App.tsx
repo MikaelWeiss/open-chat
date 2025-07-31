@@ -136,6 +136,7 @@ function App() {
         ref={chatViewRef}
         conversation={selectedConversation}
         sidebarOpen={sidebarOpen}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <SettingsModal

@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Conversations API
   conversations: {
     getAll: () => ipcRenderer.invoke('conversations:getAll'),
-    create: () => ipcRenderer.invoke('conversations:create'),
+    create: (provider, model) => ipcRenderer.invoke('conversations:create', provider, model),
     delete: (conversationId) => ipcRenderer.invoke('conversations:delete', conversationId),
     rename: (conversationId, newTitle) => ipcRenderer.invoke('conversations:rename', conversationId, newTitle),
     addMessage: (conversationId, message) => ipcRenderer.invoke('conversations:addMessage', conversationId, message)
@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   llm: {
     sendMessage: (params) => ipcRenderer.invoke('llm:sendMessage', params),
     getProviders: () => ipcRenderer.invoke('llm:getProviders'),
+    fetchModels: (providerId) => ipcRenderer.invoke('llm:fetchModels', providerId),
     
     // Streaming handlers
     onStreamChunk: (callback) => {
