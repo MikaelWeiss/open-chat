@@ -36,6 +36,10 @@ export interface ElectronAPI {
       mimeType: string
     } | null>
   }
+  
+  shell: {
+    openExternal: (url: string) => Promise<boolean>
+  }
 }
 
 export interface Message {

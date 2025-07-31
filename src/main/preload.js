@@ -49,5 +49,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File operations
   files: {
     selectImage: () => ipcRenderer.invoke('files:selectImage')
+  },
+  
+  // Shell operations
+  shell: {
+    openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url)
   }
 })

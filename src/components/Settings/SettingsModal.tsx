@@ -153,29 +153,91 @@ function ProvidersSettings() {
   const [loadingModels, setLoadingModels] = useState<string | null>(null)
 
   const providerPresets = [
+    // Cloud Providers (API Key Required)
     { 
       id: 'openai', 
       name: 'OpenAI', 
       endpoint: 'https://api.openai.com/v1',
-      description: 'GPT-4, GPT-3.5, and other OpenAI models'
+      description: 'GPT-4, GPT-3.5, and other OpenAI models',
+      apiKeyUrl: 'https://platform.openai.com/api-keys'
     },
     { 
       id: 'anthropic', 
       name: 'Anthropic', 
-      endpoint: 'https://api.anthropic.com',
-      description: 'Claude 3.5 Sonnet, Claude 3 Opus, and other Claude models'
-    },
-    { 
-      id: 'groq', 
-      name: 'Groq', 
-      endpoint: 'https://api.groq.com/openai/v1',
-      description: 'Fast inference for Llama, Mixtral models'
+      endpoint: 'https://api.anthropic.com/v1',
+      description: 'Claude 3.5 Sonnet, Claude 3 Opus, and other Claude models',
+      apiKeyUrl: 'https://console.anthropic.com/settings/keys'
     },
     { 
       id: 'openrouter', 
       name: 'OpenRouter', 
       endpoint: 'https://openrouter.ai/api/v1',
-      description: 'Access to multiple model providers'
+      description: 'Access to 400+ models with rich metadata',
+      apiKeyUrl: 'https://openrouter.ai/keys'
+    },
+    { 
+      id: 'groq', 
+      name: 'Groq', 
+      endpoint: 'https://api.groq.com/openai/v1',
+      description: 'Fast inference for Llama, Mixtral models',
+      apiKeyUrl: 'https://console.groq.com/keys'
+    },
+    { 
+      id: 'xai', 
+      name: 'xAI (Grok)', 
+      endpoint: 'https://api.x.ai/v1',
+      description: 'Fully OpenAI/Anthropic compatible',
+      apiKeyUrl: 'https://console.x.ai/team/api-keys'
+    },
+    { 
+      id: 'google-gemini', 
+      name: 'Google Gemini', 
+      endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      description: 'Native multimodal capabilities',
+      apiKeyUrl: 'https://aistudio.google.com/app/apikey'
+    },
+    { 
+      id: 'deepinfra', 
+      name: 'DeepInfra', 
+      endpoint: 'https://api.deepinfra.com/v1/openai/',
+      description: 'Model hosting platform',
+      apiKeyUrl: 'https://deepinfra.com/dash/api_keys'
+    },
+    { 
+      id: 'fireworks', 
+      name: 'Fireworks AI', 
+      endpoint: 'https://api.fireworks.ai/inference/v1',
+      description: 'Optimized inference',
+      apiKeyUrl: 'https://fireworks.ai/account/api-keys'
+    },
+    { 
+      id: 'together', 
+      name: 'Together AI', 
+      endpoint: 'https://api.together.xyz/v1',
+      description: 'Open source model focus',
+      apiKeyUrl: 'https://api.together.xyz/settings/api-keys'
+    },
+    // Local Providers (No API Key)
+    { 
+      id: 'ollama', 
+      name: 'Ollama', 
+      endpoint: 'http://localhost:11434/v1',
+      description: 'User-friendly local LLM runner',
+      isLocal: true
+    },
+    { 
+      id: 'vllm', 
+      name: 'vLLM', 
+      endpoint: 'http://localhost:8000/v1',
+      description: 'High-performance inference server',
+      isLocal: true
+    },
+    { 
+      id: 'llamacpp', 
+      name: 'llama.cpp', 
+      endpoint: 'http://localhost:8080/v1',
+      description: 'C++ implementation, very efficient',
+      isLocal: true
     }
   ]
 
@@ -190,7 +252,8 @@ function ProvidersSettings() {
   }
 
   const handleSaveProvider = async () => {
-    if (!customProvider.name || !customProvider.endpoint || (!customProvider.apiKey && selectedPreset !== 'local')) return
+    const isLocalProvider = providerPresets.find(p => p.id === selectedPreset)?.isLocal
+    if (!customProvider.name || !customProvider.endpoint || (!customProvider.apiKey && !isLocalProvider)) return
 
     try {
       const newProviders = {
@@ -200,7 +263,7 @@ function ProvidersSettings() {
           endpoint: customProvider.endpoint,
           models: [],
           configured: true,
-          ...(selectedPreset === 'local' && { startCommand: customProvider.apiKey })
+          ...(isLocalProvider && { startCommand: customProvider.apiKey })
         }
       }
 
@@ -208,7 +271,7 @@ function ProvidersSettings() {
       
       // Auto-refresh models for the newly added provider
       const providerId = selectedPreset || customProvider.name.toLowerCase().replace(/\s+/g, '-')
-      if (customProvider.apiKey || selectedPreset === 'local') {
+      if (customProvider.apiKey || isLocalProvider) {
         try {
           await handleRefreshModels(providerId)
         } catch (error) {
@@ -281,48 +344,64 @@ function ProvidersSettings() {
         </div>
 
         {!selectedPreset ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h4 className="font-medium">Choose a preset or add custom</h4>
             
-            <div className="grid gap-3">
-              {providerPresets.map((preset) => (
+            {/* Cloud Providers */}
+            <div className="space-y-3">
+              <h5 className="text-sm font-medium text-muted-foreground">Cloud Providers (API Key Required)</h5>
+              <div className="grid gap-3">
+                {providerPresets.filter(preset => !preset.isLocal).map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => handleAddPreset(preset)}
+                    className="text-left p-4 border border-border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <div className="font-medium">{preset.name}</div>
+                    <div className="text-sm text-muted-foreground">{preset.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Local Providers */}
+            <div className="space-y-3">
+              <h5 className="text-sm font-medium text-muted-foreground">Local Providers (No API Key)</h5>
+              <div className="grid gap-3">
+                {providerPresets.filter(preset => preset.isLocal).map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => handleAddPreset(preset)}
+                    className="text-left p-4 border border-border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <div className="font-medium">{preset.name}</div>
+                    <div className="text-sm text-muted-foreground">{preset.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Options */}
+            <div className="space-y-3">
+              <h5 className="text-sm font-medium text-muted-foreground">Custom</h5>
+              <div className="grid gap-3">
                 <button
-                  key={preset.id}
-                  onClick={() => handleAddPreset(preset)}
+                  onClick={() => {
+                    setSelectedPreset('custom')
+                    setCustomProvider({ name: '', endpoint: '', apiKey: '' })
+                  }}
                   className="text-left p-4 border border-border rounded-lg hover:bg-accent transition-colors"
                 >
-                  <div className="font-medium">{preset.name}</div>
-                  <div className="text-sm text-muted-foreground">{preset.description}</div>
+                  <div className="font-medium">Custom Provider</div>
+                  <div className="text-sm text-muted-foreground">Add a custom OpenAI-compatible endpoint</div>
                 </button>
-              ))}
-              
-              <button
-                onClick={() => {
-                  setSelectedPreset('custom')
-                  setCustomProvider({ name: '', endpoint: '', apiKey: '' })
-                }}
-                className="text-left p-4 border border-border rounded-lg hover:bg-accent transition-colors"
-              >
-                <div className="font-medium">Custom Provider</div>
-                <div className="text-sm text-muted-foreground">Add a custom OpenAI-compatible endpoint</div>
-              </button>
-              
-              <button
-                onClick={() => {
-                  setSelectedPreset('local')
-                  setCustomProvider({ name: 'Local LLM', endpoint: 'http://localhost:11434/v1', apiKey: '' })
-                }}
-                className="text-left p-4 border border-border rounded-lg hover:bg-accent transition-colors"
-              >
-                <div className="font-medium">Local LLM</div>
-                <div className="text-sm text-muted-foreground">Connect to Ollama or other local model server</div>
-              </button>
+              </div>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
             <h4 className="font-medium">
-              Configure {selectedPreset === 'custom' ? 'Custom Provider' : selectedPreset === 'local' ? 'Local LLM' : customProvider.name}
+              Configure {selectedPreset === 'custom' ? 'Custom Provider' : customProvider.name}
             </h4>
             
             {selectedPreset === 'custom' && (
@@ -357,14 +436,29 @@ function ProvidersSettings() {
             </div>
             
             <div>
-              <label className="text-sm font-medium">
-                {selectedPreset === 'local' ? 'API Key (optional for local)' : 'API Key'}
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">
+                  {providerPresets.find(p => p.id === selectedPreset)?.isLocal ? 'API Key (optional for local)' : 'API Key'}
+                </label>
+                {selectedPreset && selectedPreset !== 'custom' && !providerPresets.find(p => p.id === selectedPreset)?.isLocal && (
+                  <button
+                    onClick={() => {
+                      const apiKeyUrl = providerPresets.find(p => p.id === selectedPreset)?.apiKeyUrl
+                      if (apiKeyUrl) {
+                        window.electronAPI.shell.openExternal(apiKeyUrl)
+                      }
+                    }}
+                    className="text-xs text-primary hover:underline focus:outline-none"
+                  >
+                    Get API Key →
+                  </button>
+                )}
+              </div>
               <input
                 type="password"
                 value={customProvider.apiKey}
                 onChange={(e) => setCustomProvider({ ...customProvider, apiKey: e.target.value })}
-                placeholder={selectedPreset === 'local' ? 'leave empty for local' : 'sk-...'}
+                placeholder={providerPresets.find(p => p.id === selectedPreset)?.isLocal ? 'leave empty for local' : 'sk-...'}
                 className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -375,7 +469,7 @@ function ProvidersSettings() {
                 !customProvider.name || 
                 !customProvider.endpoint || 
                 !customProvider.endpoint.startsWith('http') ||
-                (!customProvider.apiKey && selectedPreset !== 'local')
+                (!customProvider.apiKey && !providerPresets.find(p => p.id === selectedPreset)?.isLocal)
               }
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >

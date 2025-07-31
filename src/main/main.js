@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
 const path = require('path')
 const fs = require('fs').promises
 const { ConversationManager } = require('./services/conversationManager')
@@ -133,6 +133,17 @@ ipcMain.handle('files:selectImage', async () => {
   }
   
   return null
+})
+
+// IPC Handler for opening external URLs
+ipcMain.handle('shell:openExternal', async (event, url) => {
+  try {
+    await shell.openExternal(url)
+    return true
+  } catch (error) {
+    console.error('Failed to open external URL:', error)
+    return false
+  }
 })
 
 // App lifecycle

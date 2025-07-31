@@ -21,14 +21,26 @@ class SettingsManager {
         },
         anthropic: {
           apiKey: '',
-          endpoint: 'https://api.anthropic.com',
-          models: ['claude-3-opus', 'claude-3-sonnet'],
+          endpoint: 'https://api.anthropic.com/v1',
+          models: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'],
           configured: false
         },
-        local: {
-          endpoint: 'http://localhost:8080',
-          startCommand: '',
-          models: ['llama2', 'mistral'],
+        openrouter: {
+          apiKey: '',
+          endpoint: 'https://openrouter.ai/api/v1',
+          models: [],
+          configured: false
+        },
+        groq: {
+          apiKey: '',
+          endpoint: 'https://api.groq.com/openai/v1',
+          models: ['llama-3.1-70b-versatile', 'mixtral-8x7b-32768'],
+          configured: false
+        },
+        ollama: {
+          apiKey: '',
+          endpoint: 'http://localhost:11434/v1',
+          models: [],
           configured: false
         }
       },
