@@ -4,7 +4,7 @@ import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
 import type { Conversation } from '@/types/electron'
 import { useConversationStore } from '@/stores/conversationStore'
-import { useSettingsStore } from '@/stores/settingsStore'
+import { useSettingsStore, useToastStore } from '@/stores/settingsStore'
 import clsx from 'clsx'
 
 interface ChatViewProps {
@@ -22,8 +22,11 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   const [message, setMessage] = useState('')
   const [showModelSelector, setShowModelSelector] = useState(false)
   const [selectedModel, setSelectedModel] = useState<{provider: string, model: string} | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [streamingMessage, setStreamingMessage] = useState('')
   const { addMessage } = useConversationStore()
   const { settings } = useSettingsStore()
+  const { addToast } = useToastStore()
   const messageInputRef = useRef<MessageInputHandle>(null)
 
   useImperativeHandle(ref, () => ({
@@ -80,45 +83,141 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
     }
   }, [conversation?.id])
 
+  // Set up streaming event listeners
+  useEffect(() => {
+    const handleStreamChunk = ({ streamId, chunk }) => {
+      setStreamingMessage(prev => prev + chunk)
+    }
+
+    const handleStreamEnd = ({ streamId }) => {
+      // Streaming finished, add the complete message
+      if (streamingMessage && conversation) {
+        addMessage(conversation.id, {
+          role: 'assistant',
+          content: streamingMessage
+        })
+      }
+      setStreamingMessage('')
+      setIsLoading(false)
+    }
+
+    const handleStreamError = ({ streamId, error }) => {
+      console.error('Stream error:', error)
+      addToast({
+        type: 'error',
+        title: 'Message Failed',
+        message: error.message || 'Failed to get response from the model. Please check your provider configuration.',
+        duration: 7000
+      })
+      setStreamingMessage('')
+      setIsLoading(false)
+    }
+
+    // Add event listeners
+    window.electronAPI.llm.onStreamChunk(handleStreamChunk)
+    window.electronAPI.llm.onStreamEnd(handleStreamEnd)
+    window.electronAPI.llm.onStreamError(handleStreamError)
+
+    // Cleanup
+    return () => {
+      window.electronAPI.llm.removeStreamListeners()
+    }
+  }, [streamingMessage, conversation, addMessage, addToast])
+
   const handleSend = async () => {
-    if (!message.trim()) return
+    if (!message.trim() || isLoading) return
     
     // Require a model to be selected
     if (!selectedModel || !selectedModel.model) {
       return
     }
     
-    let currentConversation = conversation
+    setIsLoading(true)
     
-    // If conversation is temporary, update it with the selected model
-    if (currentConversation?.isTemporary) {
-      currentConversation = {
-        ...currentConversation,
-        provider: selectedModel.provider,
-        model: selectedModel.model
+    try {
+      let currentConversation = conversation
+      
+      // If conversation is temporary, update it with the selected model
+      if (currentConversation?.isTemporary) {
+        currentConversation = {
+          ...currentConversation,
+          provider: selectedModel.provider,
+          model: selectedModel.model
+        }
+        // Update the store with the new model info
+        const { selectConversation } = useConversationStore.getState()
+        selectConversation(currentConversation)
       }
-      // Update the store with the new model info
-      const { selectConversation } = useConversationStore.getState()
-      selectConversation(currentConversation)
+      
+      // If no conversation exists and we have a selected model, create a temporary one
+      if (!currentConversation && selectedModel) {
+        // Use the createConversation from the store to create a temporary conversation
+        const { createConversation } = useConversationStore.getState()
+        await createConversation(selectedModel.provider, selectedModel.model)
+        currentConversation = useConversationStore.getState().selectedConversation
+      }
+      
+      if (!currentConversation) return
+      
+      const userMessage = message.trim()
+      
+      // Add user message to conversation
+      await addMessage(currentConversation.id, {
+        role: 'user',
+        content: userMessage
+      })
+      setMessage('')
+      
+      // Get updated conversation with all messages for context
+      const updatedConversation = useConversationStore.getState().selectedConversation
+      if (!updatedConversation) return
+      
+      // Prepare messages for LLM (convert to the format expected by the API)
+      const llmMessages = updatedConversation.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }))
+      
+      // Reset streaming message for new response
+      setStreamingMessage('')
+      
+      // Send to LLM with streaming
+      const result = await window.electronAPI.llm.sendMessage({
+        provider: selectedModel.provider,
+        model: selectedModel.model,
+        messages: llmMessages,
+        stream: true
+      })
+      
+      // For streaming, result contains streamId, actual response comes via events
+      if (!result?.streamId) {
+        // Fallback to non-streaming if streaming failed
+        const response = await window.electronAPI.llm.sendMessage({
+          provider: selectedModel.provider,
+          model: selectedModel.model,
+          messages: llmMessages,
+          stream: false
+        })
+        
+        if (response && typeof response === 'string') {
+          await addMessage(currentConversation.id, {
+            role: 'assistant',
+            content: response
+          })
+        }
+        setIsLoading(false)
+      }
+    } catch (error) {
+      console.error('Error sending message to LLM:', error)
+      addToast({
+        type: 'error',
+        title: 'Message Failed',
+        message: error.message || 'Failed to get response from the model. Please check your provider configuration.',
+        duration: 7000
+      })
+    } finally {
+      setIsLoading(false)
     }
-    
-    // If no conversation exists and we have a selected model, create a temporary one
-    if (!currentConversation && selectedModel) {
-      // Use the createConversation from the store to create a temporary conversation
-      const { createConversation } = useConversationStore.getState()
-      await createConversation(selectedModel.provider, selectedModel.model)
-      currentConversation = useConversationStore.getState().selectedConversation
-    }
-    
-    if (!currentConversation) return
-    
-    await addMessage(currentConversation.id, {
-      role: 'user',
-      content: message.trim()
-    })
-    setMessage('')
-    
-    // TODO: Send to LLM and get response
   }
 
   if (!conversation) {
@@ -235,7 +334,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       </div>
 
       {/* Messages */}
-      <MessageList messages={conversation.messages} />
+      <MessageList messages={conversation.messages} isLoading={isLoading} streamingMessage={streamingMessage} />
 
       {/* Input */}
       <MessageInput
@@ -243,7 +342,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         value={message}
         onChange={setMessage}
         onSend={handleSend}
-        disabled={availableModels.length === 0 || !selectedModel || !selectedModel.model}
+        disabled={availableModels.length === 0 || !selectedModel || !selectedModel.model || isLoading}
       />
     </div>
   )

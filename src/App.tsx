@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar/Sidebar'
 import ChatView, { ChatViewHandle } from './components/Chat/ChatView'
 import SettingsModal from './components/Settings/SettingsModal'
 import ShortcutsModal from './components/Shortcuts/ShortcutsModal'
+import ToastContainer from './components/Toast/Toast'
 import { useConversationStore } from './stores/conversationStore'
 import { useSettingsStore } from './stores/settingsStore'
 
@@ -148,6 +149,8 @@ function App() {
         isOpen={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}
       />
+
+      <ToastContainer />
     </div>
   )
 }

@@ -100,13 +100,16 @@ class LLMManager {
 
     switch (provider) {
       case 'openai':
+      case 'groq':
+      case 'openrouter':
         return await this.openAICompletion(config, model, messages)
       case 'anthropic':
         return await this.anthropicCompletion(config, model, messages)
       case 'local':
         return await this.localLLMCompletion(config, model, messages)
       default:
-        throw new Error(`Unknown provider: ${provider}`)
+        // For custom providers, try OpenAI-compatible API
+        return await this.openAICompletion(config, model, messages)
     }
   }
 
@@ -121,6 +124,8 @@ class LLMManager {
     try {
       switch (provider) {
         case 'openai':
+        case 'groq':
+        case 'openrouter':
           await this.openAIStream(config, model, messages, onChunk, onError, onEnd)
           break
         case 'anthropic':
@@ -130,7 +135,8 @@ class LLMManager {
           await this.localLLMStream(config, model, messages, onChunk, onError, onEnd)
           break
         default:
-          onError(new Error(`Unknown provider: ${provider}`))
+          // For custom providers, try OpenAI-compatible streaming
+          await this.openAIStream(config, model, messages, onChunk, onError, onEnd)
       }
     } catch (error) {
       onError(error)
@@ -244,9 +250,69 @@ class LLMManager {
   }
 
   async anthropicStream(config, model, messages, onChunk, onError, onEnd) {
-    // Similar to anthropicCompletion but with streaming
-    // Implementation would follow Anthropic's streaming API
-    onError(new Error('Anthropic streaming not yet implemented'))
+    try {
+      // Convert OpenAI format to Anthropic format
+      const anthropicMessages = messages.map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content
+      }))
+
+      const response = await fetch(`${config.endpoint}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': config.apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model,
+          messages: anthropicMessages,
+          max_tokens: 1024,
+          stream: true
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Anthropic API error: ${response.statusText}`)
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n').filter(line => line.trim() !== '')
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data === '[DONE]') {
+              onEnd()
+              return
+            }
+            
+            try {
+              const parsed = JSON.parse(data)
+              if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+                onChunk(parsed.delta.text)
+              } else if (parsed.type === 'message_stop') {
+                onEnd()
+                return
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+      
+      onEnd()
+    } catch (error) {
+      onError(error)
+    }
   }
 
   async localLLMCompletion(config, model, messages) {
@@ -275,8 +341,61 @@ class LLMManager {
   }
 
   async localLLMStream(config, model, messages, onChunk, onError, onEnd) {
-    // Similar to openAIStream but for local endpoint
-    onError(new Error('Local LLM streaming not yet implemented'))
+    try {
+      // Start local LLM if needed
+      await this.ensureLocalLLMRunning(config)
+
+      const response = await fetch(`${config.endpoint}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.7,
+          stream: true
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Local LLM API error: ${response.statusText}`)
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n').filter(line => line.trim() !== '')
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data === '[DONE]') {
+              onEnd()
+              return
+            }
+            
+            try {
+              const parsed = JSON.parse(data)
+              if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                onChunk(parsed.choices[0].delta.content)
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+      
+      onEnd()
+    } catch (error) {
+      onError(error)
+    }
   }
 
   async ensureLocalLLMRunning(config) {
