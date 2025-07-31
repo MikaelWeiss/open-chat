@@ -199,7 +199,7 @@ function ProvidersSettings() {
     { 
       id: 'deepinfra', 
       name: 'DeepInfra', 
-      endpoint: 'https://api.deepinfra.com/v1/openai/',
+      endpoint: 'https://api.deepinfra.com/v1/openai',
       description: 'Model hosting platform',
       apiKeyUrl: 'https://deepinfra.com/dash/api_keys'
     },
@@ -208,7 +208,7 @@ function ProvidersSettings() {
       name: 'Fireworks AI', 
       endpoint: 'https://api.fireworks.ai/inference/v1',
       description: 'Optimized inference',
-      apiKeyUrl: 'https://fireworks.ai/account/api-keys'
+      apiKeyUrl: 'https://app.fireworks.ai/settings/users/api-keys'
     },
     { 
       id: 'together', 

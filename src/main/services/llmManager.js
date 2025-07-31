@@ -335,7 +335,7 @@ class LLMManager {
   }
 
   async googleGeminiCompletion(config, model, messages) {
-    // Google Gemini uses a different API format
+    // Google Gemini uses OpenAI-compatible format
     const response = await fetch(`${config.endpoint}/chat/completions`, {
       method: 'POST',
       headers: {
