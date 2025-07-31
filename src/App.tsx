@@ -58,6 +58,12 @@ function App() {
         chatViewRef.current?.focusInput()
       }
       
+      // Cmd/Ctrl + S - Toggle sidebar
+      if (isCtrlOrCmd && e.key === 's') {
+        e.preventDefault()
+        setSidebarOpen(!sidebarOpen)
+      }
+      
       // ESC - Close modals
       if (e.key === 'Escape') {
         if (settingsOpen) {
@@ -72,7 +78,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [createConversation, settingsOpen, shortcutsOpen])
+  }, [createConversation, settingsOpen, shortcutsOpen, sidebarOpen])
 
   return (
     <div className="flex h-screen bg-background text-foreground">

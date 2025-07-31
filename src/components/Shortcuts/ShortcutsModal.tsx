@@ -26,6 +26,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
       name: 'General',
       shortcuts: [
         { keys: [modKey, 'N'], description: 'Start new chat' },
+        { keys: [modKey, 'S'], description: 'Toggle sidebar' },
         { keys: [modKey, ','], description: 'Open settings' },
         { keys: [modKey, '/'], description: 'Show keyboard shortcuts' },
         { keys: [modKey, 'L'], description: 'Focus message input' },
