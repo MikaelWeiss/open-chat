@@ -64,8 +64,11 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
 
   return (
     <div className="flex-1 flex flex-col">
+      {/* Window controls area */}
+      <div className="h-6 drag-region" />
+      
       {/* Header */}
-      <div className="border-b border-border p-4 drag-region">
+      <div className="border-b border-border px-4 py-3 drag-region">
         <h2 className="text-lg font-semibold no-drag">{conversation.title}</h2>
         <p className="text-sm text-muted-foreground no-drag">
           {conversation.provider} • {conversation.model}

@@ -58,10 +58,10 @@ export default function Sidebar({
     >
       <div className={clsx('flex flex-col h-full', !isOpen && 'invisible')}>
         {/* Window controls area */}
-        <div className="h-8 drag-region" />
+        <div className="h-6 drag-region" />
         
         {/* Header */}
-        <div className="p-4 border-b border-border">
+        <div className="px-4 py-5 border-b border-border">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold no-drag">Open Chat</h1>
             <div className="flex items-center gap-2 no-drag">
