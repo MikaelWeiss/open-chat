@@ -95,21 +95,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-border p-4 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 hover:bg-accent rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            Save Changes
-          </button>
-        </div>
+
       </div>
     </div>
   )
