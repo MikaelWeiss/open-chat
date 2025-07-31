@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 interface ShortcutsModalProps {
   isOpen: boolean
@@ -16,10 +17,24 @@ interface ShortcutCategory {
 }
 
 export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps) {
+  const { settings } = useSettingsStore()
+  
   if (!isOpen) return null
 
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
   const modKey = isMac ? '⌘' : 'Ctrl'
+  const sendKey = settings?.keyboard?.sendMessage || 'enter'
+
+  // Dynamic message shortcuts based on setting
+  const messageShortcuts = sendKey === 'cmd-enter' 
+    ? [
+        { keys: [modKey, 'Enter'], description: 'Send message' },
+        { keys: ['Enter'], description: 'New line in message' },
+      ]
+    : [
+        { keys: ['Enter'], description: 'Send message' },
+        { keys: ['Shift', 'Enter'], description: 'New line in message' },
+      ]
 
   const shortcutCategories: ShortcutCategory[] = [
     {
@@ -34,10 +49,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
     },
     {
       name: 'Messages',
-      shortcuts: [
-        { keys: ['Enter'], description: 'Send message' },
-        { keys: ['Shift', 'Enter'], description: 'New line in message' },
-      ]
+      shortcuts: messageShortcuts
     },
     {
       name: 'Navigation',

@@ -1,6 +1,7 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { Send, Paperclip } from 'lucide-react'
 import clsx from 'clsx'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 interface MessageInputProps {
   value: string
@@ -15,6 +16,7 @@ export interface MessageInputHandle {
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
   ({ value, onChange, onSend }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const { settings } = useSettingsStore()
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -30,9 +32,22 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
   }, [value])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      onSend()
+    const sendKey = settings?.keyboard?.sendMessage || 'enter'
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+    const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey
+
+    if (sendKey === 'enter') {
+      // Enter sends, Shift+Enter for new line
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        onSend()
+      }
+    } else if (sendKey === 'cmd-enter') {
+      // Cmd/Ctrl+Enter sends, Enter for new line
+      if (e.key === 'Enter' && isCtrlOrCmd) {
+        e.preventDefault()
+        onSend()
+      }
     }
   }
 
@@ -72,7 +87,10 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       </div>
       
       <p className="text-xs text-muted-foreground mt-2">
-        Press Enter to send, Shift+Enter for new line
+        {settings?.keyboard?.sendMessage === 'cmd-enter' 
+          ? `Press ${navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd' : 'Ctrl'}+Enter to send, Enter for new line`
+          : 'Press Enter to send, Shift+Enter for new line'
+        }
       </p>
     </div>
   )

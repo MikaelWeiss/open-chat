@@ -26,15 +26,15 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const handleThemeChange = async (newTheme: string) => {
     setTheme(newTheme)
-    await updateSettings({ theme: newTheme })
+    await updateSettings({ theme: newTheme as 'system' | 'light' | 'dark' })
   }
 
   const handleSendKeyChange = async (newSendKey: string) => {
     setSendKey(newSendKey)
     await updateSettings({ 
       keyboard: { 
-        ...settings?.keyboard,
-        sendMessage: newSendKey 
+        newLine: settings?.keyboard?.newLine || 'shift+enter',
+        sendMessage: newSendKey as 'enter' | 'cmd-enter'
       } 
     })
   }
