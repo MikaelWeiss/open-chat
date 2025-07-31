@@ -8,11 +8,11 @@ A minimal, modern Electron-based chat application that supports multiple LLM pro
 ```bash
 pnpm dev
 ```
-This starts both Vite (for React) and Electron in development mode with hot reload.
+This starts both esbuild (for React) and Electron in development mode with hot reload.
 
 ### Production Mode
 ```bash
-pnpm start
+pnpm run start
 ```
 This builds the React app first, then starts Electron with the built files.
 

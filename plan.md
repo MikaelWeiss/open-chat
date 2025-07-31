@@ -112,7 +112,7 @@ userData/
 - **Markdown**: react-markdown + remark plugins
 - **Code Highlighting**: Prism.js or Shiki
 - **Icons**: Lucide React
-- **Build Tool**: Vite
+- **Build Tool**: esbuild
 
 ### 2. Main Process (main.js)
 - Window management
