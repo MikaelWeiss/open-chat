@@ -18,7 +18,8 @@ function App() {
     selectedConversation, 
     loadConversations, 
     selectConversation,
-    createConversation
+    createConversation,
+    deleteConversation
   } = useConversationStore()
   
   const { settings, loadSettings } = useSettingsStore()
@@ -131,6 +132,7 @@ function App() {
         onSelectConversation={selectConversation}
         onOpenSettings={() => setSettingsOpen(true)}
         onNewConversation={createConversation}
+        onDeleteConversation={deleteConversation}
       />
       
       <ChatView

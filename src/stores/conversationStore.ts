@@ -96,11 +96,30 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       if (success) {
         set(state => {
           const filtered = state.conversations.filter(c => c.id !== conversationId)
+          let newSelectedConversation = state.selectedConversation
+          
+          // If the deleted conversation was selected, create a new temporary conversation
+          if (state.selectedConversation?.id === conversationId) {
+            // Get the last used model from the most recent conversation
+            const lastConversation = filtered[0]
+            const lastProvider = lastConversation?.provider || ''
+            const lastModel = lastConversation?.model || ''
+            
+            newSelectedConversation = {
+              id: `temp-${Date.now()}`,
+              title: 'New Conversation',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              provider: lastProvider,
+              model: lastModel,
+              messages: [],
+              isTemporary: true
+            }
+          }
+          
           return {
             conversations: filtered,
-            selectedConversation: state.selectedConversation?.id === conversationId 
-              ? filtered[0] || null 
-              : state.selectedConversation
+            selectedConversation: newSelectedConversation
           }
         })
       }
