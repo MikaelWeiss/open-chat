@@ -40,10 +40,10 @@ function App() {
         createConversation()
       }
       
-      // Cmd/Ctrl + , - Settings
+      // Cmd/Ctrl + , - Toggle Settings
       if (isCtrlOrCmd && e.key === ',') {
         e.preventDefault()
-        setSettingsOpen(true)
+        setSettingsOpen(!settingsOpen)
       }
       
       // Cmd/Ctrl + / - Keyboard shortcuts
