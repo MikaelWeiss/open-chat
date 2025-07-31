@@ -26,11 +26,21 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const conversations = await window.electronAPI.conversations.getAll()
+      const state = get()
+      
+      // If no conversation is selected, create a new one instead of selecting existing
+      let selectedConversation = state.selectedConversation
+      if (!selectedConversation) {
+        // Create a new conversation for first app launch
+        const newConversation = await window.electronAPI.conversations.create()
+        selectedConversation = newConversation
+        conversations.unshift(newConversation)
+      }
+      
       set({ 
         conversations, 
         loading: false,
-        // Select first conversation if none selected
-        selectedConversation: get().selectedConversation || conversations[0] || null
+        selectedConversation
       })
     } catch (error) {
       set({ error: error.message, loading: false })
@@ -43,6 +53,13 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
   
   createConversation: async () => {
     try {
+      const state = get()
+      
+      // Don't create a new conversation if current one is already empty
+      if (state.selectedConversation && state.selectedConversation.messages.length === 0) {
+        return
+      }
+      
       const newConversation = await window.electronAPI.conversations.create()
       set(state => ({
         conversations: [newConversation, ...state.conversations],
