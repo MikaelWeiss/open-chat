@@ -82,6 +82,12 @@ function App() {
         createConversation()
       }
       
+      // Cmd/Ctrl + T - New chat (alternative)
+      if (isCtrlOrCmd && e.key === 't') {
+        e.preventDefault()
+        createConversation()
+      }
+      
       // Cmd/Ctrl + , - Toggle Settings
       if (isCtrlOrCmd && e.key === ',') {
         e.preventDefault()
