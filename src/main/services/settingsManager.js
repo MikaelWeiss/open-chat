@@ -42,6 +42,12 @@ class SettingsManager {
           endpoint: 'http://localhost:11434/v1',
           models: [],
           configured: false
+        },
+        deepinfra: {
+          apiKey: '',
+          endpoint: 'https://api.deepinfra.com/v1/openai',
+          models: [],
+          configured: false
         }
       },
       keyboard: {

@@ -60,6 +60,24 @@ class LLMManager {
             'claude-3-haiku-20240307'
           ]
           
+        case 'deepinfra':
+          // DeepInfra doesn't have a models endpoint, return popular models
+          return [
+            'deepseek-ai/DeepSeek-V3-0324',
+            'deepseek-ai/DeepSeek-R1',
+            'meta-llama/Llama-3.3-70B-Instruct',
+            'meta-llama/Llama-3.1-70B-Instruct',
+            'meta-llama/Llama-3.1-8B-Instruct',
+            'Qwen/Qwen2.5-72B-Instruct',
+            'Qwen/Qwen2.5-32B-Instruct',
+            'Qwen/Qwen2.5-14B-Instruct',
+            'Qwen/Qwen2.5-7B-Instruct',
+            'microsoft/WizardLM-2-8x22B',
+            'microsoft/WizardLM-2-7B',
+            'mistralai/Mixtral-8x7B-Instruct-v0.1',
+            'mistralai/Mistral-7B-Instruct-v0.3'
+          ]
+          
         case 'local':
           response = await fetch(`${config.endpoint}/v1/models`, {
             headers: {
