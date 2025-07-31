@@ -164,26 +164,24 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       
       const newMessage = await window.electronAPI.conversations.addMessage(actualConversationId, message)
       if (newMessage) {
+        // After adding the message, get the updated conversation to get any title changes
+        const updatedConversations = await window.electronAPI.conversations.getAll()
+        const updatedConversation = updatedConversations.find(c => c.id === actualConversationId)
+        
         set(state => {
           const wasTemporary = state.selectedConversation?.isTemporary
           
           return {
             conversations: wasTemporary 
-              ? [actualConversation, ...state.conversations]
+              ? [updatedConversation, ...state.conversations]
               : state.conversations.map(c => {
                   if (c.id === actualConversationId) {
-                    return {
-                      ...c,
-                      messages: [...c.messages, newMessage],
-                      updatedAt: new Date().toISOString()
-                    }
+                    return updatedConversation
                   }
                   return c
                 }),
             selectedConversation: {
-              ...actualConversation,
-              messages: [...(actualConversation?.messages || []), newMessage],
-              updatedAt: new Date().toISOString(),
+              ...updatedConversation,
               isTemporary: false
             }
           }
