@@ -31,6 +31,7 @@ This starts the Electron application using `electron .`
 ### Package Management
 ```bash
 pnpm install    # Install dependencies
+pnpm rebuild electron    # Run if Electron fails to start (enables install scripts)
 ```
 
 ### Project Structure
