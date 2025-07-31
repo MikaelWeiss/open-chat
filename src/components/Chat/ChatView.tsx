@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { Send, Paperclip } from 'lucide-react'
 import MessageList from './MessageList'
-import MessageInput from './MessageInput'
+import MessageInput, { MessageInputHandle } from './MessageInput'
 import type { Conversation } from '@/types/electron'
 import { useConversationStore } from '@/stores/conversationStore'
 import clsx from 'clsx'
@@ -11,9 +11,31 @@ interface ChatViewProps {
   sidebarOpen: boolean
 }
 
-export default function ChatView({ conversation, sidebarOpen }: ChatViewProps) {
+export interface ChatViewHandle {
+  focusInput: () => void
+}
+
+const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
+  ({ conversation, sidebarOpen }, ref) => {
   const [message, setMessage] = useState('')
   const { addMessage } = useConversationStore()
+  const messageInputRef = useRef<MessageInputHandle>(null)
+
+  useImperativeHandle(ref, () => ({
+    focusInput: () => {
+      messageInputRef.current?.focus()
+    }
+  }))
+
+  // Focus input when conversation changes
+  useEffect(() => {
+    if (conversation) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        messageInputRef.current?.focus()
+      }, 100)
+    }
+  }, [conversation?.id])
 
   const handleSend = async () => {
     if (message.trim() && conversation) {
@@ -55,10 +77,15 @@ export default function ChatView({ conversation, sidebarOpen }: ChatViewProps) {
 
       {/* Input */}
       <MessageInput
+        ref={messageInputRef}
         value={message}
         onChange={setMessage}
         onSend={handleSend}
       />
     </div>
   )
-}
+})
+
+ChatView.displayName = 'ChatView'
+
+export default ChatView

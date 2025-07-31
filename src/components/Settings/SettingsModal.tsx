@@ -21,8 +21,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   ]
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background border border-border rounded-xl w-[800px] max-h-[600px] flex flex-col shadow-2xl">
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-background border border-border rounded-xl w-[800px] max-h-[600px] flex flex-col shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <h2 className="text-xl font-semibold">Settings</h2>
