@@ -111,9 +111,9 @@ export default function Sidebar({
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {hasConfiguredProviders && conversation.model ? (
-                      `${conversation.model} • ${format(conversation.updatedAt, 'h:mm a')}`
+                      `${conversation.model} • ${format(new Date(conversation.updatedAt), 'h:mm a')}`
                     ) : (
-                      format(conversation.updatedAt, 'h:mm a')
+                      format(new Date(conversation.updatedAt), 'h:mm a')
                     )}
                   </div>
                 </button>

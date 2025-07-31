@@ -26,11 +26,26 @@ class ConversationManager {
       const files = await fs.readdir(chatDir)
       
       this.conversations = []
+      const emptyConversationFiles = []
+      
       for (const file of files) {
         if (file.endsWith('.json')) {
-          const content = await fs.readFile(path.join(chatDir, file), 'utf-8')
-          this.conversations.push(JSON.parse(content))
+          const filePath = path.join(chatDir, file)
+          const content = await fs.readFile(filePath, 'utf-8')
+          const conversation = JSON.parse(content)
+          
+          // Clean up empty conversations on startup
+          if (conversation.messages.length === 0) {
+            emptyConversationFiles.push(filePath)
+          } else {
+            this.conversations.push(conversation)
+          }
         }
+      }
+      
+      // Delete empty conversation files
+      for (const filePath of emptyConversationFiles) {
+        await fs.unlink(filePath).catch(() => {})
       }
       
       // Sort by updatedAt
@@ -51,7 +66,7 @@ class ConversationManager {
     return this.conversations.find(c => c.id === conversationId)
   }
 
-  async createConversation(provider = 'openai', model = 'gpt-4') {
+  async createConversation(provider, model) {
     const conversation = {
       id: `conv-${crypto.randomBytes(8).toString('hex')}`,
       title: 'New Conversation',

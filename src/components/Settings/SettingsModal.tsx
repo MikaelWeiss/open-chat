@@ -205,6 +205,18 @@ function ProvidersSettings() {
       }
 
       await updateSettings({ providers: newProviders })
+      
+      // Auto-refresh models for the newly added provider
+      const providerId = selectedPreset || customProvider.name.toLowerCase().replace(/\s+/g, '-')
+      if (customProvider.apiKey || selectedPreset === 'local') {
+        try {
+          await handleRefreshModels(providerId)
+        } catch (error) {
+          console.error('Failed to auto-refresh models:', error)
+          // Don't block the provider addition if model refresh fails
+        }
+      }
+      
       setShowAddProvider(false)
       setSelectedPreset(null)
       setCustomProvider({ name: '', endpoint: '', apiKey: '' })

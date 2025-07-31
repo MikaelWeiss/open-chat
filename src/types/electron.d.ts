@@ -58,6 +58,7 @@ export interface Conversation {
   provider: string
   model: string
   messages: Message[]
+  isTemporary?: boolean
 }
 
 export interface Settings {

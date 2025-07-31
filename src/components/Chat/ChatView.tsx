@@ -51,9 +51,13 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
     return models
   }, [settings?.providers])
 
-  // Set default model if none selected and conversation doesn't have one
+  // Sync selected model with conversation's model
   useEffect(() => {
-    if (!selectedModel && availableModels.length > 0 && !conversation) {
+    if (conversation && conversation.provider && conversation.model) {
+      // If conversation has a model, use it
+      setSelectedModel({ provider: conversation.provider, model: conversation.model })
+    } else if (!selectedModel && availableModels.length > 0) {
+      // If no model selected and no conversation model, use default or first available
       const defaultProvider = settings?.defaultProvider
       let defaultModel = availableModels[0]
       
@@ -64,7 +68,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       
       setSelectedModel({ provider: defaultModel.provider, model: defaultModel.model })
     }
-  }, [selectedModel, availableModels, conversation, settings?.defaultProvider])
+  }, [conversation, availableModels, settings?.defaultProvider])
 
   // Focus input when conversation changes
   useEffect(() => {
@@ -79,14 +83,31 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   const handleSend = async () => {
     if (!message.trim()) return
     
+    // Require a model to be selected
+    if (!selectedModel || !selectedModel.model) {
+      return
+    }
+    
     let currentConversation = conversation
     
-    // If no conversation exists and we have a selected model, create one
+    // If conversation is temporary, update it with the selected model
+    if (currentConversation?.isTemporary) {
+      currentConversation = {
+        ...currentConversation,
+        provider: selectedModel.provider,
+        model: selectedModel.model
+      }
+      // Update the store with the new model info
+      const { selectConversation } = useConversationStore.getState()
+      selectConversation(currentConversation)
+    }
+    
+    // If no conversation exists and we have a selected model, create a temporary one
     if (!currentConversation && selectedModel) {
-      const newConversation = await window.electronAPI.conversations.create(selectedModel.provider, selectedModel.model)
-      // The store will be updated via the conversation store's createConversation method
-      // For now, we'll use the returned conversation directly
-      currentConversation = newConversation
+      // Use the createConversation from the store to create a temporary conversation
+      const { createConversation } = useConversationStore.getState()
+      await createConversation(selectedModel.provider, selectedModel.model)
+      currentConversation = useConversationStore.getState().selectedConversation
     }
     
     if (!currentConversation) return
@@ -157,7 +178,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
             {/* Only show provider/model info if there are configured providers and conversation has provider/model */}
             {availableModels.length > 0 && conversation.provider && conversation.model && (
               <p className="text-sm text-muted-foreground">
-                {conversation.provider} • {conversation.model}
+                {conversation.provider.charAt(0).toUpperCase() + conversation.provider.slice(1).replace(/-/g, ' ')} • {conversation.model}
               </p>
             )}
           </div>
@@ -172,15 +193,15 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
               Add Provider
             </button>
           ) : (
-            /* Model selector - only show if conversation hasn't started (no messages) or if not locked */
-            (!conversation.messages || conversation.messages.length === 0) && (
+            /* Model selector - show if conversation hasn't started (no messages) or if temporary */
+            ((!conversation.messages || conversation.messages.length === 0) || conversation.isTemporary) && (
               <div className="relative no-drag">
                 <button
                   onClick={() => setShowModelSelector(!showModelSelector)}
                   className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-colors text-sm"
                 >
-                  <span>
-                    {selectedModel ? selectedModel.model : 'Select Model'}
+                  <span className={!selectedModel || !selectedModel.model ? 'text-muted-foreground' : ''}>
+                    {selectedModel && selectedModel.model ? selectedModel.model : 'Select Model'}
                   </span>
                   <ChevronDown className="h-4 w-4" />
                 </button>
@@ -222,7 +243,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         value={message}
         onChange={setMessage}
         onSend={handleSend}
-        disabled={availableModels.length === 0}
+        disabled={availableModels.length === 0 || !selectedModel || !selectedModel.model}
       />
     </div>
   )

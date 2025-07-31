@@ -26,21 +26,31 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const conversations = await window.electronAPI.conversations.getAll()
-      const state = get()
       
-      // If no conversation is selected, create a new one instead of selecting existing
-      let selectedConversation = state.selectedConversation
-      if (!selectedConversation) {
-        // Create a new conversation for first app launch
-        const newConversation = await window.electronAPI.conversations.create()
-        selectedConversation = newConversation
-        conversations.unshift(newConversation)
+      // Filter out empty conversations (conversations with no messages)
+      const nonEmptyConversations = conversations.filter(conv => conv.messages.length > 0)
+      
+      // Get the last used model from the most recent conversation
+      const lastConversation = nonEmptyConversations[0]
+      const lastProvider = lastConversation?.provider || ''
+      const lastModel = lastConversation?.model || ''
+      
+      // Always start with a new temporary conversation, using last used model if available
+      const tempConversation = {
+        id: `temp-${Date.now()}`,
+        title: 'New Conversation',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        provider: lastProvider,
+        model: lastModel,
+        messages: [],
+        isTemporary: true
       }
       
       set({ 
-        conversations, 
+        conversations: nonEmptyConversations, 
         loading: false,
-        selectedConversation
+        selectedConversation: tempConversation
       })
     } catch (error) {
       set({ error: error.message, loading: false })
@@ -60,10 +70,20 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
         return
       }
       
-      const newConversation = await window.electronAPI.conversations.create(provider, model)
+      // Create a temporary conversation that hasn't been saved yet
+      const tempConversation = {
+        id: `temp-${Date.now()}`,
+        title: 'New Conversation',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        provider: provider || '',
+        model: model || '',
+        messages: [],
+        isTemporary: true
+      }
+      
       set(state => ({
-        conversations: [newConversation, ...state.conversations],
-        selectedConversation: newConversation
+        selectedConversation: tempConversation
       }))
     } catch (error) {
       set({ error: error.message })
@@ -109,27 +129,46 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
   
   addMessage: async (conversationId, message) => {
     try {
-      const newMessage = await window.electronAPI.conversations.addMessage(conversationId, message)
+      const state = get()
+      let actualConversationId = conversationId
+      let actualConversation = state.selectedConversation
+      
+      // If this is a temporary conversation, create it in the backend first
+      if (state.selectedConversation?.isTemporary) {
+        const newConversation = await window.electronAPI.conversations.create(
+          state.selectedConversation.provider, 
+          state.selectedConversation.model
+        )
+        actualConversationId = newConversation.id
+        actualConversation = newConversation
+      }
+      
+      const newMessage = await window.electronAPI.conversations.addMessage(actualConversationId, message)
       if (newMessage) {
-        set(state => ({
-          conversations: state.conversations.map(c => {
-            if (c.id === conversationId) {
-              return {
-                ...c,
-                messages: [...c.messages, newMessage],
-                updatedAt: new Date().toISOString()
-              }
+        set(state => {
+          const wasTemporary = state.selectedConversation?.isTemporary
+          
+          return {
+            conversations: wasTemporary 
+              ? [actualConversation, ...state.conversations]
+              : state.conversations.map(c => {
+                  if (c.id === actualConversationId) {
+                    return {
+                      ...c,
+                      messages: [...c.messages, newMessage],
+                      updatedAt: new Date().toISOString()
+                    }
+                  }
+                  return c
+                }),
+            selectedConversation: {
+              ...actualConversation,
+              messages: [...(actualConversation?.messages || []), newMessage],
+              updatedAt: new Date().toISOString(),
+              isTemporary: false
             }
-            return c
-          }),
-          selectedConversation: state.selectedConversation?.id === conversationId
-            ? {
-                ...state.selectedConversation,
-                messages: [...state.selectedConversation.messages, newMessage],
-                updatedAt: new Date().toISOString()
-              }
-            : state.selectedConversation
-        }))
+          }
+        })
       }
     } catch (error) {
       set({ error: error.message })
