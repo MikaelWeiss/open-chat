@@ -268,6 +268,13 @@ function ProvidersSettings() {
       description: 'Open source model focus',
       apiKeyUrl: 'https://api.together.xyz/settings/api-keys'
     },
+    { 
+      id: 'inceptionlabs', 
+      name: 'Inception Labs', 
+      endpoint: 'https://api.inceptionlabs.ai/v1',
+      description: 'High-performance AI models',
+      apiKeyUrl: 'https://platform.inceptionlabs.ai/dashboard/api-keys'
+    },
     // Local Providers (No API Key)
     { 
       id: 'ollama', 
@@ -951,6 +958,13 @@ function ModelsSettings() {
       endpoint: 'https://api.together.xyz/v1',
       description: 'Open source model focus',
       apiKeyUrl: 'https://api.together.xyz/settings/api-keys'
+    },
+    { 
+      id: 'inceptionlabs', 
+      name: 'Inception Labs', 
+      endpoint: 'https://api.inceptionlabs.ai/v1',
+      description: 'High-performance AI models',
+      apiKeyUrl: 'https://platform.inceptionlabs.ai/dashboard/api-keys'
     },
     { 
       id: 'ollama', 

@@ -54,6 +54,13 @@ class SettingsManager {
           models: [],
           configured: false,
           testStatus: 'untested'
+        },
+        inceptionlabs: {
+          apiKey: '',
+          endpoint: 'https://api.inceptionlabs.ai/v1',
+          models: [],
+          configured: false,
+          testStatus: 'untested'
         }
       },
       keyboard: {

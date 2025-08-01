@@ -48,6 +48,7 @@ class LLMManager {
         case 'groq':
         case 'openrouter':
         case 'google-gemini':
+        case 'inceptionlabs':
           response = await fetch(`${config.endpoint}/models`, {
             headers: {
               'Authorization': `Bearer ${config.apiKey}`,
@@ -170,6 +171,7 @@ class LLMManager {
       case 'deepinfra':
       case 'fireworks':
       case 'together':
+      case 'inceptionlabs':
         return await this.openAICompletion(config, model, messages)
       case 'anthropic':
         return await this.anthropicCompletion(config, model, messages)
@@ -206,6 +208,7 @@ class LLMManager {
         case 'deepinfra':
         case 'fireworks':
         case 'together':
+        case 'inceptionlabs':
           await this.openAIStream(config, model, messages, controller.signal, onChunk, onError, onEnd)
           break
         case 'anthropic':
