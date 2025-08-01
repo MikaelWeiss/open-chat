@@ -18,7 +18,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Settings API
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
-    update: (settings) => ipcRenderer.invoke('settings:update', settings)
+    update: (settings) => ipcRenderer.invoke('settings:update', settings),
+    getCorruptionStatus: () => ipcRenderer.invoke('settings:getCorruptionStatus'),
+    reset: () => ipcRenderer.invoke('settings:reset'),
+    openInEditor: () => ipcRenderer.invoke('settings:openInEditor'),
+    reload: () => ipcRenderer.invoke('settings:reload')
   },
   
   // LLM API

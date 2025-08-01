@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Sidebar from './components/Sidebar/Sidebar'
 import ChatView, { ChatViewHandle } from './components/Chat/ChatView'
 import SettingsModal from './components/Settings/SettingsModal'
+import SettingsErrorModal from './components/Settings/SettingsErrorModal'
 import ShortcutsModal from './components/Shortcuts/ShortcutsModal'
 import ToastContainer from './components/Toast/Toast'
 import { useConversationStore } from './stores/conversationStore'
@@ -23,7 +24,14 @@ function App() {
     deleteConversation
   } = useConversationStore()
   
-  const { settings, loadSettings } = useSettingsStore()
+  const { 
+    settings, 
+    corruptionStatus, 
+    loadSettings, 
+    resetSettings, 
+    openSettingsInEditor,
+    reloadSettings
+  } = useSettingsStore()
 
   useEffect(() => {
     // Load initial data
@@ -159,6 +167,15 @@ function App() {
       <ShortcutsModal
         isOpen={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}
+      />
+
+      <SettingsErrorModal
+        isOpen={corruptionStatus?.corrupted || false}
+        onClose={() => {}} // Don't allow closing this modal - they must fix the issue
+        corruptionStatus={corruptionStatus || { corrupted: false, error: null, settingsPath: '' }}
+        onReset={resetSettings}
+        onOpenInEditor={openSettingsInEditor}
+        onRefresh={reloadSettings}
       />
 
       <ToastContainer />

@@ -68,6 +68,30 @@ ipcMain.handle('settings:update', async (event, settings) => {
   return await settingsManager.updateSettings(settings)
 })
 
+ipcMain.handle('settings:getCorruptionStatus', async () => {
+  return await settingsManager.getCorruptionStatus()
+})
+
+ipcMain.handle('settings:reset', async () => {
+  return await settingsManager.resetSettings()
+})
+
+ipcMain.handle('settings:openInEditor', async () => {
+  const { shell } = require('electron')
+  const status = settingsManager.getCorruptionStatus()
+  try {
+    await shell.openPath(status.settingsPath)
+    return true
+  } catch (error) {
+    console.error('Failed to open settings file:', error)
+    return false
+  }
+})
+
+ipcMain.handle('settings:reload', async () => {
+  return await settingsManager.reloadSettings()
+})
+
 // IPC Handlers for LLM Operations
 ipcMain.handle('llm:sendMessage', async (event, { conversationId, provider, model, messages, stream }) => {
   if (stream) {

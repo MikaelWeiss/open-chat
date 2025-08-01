@@ -80,6 +80,9 @@ class SettingsManager {
   }
 
   async loadSettings() {
+    this.settingsCorrupted = false
+    this.settingsError = null
+    
     try {
       const data = await fs.readFile(this.settingsPath, 'utf-8')
       const loaded = JSON.parse(data)
@@ -102,8 +105,17 @@ class SettingsManager {
       // Merge with defaults to ensure all fields exist
       this.settings = { ...this.getDefaultSettings(), ...loaded }
     } catch (error) {
-      // File doesn't exist or is invalid, use defaults
-      console.log('Using default settings')
+      if (error.code === 'ENOENT') {
+        // File doesn't exist, use defaults (normal first run)
+        console.log('Settings file not found, using defaults')
+        this.settings = this.getDefaultSettings()
+      } else {
+        // File exists but is corrupted
+        console.error('Settings file is corrupted:', error.message)
+        this.settingsCorrupted = true
+        this.settingsError = error.message
+        this.settings = this.getDefaultSettings()
+      }
     }
   }
 
@@ -149,6 +161,30 @@ class SettingsManager {
 
   isProviderConfigured(provider) {
     return this.settings.providers[provider]?.configured || false
+  }
+
+  getCorruptionStatus() {
+    return {
+      corrupted: this.settingsCorrupted || false,
+      error: this.settingsError || null,
+      settingsPath: this.settingsPath
+    }
+  }
+
+  async resetSettings() {
+    this.settings = this.getDefaultSettings()
+    this.settingsCorrupted = false
+    this.settingsError = null
+    await this.saveSettings()
+    return this.settings
+  }
+
+  async reloadSettings() {
+    await this.loadSettings()
+    return {
+      settings: this.settings,
+      corruptionStatus: this.getCorruptionStatus()
+    }
   }
 }
 

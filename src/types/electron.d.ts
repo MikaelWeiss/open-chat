@@ -12,6 +12,21 @@ export interface ElectronAPI {
   settings: {
     get: () => Promise<Settings>
     update: (settings: Partial<Settings>) => Promise<Settings>
+    getCorruptionStatus: () => Promise<{
+      corrupted: boolean
+      error: string | null
+      settingsPath: string
+    }>
+    reset: () => Promise<Settings>
+    openInEditor: () => Promise<boolean>
+    reload: () => Promise<{
+      settings: Settings
+      corruptionStatus: {
+        corrupted: boolean
+        error: string | null
+        settingsPath: string
+      }
+    }>
   }
   
   llm: {
