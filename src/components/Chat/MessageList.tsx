@@ -29,7 +29,7 @@ export default function MessageList({ messages, isLoading = false, streamingMess
     const interval = setInterval(() => {
       currentIndex = (currentIndex + 1) % messages.length
       setLoadingMessage(messages[currentIndex])
-    }, 1500)
+    }, 2500)
     
     return () => clearInterval(interval)
   }, [isLoading])
@@ -141,7 +141,6 @@ export default function MessageList({ messages, isLoading = false, streamingMess
           <div className="flex-1 space-y-2">
             <div className="flex items-baseline gap-2">
               <span className="font-medium">Assistant</span>
-              <span className="text-xs text-muted-foreground">working...</span>
             </div>
             
             <div className="flex items-center gap-3">
