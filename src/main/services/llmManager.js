@@ -52,7 +52,7 @@ class LLMManager {
           break
           
         case 'anthropic':
-          response = await fetch(`${config.endpoint}/v1/models`, {
+          response = await fetch(`${config.endpoint}/models`, {
             headers: {
               'x-api-key': config.apiKey,
               'anthropic-version': '2023-06-01'

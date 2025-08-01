@@ -155,6 +155,21 @@ function ProvidersSettings() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [showManageApiKey, setShowManageApiKey] = useState<string | null>(null)
   const [newApiKey, setNewApiKey] = useState('')
+  const [testingProvider, setTestingProvider] = useState<string | null>(null)
+  const [providerTestStatus, setProviderTestStatus] = useState<Record<string, 'success' | 'error' | 'untested'>>({})
+
+  // Load persisted test status from settings
+  useEffect(() => {
+    if (settings?.providers) {
+      const testStatusFromSettings: Record<string, 'success' | 'error' | 'untested'> = {}
+      Object.entries(settings.providers).forEach(([providerId, provider]) => {
+        if (provider.configured && provider.testStatus) {
+          testStatusFromSettings[providerId] = provider.testStatus as 'success' | 'error' | 'untested'
+        }
+      })
+      setProviderTestStatus(testStatusFromSettings)
+    }
+  }, [settings])
 
   const providerPresets = [
     // Cloud Providers (API Key Required)
@@ -273,14 +288,15 @@ function ProvidersSettings() {
 
       await updateSettings({ providers: newProviders })
       
-      // Auto-refresh models for the newly added provider
+      // Auto-test and refresh models for the newly added provider
       const providerId = selectedPreset || customProvider.name.toLowerCase().replace(/\s+/g, '-')
       if (customProvider.apiKey || isLocalProvider) {
         try {
-          await handleRefreshModels(providerId)
+          // Auto-test the connection
+          await handleTestProvider(providerId, true) // true = auto-test (no success toast)
         } catch (error) {
-          console.error('Failed to auto-refresh models:', error)
-          // Don't block the provider addition if model refresh fails
+          console.error('Failed to auto-test provider:', error)
+          // Don't block the provider addition if test fails
         }
       }
       
@@ -353,6 +369,70 @@ function ProvidersSettings() {
 
   const handleCancelDelete = () => {
     setDeleteConfirm(null)
+  }
+
+  const handleTestProvider = async (providerId: string, isAutoTest = false) => {
+    setTestingProvider(providerId)
+    try {
+      // For auto-test during provider addition, we need to get fresh settings
+      // since the local settings state may not be updated yet
+      const currentSettings = isAutoTest ? await window.electronAPI.settings.get() : settings
+      const provider = currentSettings?.providers[providerId]
+      if (!provider) {
+        throw new Error('Provider not found')
+      }
+
+      // Use the existing fetchModels function to test the connection
+      await window.electronAPI.llm.fetchModels(providerId)
+      
+      const newStatus = 'success'
+      setProviderTestStatus(prev => ({ ...prev, [providerId]: newStatus }))
+      
+      // Persist the test status in settings
+      const newProviders = {
+        ...currentSettings?.providers,
+        [providerId]: {
+          ...currentSettings?.providers[providerId],
+          testStatus: newStatus
+        }
+      }
+      await updateSettings({ providers: newProviders })
+      
+      // Only show success toast if not auto-testing
+      if (!isAutoTest) {
+        addToast({
+          type: 'success',
+          title: 'Connection Test Successful',
+          message: `Successfully connected to ${providerId.replace(/-/g, ' ')}`,
+          duration: 3000
+        })
+      }
+    } catch (error) {
+      console.error('Provider test failed:', error)
+      const newStatus = 'error'
+      setProviderTestStatus(prev => ({ ...prev, [providerId]: newStatus }))
+      
+      // Persist the test status in settings
+      // For error case, we also need fresh settings if this is an auto-test
+      const currentSettings = isAutoTest ? await window.electronAPI.settings.get() : settings
+      const newProviders = {
+        ...currentSettings?.providers,
+        [providerId]: {
+          ...currentSettings?.providers[providerId],
+          testStatus: newStatus
+        }
+      }
+      await updateSettings({ providers: newProviders })
+      
+      addToast({
+        type: 'error',
+        title: 'Connection Test Failed',
+        message: `Failed to connect to ${providerId.replace(/-/g, ' ')}: ${error.message}`,
+        duration: 5000
+      })
+    } finally {
+      setTestingProvider(null)
+    }
   }
 
   if (showAddProvider) {
@@ -543,7 +623,31 @@ function ProvidersSettings() {
           {configuredProviders.map(([providerId, provider]) => (
             <div key={providerId} className="border border-border rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">
-                <h4 className="font-medium capitalize">{providerId.replace(/-/g, ' ')}</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-medium capitalize">{providerId.replace(/-/g, ' ')}</h4>
+                  <button
+                    onClick={() => handleTestProvider(providerId)}
+                    disabled={testingProvider === providerId}
+                    className="flex items-center justify-center w-3 h-3 rounded-full transition-colors hover:scale-110 cursor-pointer disabled:cursor-not-allowed"
+                    style={{
+                      backgroundColor: 
+                        testingProvider === providerId ? '#94a3b8' :
+                        providerTestStatus[providerId] === 'success' ? '#22c55e' :
+                        providerTestStatus[providerId] === 'error' ? '#eab308' :
+                        '#6b7280'
+                    }}
+                    title={
+                      testingProvider === providerId ? 'Testing connection...' :
+                      providerTestStatus[providerId] === 'success' ? 'Connection successful - click to test again' :
+                      providerTestStatus[providerId] === 'error' ? 'Connection failed - click to test again' :
+                      'Click to test connection'
+                    }
+                  >
+                    {testingProvider === providerId && (
+                      <div className="w-2 h-2 border border-white border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </button>
+                </div>
                 <button
                   onClick={() => handleDeleteClick(providerId)}
                   className="text-xs text-red-500 hover:text-red-400"

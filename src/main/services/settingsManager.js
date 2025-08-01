@@ -17,37 +17,43 @@ class SettingsManager {
           apiKey: '',
           endpoint: 'https://api.openai.com/v1',
           models: ['gpt-4', 'gpt-3.5-turbo'],
-          configured: false
+          configured: false,
+          testStatus: 'untested'
         },
         anthropic: {
           apiKey: '',
           endpoint: 'https://api.anthropic.com/v1',
           models: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'],
-          configured: false
+          configured: false,
+          testStatus: 'untested'
         },
         openrouter: {
           apiKey: '',
           endpoint: 'https://openrouter.ai/api/v1',
           models: [],
-          configured: false
+          configured: false,
+          testStatus: 'untested'
         },
         groq: {
           apiKey: '',
           endpoint: 'https://api.groq.com/openai/v1',
           models: ['llama-3.1-70b-versatile', 'mixtral-8x7b-32768'],
-          configured: false
+          configured: false,
+          testStatus: 'untested'
         },
         ollama: {
           apiKey: '',
           endpoint: 'http://localhost:11434/v1',
           models: [],
-          configured: false
+          configured: false,
+          testStatus: 'untested'
         },
         deepinfra: {
           apiKey: '',
           endpoint: 'https://api.deepinfra.com/v1/openai',
           models: [],
-          configured: false
+          configured: false,
+          testStatus: 'untested'
         }
       },
       keyboard: {
