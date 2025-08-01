@@ -35,24 +35,40 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
     }
   }))
 
-  // Get available models from configured providers
+  // Get available models from configured providers (filtered by enabled models)
   const availableModels = React.useMemo(() => {
     if (!settings?.providers) return []
     
     const models: Array<{provider: string, model: string, providerName: string}> = []
     Object.entries(settings.providers).forEach(([providerId, provider]) => {
-      if (provider.configured && provider.models) {
-        provider.models.forEach(model => {
-          models.push({
-            provider: providerId,
-            model,
-            providerName: providerId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-          })
+      if (provider.configured && provider.models && (provider.enabled !== false)) {
+        // Filter models based on enabled models setting
+        const enabledModels = provider.enabledModels || provider.models.slice(0, 3) // Default to first 3
+        enabledModels.forEach(model => {
+          if (provider.models.includes(model)) { // Ensure model still exists
+            models.push({
+              provider: providerId,
+              model,
+              providerName: providerId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+            })
+          }
         })
       }
     })
     return models
   }, [settings?.providers])
+
+  // Group models by provider for display
+  const modelsByProvider = React.useMemo(() => {
+    const grouped: Record<string, Array<{provider: string, model: string, providerName: string}>> = {}
+    availableModels.forEach(model => {
+      if (!grouped[model.providerName]) {
+        grouped[model.providerName] = []
+      }
+      grouped[model.providerName].push(model)
+    })
+    return grouped
+  }, [availableModels])
 
   // Sync selected model with conversation's model
   useEffect(() => {
@@ -306,25 +322,37 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
                 </button>
                 
                 {showModelSelector && (
-                  <div className="absolute right-0 top-full mt-1 w-64 bg-background border border-border rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
-                    {availableModels.map((model, index) => (
-                      <button
-                        key={`${model.provider}-${model.model}`}
-                        onClick={() => {
-                          setSelectedModel({ provider: model.provider, model: model.model })
-                          setShowModelSelector(false)
-                        }}
-                        className={clsx(
-                          'w-full text-left px-3 py-2 hover:bg-accent transition-colors',
-                          selectedModel?.provider === model.provider && selectedModel?.model === model.model
-                            ? 'bg-accent'
-                            : ''
-                        )}
-                      >
-                        <div className="font-medium">{model.model}</div>
-                        <div className="text-xs text-muted-foreground">{model.providerName}</div>
-                      </button>
-                    ))}
+                  <div className="absolute right-0 top-full mt-1 w-80 bg-background border border-border rounded-lg shadow-lg z-10 max-h-80 overflow-y-auto">
+                    {Object.entries(modelsByProvider).length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        No models available. Check your provider settings.
+                      </div>
+                    ) : (
+                      Object.entries(modelsByProvider).map(([providerName, models]) => (
+                        <div key={providerName}>
+                          <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-secondary/50 border-b border-border">
+                            {providerName}
+                          </div>
+                          {models.map((model) => (
+                            <button
+                              key={`${model.provider}-${model.model}`}
+                              onClick={() => {
+                                setSelectedModel({ provider: model.provider, model: model.model })
+                                setShowModelSelector(false)
+                              }}
+                              className={clsx(
+                                'w-full text-left px-4 py-2 hover:bg-accent transition-colors border-b border-border/30 last:border-b-0',
+                                selectedModel?.provider === model.provider && selectedModel?.model === model.model
+                                  ? 'bg-accent'
+                                  : ''
+                              )}
+                            >
+                              <div className="font-medium text-sm">{model.model}</div>
+                            </button>
+                          ))}
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>

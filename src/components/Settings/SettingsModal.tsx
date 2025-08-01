@@ -44,6 +44,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const tabs = [
     { id: 'general', label: 'General' },
     { id: 'providers', label: 'Providers' },
+    { id: 'models', label: 'Models' },
     { id: 'mcp', label: 'MCP Servers' },
   ]
 
@@ -91,6 +92,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <div className="flex-1 p-6 overflow-y-auto">
             {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} />}
             {activeTab === 'providers' && <ProvidersSettings />}
+            {activeTab === 'models' && <ModelsSettings />}
             {activeTab === 'mcp' && <MCPSettings />}
           </div>
         </div>
@@ -283,7 +285,9 @@ function ProvidersSettings() {
           apiKey: customProvider.apiKey,
           endpoint: customProvider.endpoint,
           models: [],
+          enabledModels: [], // Will be populated when models are fetched
           configured: true,
+          enabled: true, // New providers are enabled by default
           ...(isLocalProvider && { startCommand: customProvider.apiKey })
         }
       }
@@ -333,8 +337,22 @@ function ProvidersSettings() {
       
       // The backend automatically updates the settings, but we should reload them
       const updatedSettings = await window.electronAPI.settings.get()
-      // Update our local settings through the store
-      await updateSettings(updatedSettings)
+      
+      // Set default enabled models (first 3) if not already set
+      const provider = updatedSettings?.providers[providerId]
+      if (provider && provider.models && !provider.enabledModels) {
+        const newProviders = {
+          ...updatedSettings.providers,
+          [providerId]: {
+            ...provider,
+            enabledModels: provider.models.slice(0, 3)
+          }
+        }
+        await updateSettings({ providers: newProviders })
+      } else {
+        // Update our local settings through the store
+        await updateSettings(updatedSettings)
+      }
       
       // Show toast for DeepInfra about manual model addition
       if (providerId === 'deepinfra') {
@@ -816,6 +834,170 @@ function ProvidersSettings() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function ModelsSettings() {
+  const { settings, updateSettings } = useSettingsStore()
+  const { addToast } = useToastStore()
+
+  const configuredProviders = settings?.providers 
+    ? Object.entries(settings.providers)
+        .filter(([_, provider]) => provider.configured && provider.models && provider.models.length > 0)
+        .sort(([a], [b]) => a.localeCompare(b))
+    : []
+
+  const handleToggleModel = async (providerId: string, model: string, enabled: boolean) => {
+    const provider = settings?.providers[providerId]
+    if (!provider) return
+
+    const currentEnabledModels = provider.enabledModels || provider.models.slice(0, 3)
+    let newEnabledModels: string[]
+
+    if (enabled) {
+      // Add model if not already enabled
+      newEnabledModels = [...currentEnabledModels, model].filter((m, i, arr) => arr.indexOf(m) === i)
+    } else {
+      // Remove model
+      newEnabledModels = currentEnabledModels.filter(m => m !== model)
+    }
+
+    const newProviders = {
+      ...settings?.providers,
+      [providerId]: {
+        ...provider,
+        enabledModels: newEnabledModels
+      }
+    }
+
+    await updateSettings({ providers: newProviders })
+  }
+
+  const handleToggleProvider = async (providerId: string, enabled: boolean) => {
+    const provider = settings?.providers[providerId]
+    if (!provider) return
+
+    const newProviders = {
+      ...settings?.providers,
+      [providerId]: {
+        ...provider,
+        enabled
+      }
+    }
+
+    await updateSettings({ providers: newProviders })
+  }
+
+  const handleResetToDefaults = async () => {
+    const newProviders = { ...settings?.providers }
+    
+    Object.entries(newProviders).forEach(([providerId, provider]) => {
+      if (provider.configured && provider.models) {
+        newProviders[providerId] = {
+          ...provider,
+          enabledModels: provider.models.slice(0, 3)
+        }
+      }
+    })
+
+    await updateSettings({ providers: newProviders })
+    addToast({
+      type: 'success',
+      title: 'Models Reset',
+      message: 'All providers now show their first 3 models by default',
+      duration: 3000
+    })
+  }
+
+  if (configuredProviders.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-12">
+          <div className="text-muted-foreground mb-4">
+            <svg className="mx-auto h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <p className="text-lg">No models available</p>
+            <p className="text-sm">Configure providers first to manage their models</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-medium">Model Visibility</h3>
+          <p className="text-sm text-muted-foreground">
+            Control which models appear in the model selector. By default, only the first 3 models per provider are shown.
+          </p>
+        </div>
+        <button
+          onClick={handleResetToDefaults}
+          className="px-4 py-2 bg-secondary hover:bg-accent rounded-lg transition-colors text-sm"
+        >
+          Reset to Defaults
+        </button>
+      </div>
+
+      <div className="space-y-6">
+        {configuredProviders.map(([providerId, provider]) => {
+          const providerName = providerId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+          const enabledModels = provider.enabledModels || provider.models.slice(0, 3)
+          const isProviderEnabled = provider.enabled !== false
+          const allEnabled = isProviderEnabled && enabledModels.length === provider.models.length
+          const someEnabled = isProviderEnabled && enabledModels.length > 0
+          const indeterminate = isProviderEnabled && someEnabled && !allEnabled
+
+          return (
+            <div key={providerId} className="border border-border rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isProviderEnabled}
+                      ref={(el) => {
+                        if (el) el.indeterminate = indeterminate
+                      }}
+                      onChange={(e) => handleToggleProvider(providerId, e.target.checked)}
+                      className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                    />
+                    <h4 className="font-medium">{providerName}</h4>
+                  </label>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {isProviderEnabled ? `${enabledModels.length} of ${provider.models.length} models` : 'Provider disabled'}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 pl-6">
+                {provider.models.map((model) => {
+                  const isModelEnabled = enabledModels.includes(model)
+                  const isInteractive = isProviderEnabled
+                  return (
+                    <label key={model} className={`flex items-center gap-2 ${isInteractive ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+                      <input
+                        type="checkbox"
+                        checked={isProviderEnabled && isModelEnabled}
+                        disabled={!isProviderEnabled}
+                        onChange={(e) => handleToggleModel(providerId, model, e.target.checked)}
+                        className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2 disabled:opacity-50"
+                      />
+                      <span className={`text-sm ${isProviderEnabled && isModelEnabled ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        {model}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

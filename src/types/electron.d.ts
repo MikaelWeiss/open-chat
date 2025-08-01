@@ -73,7 +73,9 @@ export interface Settings {
       apiKey: string
       endpoint: string
       models: string[]
+      enabledModels?: string[]
       configured: boolean
+      enabled?: boolean
       startCommand?: string
     }
   }
