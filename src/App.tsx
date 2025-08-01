@@ -39,6 +39,27 @@ function App() {
     loadSettings()
   }, [loadConversations, loadSettings])
 
+  // Global hotkey handler for new conversation
+  useEffect(() => {
+    const handleTriggerNewConversation = () => {
+      createConversation()
+    }
+
+    // @ts-ignore - electronAPI is available in Electron context
+    if (window.electronAPI?.app?.onTriggerNewConversation) {
+      // @ts-ignore
+      window.electronAPI.app.onTriggerNewConversation(handleTriggerNewConversation)
+    }
+
+    return () => {
+      // @ts-ignore
+      if (window.electronAPI?.app?.removeAppListeners) {
+        // @ts-ignore
+        window.electronAPI.app.removeAppListeners()
+      }
+    }
+  }, [createConversation])
+
   // Theme handling
   useEffect(() => {
     const applyTheme = (theme: string) => {

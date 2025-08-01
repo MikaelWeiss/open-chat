@@ -60,6 +60,14 @@ export interface ElectronAPI {
   shell: {
     openExternal: (url: string) => Promise<boolean>
   }
+  
+  app: {
+    onTriggerNewConversation: (callback: () => void) => void
+    removeAppListeners: () => void
+    updateGlobalShortcut: (shortcut: string) => Promise<boolean>
+    disableGlobalShortcut: () => Promise<void>
+    enableGlobalShortcut: () => Promise<void>
+  }
 }
 
 export interface Message {
@@ -109,6 +117,7 @@ export interface Settings {
   keyboard: {
     sendMessage: 'enter' | 'cmd-enter'
     newLine: string
+    globalHotkey: string
   }
   mcpServers: Array<{
     id: string

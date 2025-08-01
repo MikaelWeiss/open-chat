@@ -24,6 +24,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
   const modKey = isMac ? '⌘' : 'Ctrl'
   const sendKey = settings?.keyboard?.sendMessage || 'enter'
+  const globalHotkey = settings?.keyboard?.globalHotkey || 'Control+Space'
 
   // Dynamic message shortcuts based on setting
   const messageShortcuts = sendKey === 'cmd-enter' 
@@ -36,7 +37,44 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
         { keys: ['Shift', 'Enter'], description: 'New line in message' },
       ]
 
+  // Parse global hotkey string into key array
+  const parseGlobalHotkey = (hotkey: string): string[] => {
+    if (!hotkey || !hotkey.trim()) {
+      return ['None']
+    }
+    
+    return hotkey.split('+').map(key => {
+      // Convert key names to display format
+      switch (key.toLowerCase()) {
+        case 'control':
+        case 'ctrl':
+          return isMac ? '⌃' : 'Ctrl'
+        case 'command':
+        case 'cmd':
+          return '⌘'
+        case 'alt':
+          return isMac ? '⌥' : 'Alt'
+        case 'shift':
+          return isMac ? '⇧' : 'Shift'
+        case 'space':
+          return 'Space'
+        default:
+          return key.charAt(0).toUpperCase() + key.slice(1).toLowerCase()
+      }
+    })
+  }
+
+  const globalShortcutDescription = globalHotkey && globalHotkey.trim() 
+    ? 'Open app & start new chat (system-wide)'
+    : 'No global shortcut set'
+
   const shortcutCategories: ShortcutCategory[] = [
+    {
+      name: 'Global',
+      shortcuts: [
+        { keys: parseGlobalHotkey(globalHotkey), description: globalShortcutDescription },
+      ]
+    },
     {
       name: 'General',
       shortcuts: [

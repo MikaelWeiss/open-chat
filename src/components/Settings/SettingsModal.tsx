@@ -16,6 +16,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [theme, setTheme] = useState('system')
   const [sendKey, setSendKey] = useState('enter')
   const [showPricing, setShowPricing] = useState(false)
+  const [globalHotkey, setGlobalHotkey] = useState('')
 
   // Sync local state with settings store
   useEffect(() => {
@@ -23,6 +24,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setTheme(settings.theme || 'system')
       setSendKey(settings.keyboard?.sendMessage || 'enter')
       setShowPricing(settings.showPricing || false)
+      setGlobalHotkey(settings.keyboard?.globalHotkey ?? '')
     }
   }, [settings])
 
@@ -36,7 +38,19 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     await updateSettings({ 
       keyboard: { 
         newLine: settings?.keyboard?.newLine || 'shift+enter',
-        sendMessage: newSendKey as 'enter' | 'cmd-enter'
+        sendMessage: newSendKey as 'enter' | 'cmd-enter',
+        globalHotkey: settings?.keyboard?.globalHotkey ?? ''
+      } 
+    })
+  }
+
+  const handleGlobalHotkeyChange = async (newHotkey: string) => {
+    setGlobalHotkey(newHotkey)
+    await updateSettings({ 
+      keyboard: { 
+        newLine: settings?.keyboard?.newLine || 'shift+enter',
+        sendMessage: settings?.keyboard?.sendMessage || 'enter',
+        globalHotkey: newHotkey
       } 
     })
   }
@@ -96,7 +110,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
           {/* Tab Content */}
           <div className="flex-1 p-6 overflow-y-auto">
-            {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} showPricing={showPricing} setShowPricing={handleShowPricingChange} />}
+            {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} showPricing={showPricing} setShowPricing={handleShowPricingChange} globalHotkey={globalHotkey} setGlobalHotkey={handleGlobalHotkeyChange} />}
             {activeTab === 'models' && <ModelsSettings />}
             {activeTab === 'mcp' && <MCPSettings />}
           </div>
@@ -108,7 +122,174 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   )
 }
 
-function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, setShowPricing }: any) {
+function HotkeyCapture({ value, onChange, onClear }: { value: string, onChange: (hotkey: string) => void, onClear: () => void }) {
+  const [isCapturing, setIsCapturing] = useState(false)
+  const [capturedKeys, setCapturedKeys] = useState<string[]>([])
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (!isCapturing) return
+    
+    e.preventDefault()
+    e.stopPropagation()
+
+    const keys = []
+    if (e.ctrlKey) keys.push('Control')
+    if (e.metaKey) keys.push('Command')
+    if (e.altKey) keys.push('Alt')
+    if (e.shiftKey) keys.push('Shift')
+    
+    // Add the main key if it's not a modifier
+    if (!['Control', 'Meta', 'Alt', 'Shift'].includes(e.key)) {
+      if (e.key === ' ') {
+        keys.push('Space')
+      } else if (e.code.startsWith('Key')) {
+        // Use the code for letter keys to avoid special characters like œ
+        keys.push(e.code.replace('Key', ''))
+      } else if (e.key.length === 1) {
+        keys.push(e.key.toUpperCase())
+      } else {
+        keys.push(e.key)
+      }
+    }
+
+    if (keys.length > 0) {
+      setCapturedKeys(keys)
+      
+      // Auto-save if we have at least one modifier + one key
+      const modifiers = keys.filter(k => ['Control', 'Command', 'Alt', 'Shift'].includes(k))
+      const nonModifiers = keys.filter(k => !['Control', 'Command', 'Alt', 'Shift'].includes(k))
+      
+      if (modifiers.length > 0 && nonModifiers.length > 0) {
+        const hotkey = keys.join('+')
+        onChange(hotkey)
+        setIsCapturing(false)
+        setCapturedKeys([])
+        // Re-enable global shortcut after capture
+        // @ts-ignore
+        window.electronAPI?.app?.enableGlobalShortcut?.()
+      }
+    }
+  }
+
+  const handleKeyUp = (e: KeyboardEvent) => {
+    if (!isCapturing) return
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  useEffect(() => {
+    if (isCapturing) {
+      document.addEventListener('keydown', handleKeyDown, true)
+      document.addEventListener('keyup', handleKeyUp, true)
+      
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown, true)
+        document.removeEventListener('keyup', handleKeyUp, true)
+      }
+    }
+  }, [isCapturing])
+
+  const startCapture = async () => {
+    // Temporarily disable global shortcut during capture
+    // @ts-ignore
+    await window.electronAPI?.app?.disableGlobalShortcut?.()
+    setIsCapturing(true)
+    setCapturedKeys([])
+  }
+
+  const cancelCapture = async () => {
+    setIsCapturing(false)
+    setCapturedKeys([])
+    // Re-enable global shortcut
+    // @ts-ignore
+    await window.electronAPI?.app?.enableGlobalShortcut?.()
+  }
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onClear()
+  }
+
+  // Parse the display format similar to the image
+  const parseDisplayKeys = (hotkey: string) => {
+    if (!hotkey || !hotkey.trim()) return 'Not set'
+    
+    return hotkey.split('+').map(key => {
+      switch (key.toLowerCase()) {
+        case 'control':
+        case 'ctrl':
+          return '^'
+        case 'command':
+        case 'cmd':
+          return '⌘'
+        case 'alt':
+          return '⌥'
+        case 'shift':
+          return '⇧'
+        case 'space':
+          return 'Space'
+        default:
+          return key.charAt(0).toUpperCase() + key.slice(1).toLowerCase()
+      }
+    }).join(' ')
+  }
+
+  const displayValue = parseDisplayKeys(value)
+  const isCleared = !value || !value.trim()
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        onClick={startCapture}
+        disabled={isCapturing}
+        className={clsx(
+          "flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all min-w-[120px]",
+          isCapturing 
+            ? "bg-orange-500/10 border-orange-500 text-orange-600" 
+            : isCleared
+            ? "bg-secondary border-border text-muted-foreground hover:bg-accent"
+            : "bg-secondary border-orange-500 text-foreground hover:bg-accent"
+        )}
+      >
+        {isCapturing ? (
+          <span className="text-orange-600 text-sm">
+            {capturedKeys.length > 0 ? capturedKeys.join(' + ') : 'Press keys...'}
+          </span>
+        ) : (
+          <>
+            <span className="text-sm font-mono">
+              {displayValue}
+            </span>
+            {!isCleared && (
+              <X 
+                className="h-3 w-3 text-red-500 hover:text-red-600 cursor-pointer" 
+                onClick={handleClear}
+                title="Clear shortcut"
+              />
+            )}
+          </>
+        )}
+      </button>
+      
+      {isCapturing && (
+        <button
+          onClick={cancelCapture}
+          className="px-3 py-1 text-sm bg-secondary hover:bg-accent rounded-lg transition-colors"
+        >
+          Cancel
+        </button>
+      )}
+    </div>
+  )
+}
+
+function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, setShowPricing, globalHotkey, setGlobalHotkey }: any) {
+  const [, forceUpdate] = useState({})
+
+  const handleClearHotkey = () => {
+    setGlobalHotkey('')
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -156,6 +337,21 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, se
       <div>
         <h3 className="text-lg font-medium mb-4">Keyboard Shortcuts</h3>
         <div className="space-y-4">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <label className="text-sm font-medium">Global Hotkey</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                System-wide hotkey to open app and start new chat. Click to set, use X to clear.
+              </p>
+            </div>
+            <div className="ml-4">
+              <HotkeyCapture
+                value={globalHotkey}
+                onChange={setGlobalHotkey}
+                onClear={handleClearHotkey}
+              />
+            </div>
+          </div>
           <div>
             <label className="text-sm font-medium">Send Message</label>
             <select

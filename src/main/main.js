@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, shell, globalShortcut } = require('electron')
 const path = require('path')
 const fs = require('fs').promises
 const { ConversationManager } = require('./services/conversationManager')
@@ -11,6 +11,7 @@ const settingsManager = new SettingsManager()
 const llmManager = new LLMManager()
 
 let mainWindow
+let currentGlobalShortcut = null
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -35,6 +36,43 @@ function createWindow() {
     mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
+  }
+}
+
+function showAndFocusWindow() {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore()
+    }
+    mainWindow.show()
+    mainWindow.focus()
+    app.focus({ steal: true })
+    
+    // Trigger new conversation creation in the renderer
+    mainWindow.webContents.send('app:triggerNewConversation')
+  } else {
+    createWindow()
+  }
+}
+
+function registerGlobalShortcut(shortcut) {
+  // Unregister existing shortcut if any
+  if (currentGlobalShortcut) {
+    globalShortcut.unregister(currentGlobalShortcut)
+    currentGlobalShortcut = null
+  }
+  
+  // Register new shortcut if provided
+  if (shortcut && shortcut.trim()) {
+    const ret = globalShortcut.register(shortcut, () => {
+      showAndFocusWindow()
+    })
+
+    if (ret) {
+      currentGlobalShortcut = shortcut
+    } else {
+      currentGlobalShortcut = null
+    }
   }
 }
 
@@ -65,7 +103,36 @@ ipcMain.handle('settings:get', async () => {
 })
 
 ipcMain.handle('settings:update', async (event, settings) => {
-  return await settingsManager.updateSettings(settings)
+  const result = await settingsManager.updateSettings(settings)
+  
+  // Update global shortcut if keyboard settings changed
+  if (settings.keyboard && 'globalHotkey' in settings.keyboard) {
+    registerGlobalShortcut(settings.keyboard.globalHotkey)
+  }
+  
+  return result
+})
+
+// IPC Handler for updating global shortcut
+ipcMain.handle('app:updateGlobalShortcut', async (event, shortcut) => {
+  registerGlobalShortcut(shortcut)
+  return currentGlobalShortcut === shortcut
+})
+
+// IPC Handler for temporarily disabling global shortcut during capture
+ipcMain.handle('app:disableGlobalShortcut', async () => {
+  if (currentGlobalShortcut) {
+    globalShortcut.unregister(currentGlobalShortcut)
+  }
+})
+
+// IPC Handler for re-enabling global shortcut after capture
+ipcMain.handle('app:enableGlobalShortcut', async () => {
+  if (currentGlobalShortcut) {
+    const ret = globalShortcut.register(currentGlobalShortcut, () => {
+      showAndFocusWindow()
+    })
+  }
 })
 
 ipcMain.handle('settings:getCorruptionStatus', async () => {
@@ -180,14 +247,24 @@ ipcMain.handle('shell:openExternal', async (event, url) => {
     await shell.openExternal(url)
     return true
   } catch (error) {
-    console.error('Failed to open external URL:', error)
     return false
   }
 })
 
 // App lifecycle
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createWindow()
+
+  // Initialize settings and register global shortcut from settings
+  try {
+    await settingsManager.initialize()
+    const settings = await settingsManager.getSettings()
+    const globalHotkey = settings?.keyboard?.globalHotkey || ''
+    registerGlobalShortcut(globalHotkey)
+  } catch (error) {
+    // Fallback to default (no hotkey)
+    registerGlobalShortcut('')
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -200,6 +277,15 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('will-quit', () => {
+  // Unregister current global shortcut
+  if (currentGlobalShortcut) {
+    globalShortcut.unregister(currentGlobalShortcut)
+  }
+  // Unregister all global shortcuts as a fallback
+  globalShortcut.unregisterAll()
 })
 
 // Handle app initialization

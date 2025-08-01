@@ -65,7 +65,8 @@ class SettingsManager {
       },
       keyboard: {
         sendMessage: 'enter',
-        newLine: 'shift+enter'
+        newLine: 'shift+enter',
+        globalHotkey: ''
       },
       mcpServers: [
         { id: 'filesystem', name: 'Filesystem', enabled: false },

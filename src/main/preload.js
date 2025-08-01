@@ -68,5 +68,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Shell operations
   shell: {
     openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url)
+  },
+  
+  // App events
+  app: {
+    onTriggerNewConversation: (callback) => {
+      ipcRenderer.on('app:triggerNewConversation', () => callback())
+    },
+    removeAppListeners: () => {
+      ipcRenderer.removeAllListeners('app:triggerNewConversation')
+    },
+    updateGlobalShortcut: (shortcut) => ipcRenderer.invoke('app:updateGlobalShortcut', shortcut),
+    disableGlobalShortcut: () => ipcRenderer.invoke('app:disableGlobalShortcut'),
+    enableGlobalShortcut: () => ipcRenderer.invoke('app:enableGlobalShortcut')
   }
 })

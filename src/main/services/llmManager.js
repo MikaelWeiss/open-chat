@@ -151,7 +151,6 @@ class LLMManager {
       return data.data ? data.data.map(model => model.id) : []
       
     } catch (error) {
-      console.error(`Error fetching models for ${providerId}:`, error)
       throw error
     }
   }
