@@ -55,6 +55,23 @@ export interface ElectronAPI {
       base64: string
       mimeType: string
     } | null>
+    selectAudio: () => Promise<{
+      path: string
+      base64: string
+      mimeType: string
+    } | null>
+    selectFile: () => Promise<{
+      path: string
+      base64: string
+      mimeType: string
+      name: string
+    } | null>
+    selectFileByCapabilities: (capabilities?: ModelCapabilities) => Promise<{
+      path: string
+      base64: string
+      mimeType: string
+      name: string
+    } | null>
   }
   
   shell: {

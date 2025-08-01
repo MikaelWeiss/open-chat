@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { User, Bot, Loader2, Copy, Check } from 'lucide-react'
+import { User, Bot, Loader2, Copy, Check, FileText, Image, Volume2 } from 'lucide-react'
 import type { Message } from '@/types/electron'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
@@ -63,6 +63,42 @@ function CodeBlock({ children, className, isDark }: CodeBlockProps) {
       >
         {children}
       </SyntaxHighlighter>
+    </div>
+  )
+}
+
+function AttachmentDisplay({ attachments }: { attachments: Message['attachments'] }) {
+  if (!attachments || attachments.length === 0) return null
+
+  const getAttachmentIcon = (type: string) => {
+    switch (type) {
+      case 'image':
+        return Image
+      case 'audio':
+        return Volume2
+      default:
+        return FileText
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2 mb-3">
+      {attachments.map((attachment, index) => {
+        const Icon = getAttachmentIcon(attachment.type)
+        const fileName = attachment.path.split('/').pop() || 'Unknown file'
+        
+        return (
+          <div
+            key={index}
+            className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2 text-sm border border-border"
+          >
+            <Icon className="h-4 w-4 text-muted-foreground" />
+            <span className="truncate max-w-32" title={fileName}>
+              {fileName}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -191,6 +227,9 @@ export default function MessageList({ messages, isLoading = false, streamingMess
               </span>
               {/* Usage and cost are now shown in aggregate, not per message */}
             </div>
+            
+            {/* Show file attachments */}
+            <AttachmentDisplay attachments={message.attachments} />
             
             <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20">
               <ReactMarkdown

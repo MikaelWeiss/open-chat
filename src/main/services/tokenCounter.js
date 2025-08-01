@@ -77,7 +77,22 @@ class TokenCounter {
 
     for (const message of messages) {
       // Count tokens in the message content
-      totalTokens += this.countTokens(message.content || '', provider, model)
+      // Handle both string content and multimodal content (array of parts)
+      if (typeof message.content === 'string') {
+        totalTokens += this.countTokens(message.content || '', provider, model)
+      } else if (Array.isArray(message.content)) {
+        // For multimodal content, count tokens for text parts
+        for (const part of message.content) {
+          if (part.type === 'text' && part.text) {
+            totalTokens += this.countTokens(part.text, provider, model)
+          }
+          // For non-text parts (images, etc.), add a fixed overhead
+          // This is an approximation since different providers handle this differently
+          else if (part.type === 'image') {
+            totalTokens += 85 // Approximate token cost for image processing
+          }
+        }
+      }
       
       // Add overhead for message formatting
       // This varies by provider but we'll use OpenAI's approach as baseline

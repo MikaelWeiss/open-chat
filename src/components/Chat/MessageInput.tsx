@@ -1,10 +1,10 @@
-import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Send, Paperclip, Loader2, Square, Zap, DollarSign } from 'lucide-react'
+import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
+import { Send, Paperclip, Loader2, Square, Zap, DollarSign, X, FileText, Image, Volume2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useUsageStats } from '@/hooks/useUsageStats'
-import type { Message } from '@/types/electron'
+import type { Message, ModelCapabilities } from '@/types/electron'
 
 interface MessageInputProps {
   value: string
@@ -14,6 +14,7 @@ interface MessageInputProps {
   disabled?: boolean
   isLoading?: boolean
   messages?: Message[]
+  modelCapabilities?: ModelCapabilities
 }
 
 export interface MessageInputHandle {
@@ -21,10 +22,11 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ value, onChange, onSend, onCancel, disabled = false, isLoading = false, messages = [] }, ref) => {
+  ({ value, onChange, onSend, onCancel, disabled = false, isLoading = false, messages = [], modelCapabilities }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const { settings } = useSettingsStore()
     const { isStreaming, cancelStream } = useConversationStore()
+    const [attachments, setAttachments] = useState<FileAttachment[]>([])
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -73,7 +75,58 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       cancelStream()
       onCancel?.()
     } else {
-      onSend()
+      onSend(attachments.length > 0 ? attachments : undefined)
+      // Clear attachments after sending
+      setAttachments([])
+    }
+  }
+
+  const handleAttachFile = async () => {
+    if (disabled) return
+    
+    // This function should only be called when the button is visible (i.e., when capabilities exist)
+    // But we'll add a safety check just in case
+    const hasCapabilities = modelCapabilities?.vision || modelCapabilities?.audio || modelCapabilities?.files
+    if (!hasCapabilities) return
+    
+    try {
+      const result = await window.electronAPI.files.selectFileByCapabilities(modelCapabilities)
+      if (result) {
+        // Determine attachment type based on MIME type
+        let type: 'image' | 'audio' | 'file' = 'file'
+        if (result.mimeType.startsWith('image/')) {
+          type = 'image'
+        } else if (result.mimeType.startsWith('audio/')) {
+          type = 'audio'
+        }
+        
+        const attachment: FileAttachment = {
+          path: result.path,
+          base64: result.base64,
+          mimeType: result.mimeType,
+          name: result.name,
+          type
+        }
+        
+        setAttachments(prev => [...prev, attachment])
+      }
+    } catch (error) {
+      console.error('Failed to select file:', error)
+    }
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const getAttachmentIcon = (type: string) => {
+    switch (type) {
+      case 'image':
+        return Image
+      case 'audio':
+        return Volume2
+      default:
+        return FileText
     }
   }
 
@@ -81,19 +134,50 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
   return (
     <div className="border-t border-border p-4 min-w-0">
+      {/* File attachments preview */}
+      {attachments.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {attachments.map((attachment, index) => {
+            const Icon = getAttachmentIcon(attachment.type)
+            return (
+              <div
+                key={index}
+                className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2 text-sm border border-border"
+              >
+                <Icon className="h-4 w-4 text-muted-foreground" />
+                <span className="truncate max-w-32" title={attachment.name}>
+                  {attachment.name}
+                </span>
+                <button
+                  onClick={() => removeAttachment(index)}
+                  className="p-0.5 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors"
+                  title="Remove attachment"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      
       <div className="flex items-end gap-2 min-w-0">
-        <button
-          className={clsx(
-            'p-2 rounded-lg transition-all duration-200 hover:scale-105',
-            disabled 
-              ? 'text-muted-foreground cursor-not-allowed' 
-              : 'hover:bg-accent'
-          )}
-          title="Attach file"
-          disabled={disabled}
-        >
-          <Paperclip className="h-4 w-4" />
-        </button>
+        {/* Single attachment button with capability-based file filtering - only show if model has any attachment capabilities */}
+        {(modelCapabilities?.vision || modelCapabilities?.audio || modelCapabilities?.files) && (
+          <button
+            onClick={handleAttachFile}
+            className={clsx(
+              'p-2 rounded-lg transition-all duration-200 hover:scale-105',
+              disabled 
+                ? 'text-muted-foreground cursor-not-allowed' 
+                : 'hover:bg-accent'
+            )}
+            title="Attach file"
+            disabled={disabled}
+          >
+            <Paperclip className="h-4 w-4" />
+          </button>
+        )}
         
         <textarea
           ref={textareaRef}
@@ -120,10 +204,10 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         
         <button
           onClick={handleCancelOrSend}
-          disabled={disabled || (!isStreaming && (!value.trim() || isLoading))}
+          disabled={disabled || (!isStreaming && (!value.trim() && attachments.length === 0) || isLoading)}
           className={clsx(
             'p-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm',
-            disabled || (!isStreaming && (!value.trim() || isLoading))
+            disabled || (!isStreaming && (!value.trim() && attachments.length === 0) || isLoading)
               ? 'bg-secondary text-muted-foreground cursor-not-allowed'
               : isStreaming
                 ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:shadow-md'

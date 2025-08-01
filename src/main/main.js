@@ -282,8 +282,9 @@ ipcMain.handle('llm:calculateUsage', async (event, { provider, model, messages }
 })
 
 // IPC Handlers for File Operations
-ipcMain.handle('files:selectImage', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
+ipcMain.handle('files:selectImage', async (event) => {
+  const senderWindow = BrowserWindow.fromWebContents(event.sender)
+  const result = await dialog.showOpenDialog(senderWindow, {
     properties: ['openFile'],
     filters: [
       { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }
@@ -301,6 +302,242 @@ ipcMain.handle('files:selectImage', async () => {
       path: filePath,
       base64,
       mimeType
+    }
+  }
+  
+  return null
+})
+
+ipcMain.handle('files:selectAudio', async (event) => {
+  const senderWindow = BrowserWindow.fromWebContents(event.sender)
+  const result = await dialog.showOpenDialog(senderWindow, {
+    properties: ['openFile'],
+    filters: [
+      { name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac', 'webm'] }
+    ]
+  })
+  
+  if (!result.canceled && result.filePaths.length > 0) {
+    // Read file and return base64
+    const filePath = result.filePaths[0]
+    const fileData = await fs.readFile(filePath)
+    const base64 = fileData.toString('base64')
+    const ext = path.extname(filePath).slice(1).toLowerCase()
+    const mimeType = `audio/${ext === 'm4a' ? 'mp4' : ext}`
+    
+    return {
+      path: filePath,
+      base64,
+      mimeType
+    }
+  }
+  
+  return null
+})
+
+ipcMain.handle('files:selectFile', async (event) => {
+  const senderWindow = BrowserWindow.fromWebContents(event.sender)
+  const result = await dialog.showOpenDialog(senderWindow, {
+    properties: ['openFile'],
+    filters: [
+      { name: 'All Files', extensions: ['*'] },
+      { name: 'Documents', extensions: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'] },
+      { name: 'Spreadsheets', extensions: ['xls', 'xlsx', 'csv', 'ods'] },
+      { name: 'Presentations', extensions: ['ppt', 'pptx', 'odp'] },
+      { name: 'Code', extensions: ['js', 'ts', 'py', 'java', 'cpp', 'c', 'h', 'css', 'html', 'json', 'xml', 'yaml', 'yml'] }
+    ]
+  })
+  
+  if (!result.canceled && result.filePaths.length > 0) {
+    // Read file and return base64
+    const filePath = result.filePaths[0]
+    const fileData = await fs.readFile(filePath)
+    const base64 = fileData.toString('base64')
+    const ext = path.extname(filePath).slice(1).toLowerCase()
+    
+    // Determine MIME type based on extension
+    let mimeType = 'application/octet-stream' // default
+    const fileName = path.basename(filePath)
+    
+    // Common MIME types
+    const mimeTypes = {
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'txt': 'text/plain',
+      'rtf': 'application/rtf',
+      'odt': 'application/vnd.oasis.opendocument.text',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'csv': 'text/csv',
+      'ods': 'application/vnd.oasis.opendocument.spreadsheet',
+      'ppt': 'application/vnd.ms-powerpoint',
+      'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'odp': 'application/vnd.oasis.opendocument.presentation',
+      'js': 'text/javascript',
+      'ts': 'text/typescript',
+      'py': 'text/x-python',
+      'java': 'text/x-java-source',
+      'cpp': 'text/x-c++src',
+      'c': 'text/x-csrc',
+      'h': 'text/x-chdr',
+      'css': 'text/css',
+      'html': 'text/html',
+      'json': 'application/json',
+      'xml': 'application/xml',
+      'yaml': 'application/yaml',
+      'yml': 'application/yaml'
+    }
+    
+    if (mimeTypes[ext]) {
+      mimeType = mimeTypes[ext]
+    }
+    
+    return {
+      path: filePath,
+      base64,
+      mimeType,
+      name: fileName
+    }
+  }
+  
+  return null
+})
+
+ipcMain.handle('files:selectFileByCapabilities', async (event, capabilities) => {
+  // Build file filters based on model capabilities
+  const filters = []
+  const extensions = []
+  
+  if (capabilities?.vision) {
+    extensions.push('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg')
+  }
+  
+  if (capabilities?.audio) {
+    extensions.push('mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac', 'webm')
+  }
+  
+  if (capabilities?.files) {
+    // Add common document and code file extensions
+    extensions.push(
+      'pdf', 'doc', 'docx', 'txt', 'rtf', 'odt',
+      'xls', 'xlsx', 'csv', 'ods',
+      'ppt', 'pptx', 'odp',
+      'js', 'ts', 'py', 'java', 'cpp', 'c', 'h', 'css', 'html', 'json', 'xml', 'yaml', 'yml'
+    )
+  }
+  
+  // If no capabilities, return null
+  if (extensions.length === 0) {
+    return null
+  }
+  
+  // Create filter groups
+  // Always show "All Supported Files" if there are any supported extensions
+  if (extensions.length > 0) {
+    filters.push({ name: 'All Supported Files', extensions })
+  }
+  
+  if (capabilities?.vision) {
+    filters.push({ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'] })
+  }
+  
+  if (capabilities?.audio) {
+    filters.push({ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac', 'webm'] })
+  }
+  
+  if (capabilities?.files) {
+    filters.push(
+      { name: 'Documents', extensions: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'] },
+      { name: 'Spreadsheets', extensions: ['xls', 'xlsx', 'csv', 'ods'] },
+      { name: 'Presentations', extensions: ['ppt', 'pptx', 'odp'] },
+      { name: 'Code', extensions: ['js', 'ts', 'py', 'java', 'cpp', 'c', 'h', 'css', 'html', 'json', 'xml', 'yaml', 'yml'] }
+    )
+  }
+  
+  const senderWindow = BrowserWindow.fromWebContents(event.sender)
+  const result = await dialog.showOpenDialog(senderWindow, {
+    properties: ['openFile'],
+    filters
+  })
+  
+  if (!result.canceled && result.filePaths.length > 0) {
+    // Read file and return base64
+    const filePath = result.filePaths[0]
+    const fileData = await fs.readFile(filePath)
+    const base64 = fileData.toString('base64')
+    const ext = path.extname(filePath).slice(1).toLowerCase()
+    const fileName = path.basename(filePath)
+    
+    // Determine MIME type based on extension
+    let mimeType = 'application/octet-stream' // default
+    
+    // Image MIME types
+    const imageMimeTypes = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'bmp': 'image/bmp',
+      'svg': 'image/svg+xml'
+    }
+    
+    // Audio MIME types
+    const audioMimeTypes = {
+      'mp3': 'audio/mpeg',
+      'wav': 'audio/wav',
+      'ogg': 'audio/ogg',
+      'aac': 'audio/aac',
+      'm4a': 'audio/mp4',
+      'flac': 'audio/flac',
+      'webm': 'audio/webm'
+    }
+    
+    // Document MIME types
+    const documentMimeTypes = {
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'txt': 'text/plain',
+      'rtf': 'application/rtf',
+      'odt': 'application/vnd.oasis.opendocument.text',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'csv': 'text/csv',
+      'ods': 'application/vnd.oasis.opendocument.spreadsheet',
+      'ppt': 'application/vnd.ms-powerpoint',
+      'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'odp': 'application/vnd.oasis.opendocument.presentation',
+      'js': 'text/javascript',
+      'ts': 'text/typescript',
+      'py': 'text/x-python',
+      'java': 'text/x-java-source',
+      'cpp': 'text/x-c++src',
+      'c': 'text/x-csrc',
+      'h': 'text/x-chdr',
+      'css': 'text/css',
+      'html': 'text/html',
+      'json': 'application/json',
+      'xml': 'application/xml',
+      'yaml': 'application/yaml',
+      'yml': 'application/yaml'
+    }
+    
+    // Try to find MIME type
+    if (imageMimeTypes[ext]) {
+      mimeType = imageMimeTypes[ext]
+    } else if (audioMimeTypes[ext]) {
+      mimeType = audioMimeTypes[ext]
+    } else if (documentMimeTypes[ext]) {
+      mimeType = documentMimeTypes[ext]
+    }
+    
+    return {
+      path: filePath,
+      base64,
+      mimeType,
+      name: fileName
     }
   }
   

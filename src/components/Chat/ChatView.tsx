@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Send, Paperclip, ChevronDown, Settings } from 'lucide-react'
+import { Send, Paperclip, ChevronDown, Settings, Eye, Volume2, FileText } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
-import type { Conversation } from '@/types/electron'
+import type { Conversation, ModelCapabilities } from '@/types/electron'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useSettingsStore, useToastStore } from '@/stores/settingsStore'
 import clsx from 'clsx'
@@ -11,6 +11,59 @@ interface ChatViewProps {
   conversation: Conversation | null
   sidebarOpen: boolean
   onOpenSettings?: () => void
+}
+
+interface ModelCapabilityIconsProps {
+  capabilities?: ModelCapabilities
+  className?: string
+}
+
+function ModelCapabilityIcons({ capabilities, className = '' }: ModelCapabilityIconsProps) {
+  if (!capabilities) return null
+
+  const capabilityItems = [
+    {
+      key: 'vision' as const,
+      icon: Eye,
+      enabled: capabilities.vision,
+      color: 'text-blue-500 dark:text-blue-400',
+      grayColor: 'text-gray-400 dark:text-gray-600',
+      title: 'Vision/Images'
+    },
+    {
+      key: 'audio' as const,
+      icon: Volume2,
+      enabled: capabilities.audio,
+      color: 'text-green-500 dark:text-green-400',
+      grayColor: 'text-gray-400 dark:text-gray-600',
+      title: 'Audio Input'
+    },
+    {
+      key: 'files' as const,
+      icon: FileText,
+      enabled: capabilities.files,
+      color: 'text-orange-500 dark:text-orange-400',
+      grayColor: 'text-gray-400 dark:text-gray-600',
+      title: 'File Input'
+    }
+  ]
+
+  return (
+    <div className={`flex items-center gap-1 ${className}`}>
+      {capabilityItems.map(({ key, icon: Icon, enabled, color, grayColor, title }) => (
+        <div
+          key={key}
+          className={clsx(
+            "w-3 h-3 transition-colors",
+            enabled ? color : grayColor
+          )}
+          title={title}
+        >
+          <Icon className="w-3 h-3" />
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export interface ChatViewHandle {
@@ -39,7 +92,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   const availableModels = React.useMemo(() => {
     if (!settings?.providers) return []
     
-    const models: Array<{provider: string, model: string, providerName: string}> = []
+    const models: Array<{provider: string, model: string, providerName: string, capabilities?: ModelCapabilities}> = []
     Object.entries(settings.providers).forEach(([providerId, provider]) => {
       if (provider.configured && provider.models && (provider.enabled !== false)) {
         // Filter models based on enabled models setting
@@ -49,7 +102,8 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
             models.push({
               provider: providerId,
               model,
-              providerName: providerId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+              providerName: providerId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              capabilities: provider.modelCapabilities?.[model]
             })
           }
         })
@@ -60,7 +114,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
 
   // Group models by provider for display
   const modelsByProvider = React.useMemo(() => {
-    const grouped: Record<string, Array<{provider: string, model: string, providerName: string}>> = {}
+    const grouped: Record<string, Array<{provider: string, model: string, providerName: string, capabilities?: ModelCapabilities}>> = {}
     availableModels.forEach(model => {
       if (!grouped[model.providerName]) {
         grouped[model.providerName] = []
@@ -69,7 +123,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
     })
     
     // Sort providers alphabetically
-    const sortedProviders: Record<string, Array<{provider: string, model: string, providerName: string}>> = {}
+    const sortedProviders: Record<string, Array<{provider: string, model: string, providerName: string, capabilities?: ModelCapabilities}>> = {}
     Object.keys(grouped)
       .sort((a, b) => a.localeCompare(b))
       .forEach(providerName => {
@@ -176,8 +230,8 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
     }
   }, [streamingMessage, conversation, addMessage, addToast, setStreaming, isLoading])
 
-  const handleSend = async () => {
-    if (!message.trim() || isLoading) return
+  const handleSend = async (attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => {
+    if ((!message.trim() && !attachments?.length) || isLoading) return
     
     // Require a model to be selected
     if (!selectedModel || !selectedModel.model) {
@@ -213,10 +267,15 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       
       const userMessage = message.trim()
       
-      // Add user message to conversation
+      // Add user message to conversation with attachments
       await addMessage(currentConversation.id, {
         role: 'user',
-        content: userMessage
+        content: userMessage,
+        attachments: attachments?.map(att => ({
+          type: att.type,
+          path: att.path,
+          mimeType: att.mimeType
+        }))
       })
       setMessage('')
       
@@ -225,10 +284,106 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       if (!updatedConversation) return
       
       // Prepare messages for LLM (convert to the format expected by the API)
-      const llmMessages = updatedConversation.messages.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }))
+      const llmMessages = updatedConversation.messages.map(msg => {
+        let content = msg.content
+        
+        // For the user message we just added, include file content if there are attachments
+        if (msg.role === 'user' && attachments?.length && msg === updatedConversation.messages[updatedConversation.messages.length - 1]) {
+          // Create multimodal content for the latest user message with attachments
+          const contentParts = []
+          
+          // Add text content if present
+          if (content.trim()) {
+            contentParts.push({
+              type: 'text',
+              text: content
+            })
+          }
+          
+          // Add file attachments
+          attachments.forEach(attachment => {
+            if (attachment.type === 'image') {
+              contentParts.push({
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: attachment.mimeType,
+                  data: attachment.base64
+                }
+              })
+            } else if (attachment.type === 'audio') {
+              // For audio files, add as text description for now
+              // Different providers handle audio differently
+              contentParts.push({
+                type: 'text',
+                text: `[Audio file: ${attachment.name}]`
+              })
+            } else {
+              // Handle different file types
+              if (attachment.mimeType.startsWith('text/') || 
+                  attachment.mimeType === 'application/json' ||
+                  attachment.mimeType === 'application/javascript' ||
+                  attachment.mimeType === 'application/xml') {
+                // Text-based files - decode and include content
+                try {
+                  const fileContent = atob(attachment.base64)
+                  contentParts.push({
+                    type: 'text',
+                    text: `File: ${attachment.name}\n\`\`\`\n${fileContent}\n\`\`\``
+                  })
+                } catch (e) {
+                  contentParts.push({
+                    type: 'text',
+                    text: `[File: ${attachment.name} - Unable to decode content]`
+                  })
+                }
+              } else if (attachment.mimeType === 'application/pdf') {
+                // PDF files - send as base64 using Anthropic's document format
+                // This works with Claude and other models that support PDF processing
+                contentParts.push({
+                  type: 'document',
+                  source: {
+                    type: 'base64',
+                    media_type: attachment.mimeType,
+                    data: attachment.base64
+                  }
+                })
+              } else if (attachment.mimeType.includes('document') ||
+                        attachment.mimeType.includes('spreadsheet') ||
+                        attachment.mimeType.includes('presentation') ||
+                        attachment.mimeType.includes('officedocument')) {
+                // Other document files - provide better description and offer to process
+                contentParts.push({
+                  type: 'text',
+                  text: `I've received a document file: ${attachment.name} (${attachment.mimeType}). This appears to be a ${
+                    attachment.mimeType.includes('spreadsheet') ? 'spreadsheet' :
+                    attachment.mimeType.includes('presentation') ? 'presentation' :
+                    'document'
+                  } file. Please let me know if you'd like me to help you with anything specific about this file.`
+                })
+              } else {
+                // Other binary files - show as placeholder
+                contentParts.push({
+                  type: 'text',
+                  text: `[File: ${attachment.name} - Binary file not displayed]`
+                })
+              }
+            }
+          })
+          
+          return {
+            role: msg.role,
+            content: contentParts.length === 1 && contentParts[0].type === 'text' 
+              ? contentParts[0].text 
+              : contentParts
+          }
+        }
+        
+        return {
+          role: msg.role,
+          content: content
+        }
+      })
       
       // Reset streaming message for new response
       setStreamingMessage('')
@@ -399,7 +554,10 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
                                   : ''
                               )}
                             >
-                              <div className="font-medium text-sm">{model.model}</div>
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-sm">{model.model}</div>
+                                <ModelCapabilityIcons capabilities={model.capabilities} />
+                              </div>
                             </button>
                           ))}
                         </div>
@@ -429,6 +587,11 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         disabled={availableModels.length === 0 || !selectedModel || !selectedModel.model || isLoading}
         isLoading={isLoading}
         messages={conversation.messages}
+        modelCapabilities={
+          selectedModel 
+            ? settings?.providers[selectedModel.provider]?.modelCapabilities?.[selectedModel.model]
+            : undefined
+        }
       />
     </div>
   )

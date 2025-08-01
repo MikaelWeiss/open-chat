@@ -62,7 +62,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // File operations
   files: {
-    selectImage: () => ipcRenderer.invoke('files:selectImage')
+    selectImage: () => ipcRenderer.invoke('files:selectImage'),
+    selectAudio: () => ipcRenderer.invoke('files:selectAudio'),
+    selectFile: () => ipcRenderer.invoke('files:selectFile'),
+    selectFileByCapabilities: (capabilities) => ipcRenderer.invoke('files:selectFileByCapabilities', capabilities)
   },
   
   // Shell operations
