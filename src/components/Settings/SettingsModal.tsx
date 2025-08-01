@@ -1,11 +1,98 @@
-import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import clsx from 'clsx'
 import { useSettingsStore, useToastStore } from '../../stores/settingsStore'
+import type { ModelCapabilities } from '../../types/electron'
 
 interface SettingsModalProps {
   isOpen: boolean
   onClose: () => void
+}
+
+interface ModelCapabilityIconsProps {
+  capabilities?: ModelCapabilities
+  className?: string
+  modelId?: string
+  providerId?: string
+  onCapabilityToggle?: (modelId: string, providerId: string, capability: 'vision' | 'audio' | 'files', enabled: boolean) => void
+}
+
+function ModelCapabilityIcons({ 
+  capabilities, 
+  className = '', 
+  modelId, 
+  providerId, 
+  onCapabilityToggle 
+}: ModelCapabilityIconsProps) {
+  const [isHovered, setIsHovered] = useState(false)
+  
+  if (!capabilities) return null
+
+  const handleCapabilityClick = (capability: 'vision' | 'audio' | 'files') => {
+    if (modelId && providerId && onCapabilityToggle) {
+      const currentValue = capabilities[capability]
+      onCapabilityToggle(modelId, providerId, capability, !currentValue)
+    }
+  }
+
+  const capabilityItems = [
+    {
+      key: 'vision' as const,
+      icon: Eye,
+      enabled: capabilities.vision,
+      color: 'text-blue-500 dark:text-blue-400',
+      grayColor: 'text-gray-400 dark:text-gray-600',
+      title: 'Vision/Images'
+    },
+    {
+      key: 'audio' as const,
+      icon: Volume2,
+      enabled: capabilities.audio,
+      color: 'text-green-500 dark:text-green-400',
+      grayColor: 'text-gray-400 dark:text-gray-600',
+      title: 'Audio Input'
+    },
+    {
+      key: 'files' as const,
+      icon: FileText,
+      enabled: capabilities.files,
+      color: 'text-orange-500 dark:text-orange-400',
+      grayColor: 'text-gray-400 dark:text-gray-600',
+      title: 'File Input'
+    }
+  ]
+
+  return (
+    <div 
+      className={`flex items-center gap-1 ${className}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {capabilityItems.map(({ key, icon: Icon, enabled, color, grayColor, title }) => {
+        const shouldShow = enabled || isHovered
+        const isClickable = modelId && providerId && onCapabilityToggle
+        const isManualOverride = capabilities.manualOverrides?.[key] !== undefined
+        
+        if (!shouldShow) return null
+        
+        return (
+          <div
+            key={key}
+            className={clsx(
+              "w-4 h-4 transition-colors",
+              enabled ? color : grayColor,
+              isClickable && "cursor-pointer hover:scale-110",
+              isManualOverride && "ring-1 ring-yellow-400 ring-opacity-50 rounded-sm"
+            )}
+            title={`${title}${isManualOverride ? ' (manually set)' : ''}${isClickable ? ' - Click to toggle' : ''}`}
+            onClick={() => isClickable && handleCapabilityClick(key)}
+          >
+            <Icon className="w-4 h-4" />
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
@@ -1092,6 +1179,7 @@ function ModelsSettings() {
   const [showApiKeyModal, setShowApiKeyModal] = useState<string | null>(null)
   const [newApiKey, setNewApiKey] = useState('')
   const [testingProvider, setTestingProvider] = useState<string | null>(null)
+  const [refreshingProvider, setRefreshingProvider] = useState<string | null>(null)
   const [confirmRemoveProvider, setConfirmRemoveProvider] = useState<string | null>(null)
   const [showAddProvider, setShowAddProvider] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
@@ -1322,6 +1410,7 @@ function ModelsSettings() {
   }
 
   const handleRefreshModels = async (providerId: string) => {
+    setRefreshingProvider(providerId)
     try {
       const models = await window.electronAPI.llm.fetchModels(providerId)
       const updatedSettings = await window.electronAPI.settings.get()
@@ -1344,11 +1433,43 @@ function ModelsSettings() {
       console.error('Failed to fetch models:', error)
       addToast({
         type: 'error',
-        title: 'Failed to fetch models',
-        message: error.message,
+        title: 'Failed to Refresh Models',
+        message: `Could not fetch models and capabilities: ${error.message}`,
         duration: 5000
       })
+    } finally {
+      setRefreshingProvider(null)
     }
+  }
+
+  const handleCapabilityToggle = async (modelId: string, providerId: string, capability: 'vision' | 'audio' | 'files', enabled: boolean) => {
+    const provider = settings?.providers[providerId]
+    if (!provider?.modelCapabilities) return
+
+    const currentCapabilities = provider.modelCapabilities[modelId]
+    if (!currentCapabilities) return
+
+    const updatedCapabilities = {
+      ...currentCapabilities,
+      [capability]: enabled,
+      manualOverrides: {
+        ...currentCapabilities.manualOverrides,
+        [capability]: enabled
+      }
+    }
+
+    const newProviders = {
+      ...settings.providers,
+      [providerId]: {
+        ...provider,
+        modelCapabilities: {
+          ...provider.modelCapabilities,
+          [modelId]: updatedCapabilities
+        }
+      }
+    }
+
+    await updateSettings({ providers: newProviders })
   }
 
   const handleToggleModel = async (providerId: string, modelName: string, enabled: boolean) => {
@@ -1590,6 +1711,25 @@ function ModelsSettings() {
         </div>
       ) : (
         <div className="space-y-4">
+          {/* Capability Legend */}
+          <div className="p-3 bg-secondary/30 rounded-lg border border-border">
+            <h4 className="text-sm font-medium mb-2">Model Capabilities</h4>
+            <div className="flex flex-wrap gap-4 text-xs">
+              <div className="flex items-center gap-1">
+                <Eye className="w-3 h-3 text-blue-500" />
+                <span>Vision</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Volume2 className="w-3 h-3 text-green-500" />
+                <span>Audio</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <FileText className="w-3 h-3 text-orange-500" />
+                <span>Files</span>
+              </div>
+            </div>
+          </div>
+
           {providers.map(providerId => {
             const providerModels = modelsByProvider[providerId] || []
             const isExpanded = expandedProviders.has(providerId)
@@ -1625,12 +1765,12 @@ function ModelsSettings() {
 
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleTestProvider(providerId)}
-                        disabled={testingProvider === providerId}
+                        onClick={() => handleRefreshModels(providerId)}
+                        disabled={refreshingProvider === providerId}
                         className="p-2 hover:bg-accent rounded transition-colors disabled:opacity-50"
-                        title="Test connection"
+                        title="Refresh models and capabilities"
                       >
-                        <RefreshCw className={clsx("h-4 w-4", testingProvider === providerId && "animate-spin")} />
+                        <RefreshCw className={clsx("h-4 w-4", refreshingProvider === providerId && "animate-spin")} />
                       </button>
                       
                       <button
@@ -1649,22 +1789,31 @@ function ModelsSettings() {
                   {isExpanded && (
                     <div className="mt-4 pl-8 space-y-2">
                       {hasModels ? (
-                        providerModels.map(model => (
-                          <div key={model.id} className="flex items-center gap-2 p-2 bg-secondary/50 rounded">
-                            <input
-                              type="checkbox"
-                              checked={model.enabled}
-                              onChange={(e) => handleToggleModel(providerId, model.name, e.target.checked)}
-                              className="rounded"
-                            />
-                            <span className="text-sm">{model.name}</span>
-                            {model.manuallyAdded && (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 text-xs rounded">
-                                Manual
-                              </span>
-                            )}
-                          </div>
-                        ))
+                        providerModels.map(model => {
+                          const capabilities = provider?.modelCapabilities?.[model.name]
+                          return (
+                            <div key={model.id} className="flex items-center gap-2 p-2 bg-secondary/50 rounded">
+                              <input
+                                type="checkbox"
+                                checked={model.enabled}
+                                onChange={(e) => handleToggleModel(providerId, model.name, e.target.checked)}
+                                className="rounded"
+                              />
+                              <span className="text-sm flex-1">{model.name}</span>
+                              <ModelCapabilityIcons 
+                                capabilities={capabilities} 
+                                modelId={model.name}
+                                providerId={providerId}
+                                onCapabilityToggle={handleCapabilityToggle}
+                              />
+                              {model.manuallyAdded && (
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 text-xs rounded">
+                                  Manual
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })
                       ) : (
                         <div className="text-sm text-muted-foreground">
                           No models found. Click the refresh button to fetch models.
@@ -1759,8 +1908,10 @@ function ModelsSettings() {
                       setShowApiKeyModal(null)
                       setNewApiKey('')
                     }}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-                    Save
+                    disabled={refreshingProvider === showApiKeyModal}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2">
+                    {refreshingProvider === showApiKeyModal && <RefreshCw className="h-3 w-3 animate-spin" />}
+                    Save & Refresh
                   </button>
                 </div>
               </div>

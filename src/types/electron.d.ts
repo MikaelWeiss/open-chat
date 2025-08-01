@@ -99,6 +99,21 @@ export interface Conversation {
   isTemporary?: boolean
 }
 
+export interface ModelCapabilities {
+  vision: boolean
+  audio: boolean
+  files: boolean
+  multimodal: boolean
+  description?: string | null
+  contextLength?: number | null
+  // Track which capabilities were manually overridden by user
+  manualOverrides?: {
+    vision?: boolean
+    audio?: boolean
+    files?: boolean
+  }
+}
+
 export interface Settings {
   theme: 'system' | 'light' | 'dark'
   defaultProvider: string
@@ -112,6 +127,8 @@ export interface Settings {
       configured: boolean
       enabled?: boolean
       startCommand?: string
+      modelCapabilities?: { [modelId: string]: ModelCapabilities }
+      lastCapabilityUpdate?: string
     }
   }
   keyboard: {
