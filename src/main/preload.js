@@ -75,11 +75,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onTriggerNewConversation: (callback) => {
       ipcRenderer.on('app:triggerNewConversation', () => callback())
     },
+    onConversationUpdated: (callback) => {
+      ipcRenderer.on('conversation:updated', (event, data) => callback(data))
+    },
     removeAppListeners: () => {
       ipcRenderer.removeAllListeners('app:triggerNewConversation')
+      ipcRenderer.removeAllListeners('conversation:updated')
     },
     updateGlobalShortcut: (shortcut) => ipcRenderer.invoke('app:updateGlobalShortcut', shortcut),
     disableGlobalShortcut: () => ipcRenderer.invoke('app:disableGlobalShortcut'),
-    enableGlobalShortcut: () => ipcRenderer.invoke('app:enableGlobalShortcut')
+    enableGlobalShortcut: () => ipcRenderer.invoke('app:enableGlobalShortcut'),
+    hideQuickChat: () => ipcRenderer.invoke('app:hideQuickChat')
   }
 })

@@ -1,36 +1,22 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import Sidebar from './components/Sidebar/Sidebar'
+import { useState, useEffect, useRef } from 'react'
 import ChatView, { ChatViewHandle } from './components/Chat/ChatView'
-import SettingsModal from './components/Settings/SettingsModal'
-import SettingsErrorModal from './components/Settings/SettingsErrorModal'
-import ShortcutsModal from './components/Shortcuts/ShortcutsModal'
 import ToastContainer from './components/Toast/Toast'
 import { useConversationStore } from './stores/conversationStore'
 import { useSettingsStore } from './stores/settingsStore'
 
-function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [sidebarWidth, setSidebarWidth] = useState(320) // Default 320px (80 * 4)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+function QuickChatApp() {
   const chatViewRef = useRef<ChatViewHandle>(null)
   
   const { 
-    conversations, 
+    conversations,
     selectedConversation, 
-    loadConversations, 
-    selectConversation,
-    createConversation,
-    deleteConversation
+    loadConversations,
+    createConversation
   } = useConversationStore()
   
   const { 
     settings, 
-    corruptionStatus, 
-    loadSettings, 
-    resetSettings, 
-    openSettingsInEditor,
-    reloadSettings
+    loadSettings
   } = useSettingsStore()
 
   useEffect(() => {
@@ -39,26 +25,18 @@ function App() {
     loadSettings()
   }, [loadConversations, loadSettings])
 
-  // Global hotkey handler for new conversation
+  // Create a conversation on mount if none exists
   useEffect(() => {
-    const handleTriggerNewConversation = () => {
+    if (conversations.length === 0) {
       createConversation()
+    } else if (!selectedConversation) {
+      // Select the most recent conversation
+      const mostRecent = conversations.reduce((prev, current) => 
+        new Date(current.updatedAt) > new Date(prev.updatedAt) ? current : prev
+      )
+      useConversationStore.getState().selectConversation(mostRecent)
     }
-
-    // @ts-ignore - electronAPI is available in Electron context
-    if (window.electronAPI?.app?.onTriggerNewConversation) {
-      // @ts-ignore
-      window.electronAPI.app.onTriggerNewConversation(handleTriggerNewConversation)
-    }
-
-    return () => {
-      // @ts-ignore
-      if (window.electronAPI?.app?.removeAppListeners) {
-        // @ts-ignore
-        window.electronAPI.app.removeAppListeners()
-      }
-    }
-  }, [createConversation])
+  }, [conversations, selectedConversation, createConversation])
 
   // Listen for conversation updates from other windows
   useEffect(() => {
@@ -103,7 +81,11 @@ function App() {
     }
 
     return () => {
-      // Cleanup is handled by removeAppListeners
+      // @ts-ignore
+      if (window.electronAPI?.app?.removeAppListeners) {
+        // @ts-ignore
+        window.electronAPI.app.removeAppListeners()
+      }
     }
   }, [loadConversations, selectedConversation?.id])
 
@@ -159,91 +141,29 @@ function App() {
         createConversation()
       }
       
-      // Cmd/Ctrl + T - New chat (alternative)
-      if (isCtrlOrCmd && e.key === 't') {
-        e.preventDefault()
-        createConversation()
-      }
-      
-      // Cmd/Ctrl + , - Toggle Settings
-      if (isCtrlOrCmd && e.key === ',') {
-        e.preventDefault()
-        setSettingsOpen(!settingsOpen)
-      }
-      
-      // Cmd/Ctrl + / - Keyboard shortcuts
-      if (isCtrlOrCmd && e.key === '/') {
-        e.preventDefault()
-        setShortcutsOpen(true)
-      }
-      
       // Cmd/Ctrl + L - Focus input field
       if (isCtrlOrCmd && e.key === 'l') {
         e.preventDefault()
         chatViewRef.current?.focusInput()
       }
       
-      // Cmd/Ctrl + S - Toggle sidebar
-      if (isCtrlOrCmd && e.key === 's') {
-        e.preventDefault()
-        setSidebarOpen(!sidebarOpen)
-      }
-      
-      // ESC - Close modals
+      // ESC - Hide window
       if (e.key === 'Escape') {
-        if (settingsOpen) {
-          e.preventDefault()
-          setSettingsOpen(false)
-        } else if (shortcutsOpen) {
-          e.preventDefault()
-          setShortcutsOpen(false)
-        }
+        // Send message to main process to hide the window
+        window.electronAPI?.app?.hideQuickChat?.()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [createConversation, settingsOpen, shortcutsOpen, sidebarOpen])
+  }, [createConversation])
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      <Sidebar
-        isOpen={sidebarOpen}
-        width={sidebarWidth}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-        onWidthChange={setSidebarWidth}
-        conversations={conversations}
-        selectedConversation={selectedConversation}
-        onSelectConversation={selectConversation}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onNewConversation={createConversation}
-        onDeleteConversation={deleteConversation}
-      />
-      
+    <div className="flex h-screen bg-background text-foreground quick-chat-window">
       <ChatView
         ref={chatViewRef}
         conversation={selectedConversation}
-        sidebarOpen={sidebarOpen}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
-
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
-
-      <ShortcutsModal
-        isOpen={shortcutsOpen}
-        onClose={() => setShortcutsOpen(false)}
-      />
-
-      <SettingsErrorModal
-        isOpen={corruptionStatus?.corrupted || false}
-        onClose={() => {}} // Don't allow closing this modal - they must fix the issue
-        corruptionStatus={corruptionStatus || { corrupted: false, error: null, settingsPath: '' }}
-        onReset={resetSettings}
-        onOpenInEditor={openSettingsInEditor}
-        onRefresh={reloadSettings}
+        sidebarOpen={false}
       />
 
       <ToastContainer />
@@ -251,4 +171,4 @@ function App() {
   )
 }
 
-export default App
+export default QuickChatApp

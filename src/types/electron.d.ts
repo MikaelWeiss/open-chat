@@ -63,10 +63,12 @@ export interface ElectronAPI {
   
   app: {
     onTriggerNewConversation: (callback: () => void) => void
+    onConversationUpdated: (callback: (data: { conversationId?: string, action: string }) => void) => void
     removeAppListeners: () => void
     updateGlobalShortcut: (shortcut: string) => Promise<boolean>
     disableGlobalShortcut: () => Promise<void>
     enableGlobalShortcut: () => Promise<void>
+    hideQuickChat?: () => Promise<void>
   }
 }
 

@@ -11,9 +11,18 @@ const settingsManager = new SettingsManager()
 const llmManager = new LLMManager()
 
 let mainWindow
+let quickChatWindow
 let currentGlobalShortcut = null
 
 const isDev = process.env.NODE_ENV === 'development'
+
+// Broadcast function to send events to all windows
+function broadcastToAllWindows(channel, ...args) {
+  const windows = [mainWindow, quickChatWindow].filter(win => win && !win.isDestroyed())
+  windows.forEach(win => {
+    win.webContents.send(channel, ...args)
+  })
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -32,6 +41,51 @@ function createWindow() {
   })
 
   mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
+}
+
+function createQuickChatWindow() {
+  const { screen } = require('electron')
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width, height } = primaryDisplay.workAreaSize
+  
+  quickChatWindow = new BrowserWindow({
+    width: 445,
+    height: 545,
+    maxWidth: 600,
+    x: width - 445 - 20, // 20px from right edge
+    y: height - 545 - 20, // 20px from bottom edge
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    },
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 12, y: 12 },
+    alwaysOnTop: true,
+    visibleOnAllWorkspaces: true,
+    skipTaskbar: true,
+    resizable: true
+  })
+
+  quickChatWindow.loadFile(path.join(__dirname, '../../dist/quick-chat.html'))
+  
+  quickChatWindow.on('closed', () => {
+    quickChatWindow = null
+  })
+}
+
+function toggleQuickChatWindow() {
+  if (quickChatWindow) {
+    if (quickChatWindow.isVisible()) {
+      quickChatWindow.hide()
+    } else {
+      quickChatWindow.show()
+      quickChatWindow.focus()
+    }
+  } else {
+    createQuickChatWindow()
+  }
 }
 
 function showAndFocusWindow() {
@@ -60,7 +114,7 @@ function registerGlobalShortcut(shortcut) {
   // Register new shortcut if provided
   if (shortcut && shortcut.trim()) {
     const ret = globalShortcut.register(shortcut, () => {
-      showAndFocusWindow()
+      toggleQuickChatWindow()
     })
 
     if (ret) {
@@ -77,19 +131,27 @@ ipcMain.handle('conversations:getAll', async () => {
 })
 
 ipcMain.handle('conversations:create', async (event, provider, model) => {
-  return await conversationManager.createConversation(provider, model)
+  const result = await conversationManager.createConversation(provider, model)
+  broadcastToAllWindows('conversation:updated', { action: 'created', conversationId: result.id })
+  return result
 })
 
 ipcMain.handle('conversations:delete', async (event, conversationId) => {
-  return await conversationManager.deleteConversation(conversationId)
+  const result = await conversationManager.deleteConversation(conversationId)
+  broadcastToAllWindows('conversation:updated', { action: 'deleted', conversationId })
+  return result
 })
 
 ipcMain.handle('conversations:rename', async (event, conversationId, newTitle) => {
-  return await conversationManager.renameConversation(conversationId, newTitle)
+  const result = await conversationManager.renameConversation(conversationId, newTitle)
+  broadcastToAllWindows('conversation:updated', { action: 'renamed', conversationId })
+  return result
 })
 
 ipcMain.handle('conversations:addMessage', async (event, conversationId, message) => {
-  return await conversationManager.addMessage(conversationId, message)
+  const result = await conversationManager.addMessage(conversationId, message)
+  broadcastToAllWindows('conversation:updated', { action: 'message_added', conversationId })
+  return result
 })
 
 // IPC Handlers for Settings
@@ -125,8 +187,15 @@ ipcMain.handle('app:disableGlobalShortcut', async () => {
 ipcMain.handle('app:enableGlobalShortcut', async () => {
   if (currentGlobalShortcut) {
     const ret = globalShortcut.register(currentGlobalShortcut, () => {
-      showAndFocusWindow()
+      toggleQuickChatWindow()
     })
+  }
+})
+
+// IPC Handler for hiding quick chat window
+ipcMain.handle('app:hideQuickChat', async () => {
+  if (quickChatWindow && quickChatWindow.isVisible()) {
+    quickChatWindow.hide()
   }
 })
 
@@ -159,16 +228,17 @@ ipcMain.handle('llm:sendMessage', async (event, { conversationId, provider, mode
   if (stream) {
     // For streaming, we'll send chunks back via events
     const streamId = Date.now().toString()
+    const senderWindow = BrowserWindow.fromWebContents(event.sender)
     
     // Notify frontend that streaming started
-    mainWindow.webContents.send('llm:streamStart', { conversationId, streamId })
+    senderWindow.webContents.send('llm:streamStart', { conversationId, streamId })
     
     llmManager.streamCompletion(conversationId, provider, model, messages, (chunk) => {
-      mainWindow.webContents.send('llm:streamChunk', { streamId, chunk })
+      senderWindow.webContents.send('llm:streamChunk', { streamId, chunk })
     }, (error) => {
-      mainWindow.webContents.send('llm:streamError', { streamId, error })
+      senderWindow.webContents.send('llm:streamError', { streamId, error })
     }, (data) => {
-      mainWindow.webContents.send('llm:streamEnd', { streamId, ...data })
+      senderWindow.webContents.send('llm:streamEnd', { streamId, ...data })
     })
     
     return { streamId }
@@ -180,7 +250,8 @@ ipcMain.handle('llm:sendMessage', async (event, { conversationId, provider, mode
 ipcMain.handle('llm:cancelStream', async (event, conversationId) => {
   const cancelled = llmManager.cancelStream(conversationId)
   if (cancelled) {
-    mainWindow.webContents.send('llm:streamCancelled', { conversationId })
+    const senderWindow = BrowserWindow.fromWebContents(event.sender)
+    senderWindow.webContents.send('llm:streamCancelled', { conversationId })
   }
   return cancelled
 })

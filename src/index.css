@@ -131,3 +131,25 @@ html, body, #root {
 .animate-in {
   animation: fade-in 0.3s ease-out;
 }
+
+/* Quick Chat Window Styles */
+.quick-chat-window {
+  @apply h-screen overflow-hidden;
+}
+
+.quick-chat-window .border-t {
+  @apply border-t-0; /* Remove top border in message input for cleaner look */
+}
+
+/* Adjust chat view for smaller window */
+.quick-chat-window .h-6.drag-region {
+  @apply h-4; /* Smaller drag region for compact window */
+}
+
+.quick-chat-window .text-lg {
+  @apply text-base; /* Smaller title text */
+}
+
+.quick-chat-window .px-4.py-3 {
+  @apply px-3 py-2; /* Smaller header padding */
+}

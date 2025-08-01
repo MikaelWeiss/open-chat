@@ -29,6 +29,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
   streamingConversationId: null,
   
   loadConversations: async () => {
+    const currentSelectedId = get().selectedConversation?.id
     set({ loading: true, error: null })
     try {
       const conversations = await window.electronAPI.conversations.getAll()
@@ -36,27 +37,41 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       // Filter out empty conversations (conversations with no messages)
       const nonEmptyConversations = conversations.filter(conv => conv.messages.length > 0)
       
-      // Get the last used model from the most recent conversation
-      const lastConversation = nonEmptyConversations[0]
-      const lastProvider = lastConversation?.provider || ''
-      const lastModel = lastConversation?.model || ''
+      // Check if the currently selected conversation still exists
+      let selectedConversation = null
+      if (currentSelectedId) {
+        // If it's a temporary conversation, keep it
+        if (currentSelectedId.startsWith('temp-')) {
+          selectedConversation = get().selectedConversation
+        } else {
+          // Find the conversation in the new list
+          selectedConversation = nonEmptyConversations.find(conv => conv.id === currentSelectedId)
+        }
+      }
       
-      // Always start with a new temporary conversation, using last used model if available
-      const tempConversation = {
-        id: `temp-${Date.now()}`,
-        title: 'New Conversation',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        provider: lastProvider,
-        model: lastModel,
-        messages: [],
-        isTemporary: true
+      // If no selection or previous selection doesn't exist, create a new temporary conversation
+      if (!selectedConversation) {
+        // Get the last used model from the most recent conversation
+        const lastConversation = nonEmptyConversations[0]
+        const lastProvider = lastConversation?.provider || ''
+        const lastModel = lastConversation?.model || ''
+        
+        selectedConversation = {
+          id: `temp-${Date.now()}`,
+          title: 'New Conversation',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          provider: lastProvider,
+          model: lastModel,
+          messages: [],
+          isTemporary: true
+        }
       }
       
       set({ 
         conversations: nonEmptyConversations, 
         loading: false,
-        selectedConversation: tempConversation
+        selectedConversation
       })
     } catch (error) {
       set({ error: error.message, loading: false })
