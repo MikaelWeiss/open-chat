@@ -36,12 +36,15 @@
   },
   "dependencies": {
     "@anthropic-ai/tokenizer": "^0.0.4",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "lucide-react": "^0.408.0",
+    "prismjs": "^1.30.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",
+    "react-syntax-highlighter": "^15.6.1",
     "remark-gfm": "^4.0.0",
     "tiktoken": "^1.0.21",
     "zustand": "^4.5.4"
