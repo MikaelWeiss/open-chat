@@ -305,7 +305,7 @@ class LLMManager {
       content: m.content
     }))
 
-    const response = await fetch(`${config.endpoint}/v1/messages`, {
+    const response = await fetch(`${config.endpoint}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -335,7 +335,7 @@ class LLMManager {
         content: m.content
       }))
 
-      const response = await fetch(`${config.endpoint}/v1/messages`, {
+      const response = await fetch(`${config.endpoint}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
