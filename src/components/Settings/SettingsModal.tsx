@@ -1015,7 +1015,23 @@ function ModelsSettings() {
       if (customProvider.apiKey || isLocalProvider) {
         try {
           await handleTestProvider(providerId)
-          await handleRefreshModels(providerId)
+          const models = await window.electronAPI.llm.fetchModels(providerId)
+          
+          // After fetching models, automatically enable the first 3
+          const updatedSettings = await window.electronAPI.settings.get()
+          const provider = updatedSettings?.providers[providerId]
+          
+          if (provider && provider.models && provider.models.length > 0) {
+            const autoEnabledModels = provider.models.slice(0, 3)
+            const providersWithEnabledModels = {
+              ...updatedSettings.providers,
+              [providerId]: {
+                ...provider,
+                enabledModels: autoEnabledModels
+              }
+            }
+            await updateSettings({ providers: providersWithEnabledModels })
+          }
         } catch (error) {
           console.error('Failed to auto-test and fetch models for provider:', error)
         }
