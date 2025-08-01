@@ -1,5 +1,5 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Send, Paperclip } from 'lucide-react'
+import { Send, Paperclip, Loader2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettingsStore } from '@/stores/settingsStore'
 
@@ -8,6 +8,7 @@ interface MessageInputProps {
   onChange: (value: string) => void
   onSend: () => void
   disabled?: boolean
+  isLoading?: boolean
 }
 
 export interface MessageInputHandle {
@@ -15,7 +16,7 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ value, onChange, onSend, disabled = false }, ref) => {
+  ({ value, onChange, onSend, disabled = false, isLoading = false }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const { settings } = useSettingsStore()
 
@@ -33,7 +34,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
   }, [value])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (disabled) return
+    if (disabled || isLoading) return
     
     const sendKey = settings?.keyboard?.sendMessage || 'enter'
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
@@ -73,31 +74,41 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         <textarea
           ref={textareaRef}
           value={value}
-          onChange={(e) => !disabled && onChange(e.target.value)}
+          onChange={(e) => !disabled && !isLoading && onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={disabled ? "Add an AI provider to start chatting..." : "Type a message..."}
+          placeholder={
+            disabled 
+              ? "Add an AI provider to start chatting..." 
+              : isLoading 
+                ? "Waiting for response..." 
+                : "Type a message..."
+          }
           className={clsx(
             'flex-1 resize-none rounded-lg px-4 py-2 min-h-[40px] max-h-[200px] focus:outline-none',
-            disabled
+            disabled || isLoading
               ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed'
               : 'bg-secondary focus:ring-2 focus:ring-primary'
           )}
           rows={1}
-          disabled={disabled}
+          disabled={disabled || isLoading}
         />
         
         <button
           onClick={onSend}
-          disabled={disabled || !value.trim()}
+          disabled={disabled || !value.trim() || isLoading}
           className={clsx(
             'p-2 rounded-lg transition-colors',
-            disabled || !value.trim()
+            disabled || !value.trim() || isLoading
               ? 'bg-secondary text-muted-foreground cursor-not-allowed'
               : 'bg-primary text-primary-foreground hover:bg-primary/90'
           )}
-          title="Send message"
+          title={isLoading ? "Generating response..." : "Send message"}
         >
-          <Send className="h-4 w-4" />
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
         </button>
       </div>
       

@@ -111,6 +111,10 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   // Set up streaming event listeners
   useEffect(() => {
     const handleStreamChunk = ({ streamId, chunk }) => {
+      // First chunk received - we can stop showing loading indicator
+      if (isLoading) {
+        setIsLoading(false)
+      }
       setStreamingMessage(prev => prev + chunk)
     }
 
@@ -123,7 +127,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         })
       }
       setStreamingMessage('')
-      setIsLoading(false)
+      // Don't need to set isLoading(false) here since it's already false from first chunk
     }
 
     const handleStreamError = ({ streamId, error }) => {
@@ -232,6 +236,16 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         }
         setIsLoading(false)
       }
+      // For successful streaming, don't set isLoading(false) here - let the first chunk handle it
+      // But set a safety timeout in case streaming never starts
+      if (result?.streamId) {
+        setTimeout(() => {
+          if (isLoading && !streamingMessage) {
+            console.warn('Streaming timeout - no chunks received')
+            setIsLoading(false)
+          }
+        }, 10000) // 10 second timeout
+      }
     } catch (error) {
       console.error('Error sending message to LLM:', error)
       addToast({
@@ -240,7 +254,6 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         message: error.message || 'Failed to get response from the model. Please check your provider configuration.',
         duration: 7000
       })
-    } finally {
       setIsLoading(false)
     }
   }
@@ -383,7 +396,8 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         value={message}
         onChange={setMessage}
         onSend={handleSend}
-        disabled={availableModels.length === 0 || !selectedModel || !selectedModel.model || isLoading}
+        disabled={availableModels.length === 0 || !selectedModel || !selectedModel.model}
+        isLoading={isLoading}
       />
     </div>
   )
