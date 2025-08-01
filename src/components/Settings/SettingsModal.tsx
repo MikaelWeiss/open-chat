@@ -261,7 +261,9 @@ function ProvidersSettings() {
   ]
 
   const configuredProviders = settings?.providers 
-    ? Object.entries(settings.providers).filter(([_, provider]) => provider.configured) 
+    ? Object.entries(settings.providers)
+        .filter(([_, provider]) => provider.configured)
+        .sort(([a], [b]) => a.localeCompare(b))
     : []
   const hasProviders = configuredProviders.length > 0
 
