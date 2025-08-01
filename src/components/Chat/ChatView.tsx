@@ -67,7 +67,16 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       }
       grouped[model.providerName].push(model)
     })
-    return grouped
+    
+    // Sort providers alphabetically
+    const sortedProviders: Record<string, Array<{provider: string, model: string, providerName: string}>> = {}
+    Object.keys(grouped)
+      .sort((a, b) => a.localeCompare(b))
+      .forEach(providerName => {
+        sortedProviders[providerName] = grouped[providerName]
+      })
+    
+    return sortedProviders
   }, [availableModels])
 
   // Sync selected model with conversation's model
@@ -339,6 +348,10 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
                               onClick={() => {
                                 setSelectedModel({ provider: model.provider, model: model.model })
                                 setShowModelSelector(false)
+                                // Focus the input field after model selection
+                                setTimeout(() => {
+                                  messageInputRef.current?.focus()
+                                }, 100)
                               }}
                               className={clsx(
                                 'w-full text-left px-4 py-2 hover:bg-accent transition-colors border-b border-border/30 last:border-b-0',
