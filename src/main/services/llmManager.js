@@ -1,10 +1,14 @@
 const { spawn } = require('child_process')
+const { TokenCounter } = require('./tokenCounter')
+const { PricingManager } = require('./pricingManager')
 
 class LLMManager {
   constructor() {
     this.settingsManager = null
     this.localLLMProcess = null
     this.activeStreamControllers = new Map()
+    this.tokenCounter = new TokenCounter()
+    this.pricingManager = new PricingManager()
   }
 
   async initialize(settingsManager) {
@@ -260,11 +264,25 @@ class LLMManager {
     }
 
     const data = await response.json()
-    return data.choices[0].message.content
+    
+    // Extract usage information
+    const usage = this.tokenCounter.parseUsageFromResponse(data, 'openai')
+    const cost = usage ? this.pricingManager.calculateCost('openai', model, usage.promptTokens, usage.completionTokens) : null
+    
+    return {
+      content: data.choices[0].message.content,
+      usage,
+      cost
+    }
   }
 
   async openAIStream(config, model, messages, signal, onChunk, onError, onEnd) {
     try {
+      // Count input tokens
+      const inputTokens = this.tokenCounter.countMessageTokens(messages, 'openai', model)
+      let outputTokens = 0
+      let accumulatedContent = ''
+
       const response = await fetch(`${config.endpoint}/chat/completions`, {
         method: 'POST',
         signal,
@@ -298,7 +316,14 @@ class LLMManager {
           if (line.startsWith('data: ')) {
             const data = line.slice(6)
             if (data === '[DONE]') {
-              onEnd()
+              // Calculate final usage and cost
+              outputTokens = this.tokenCounter.countTokens(accumulatedContent, 'openai', model)
+              const cost = this.pricingManager.calculateCost('openai', model, inputTokens, outputTokens)
+              
+              onEnd({
+                usage: { promptTokens: inputTokens, completionTokens: outputTokens, totalTokens: inputTokens + outputTokens },
+                cost
+              })
               return
             }
             
@@ -306,10 +331,22 @@ class LLMManager {
               const parsed = JSON.parse(data)
               const content = parsed.choices[0]?.delta?.content
               if (content) {
+                accumulatedContent += content
                 onChunk(content)
               }
+              
+              // Some providers send usage in the final chunk
+              if (parsed.usage) {
+                const usage = this.tokenCounter.parseUsageFromResponse(parsed, 'openai')
+                if (usage) {
+                  const cost = this.pricingManager.calculateCost('openai', model, usage.promptTokens, usage.completionTokens)
+                  onEnd({ usage, cost })
+                  return
+                }
+              }
             } catch (e) {
-              // Skip invalid JSON
+              console.warn('Failed to parse streaming JSON chunk:', data, e)
+              // Continue processing other chunks
             }
           }
         }
@@ -349,7 +386,16 @@ class LLMManager {
     }
 
     const data = await response.json()
-    return data.content[0].text
+    
+    // Extract usage information
+    const usage = this.tokenCounter.parseUsageFromResponse(data, 'anthropic')
+    const cost = usage ? this.pricingManager.calculateCost('anthropic', model, usage.promptTokens, usage.completionTokens) : null
+    
+    return {
+      content: data.content[0].text,
+      usage,
+      cost
+    }
   }
 
   async anthropicStream(config, model, messages, signal, onChunk, onError, onEnd) {
@@ -359,6 +405,11 @@ class LLMManager {
         role: m.role === 'assistant' ? 'assistant' : 'user',
         content: m.content
       }))
+
+      // Count input tokens
+      const inputTokens = this.tokenCounter.countMessageTokens(messages, 'anthropic', model)
+      let accumulatedContent = ''
+      let finalUsage = null
 
       const response = await fetch(`${config.endpoint}/messages`, {
         method: 'POST',
@@ -382,38 +433,94 @@ class LLMManager {
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
+      let buffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n').filter(line => line.trim() !== '')
+        // Add new chunk to buffer
+        buffer += decoder.decode(value, { stream: true })
+        
+        // Process complete lines from buffer
+        const lines = buffer.split('\n')
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() || ''
         
         for (const line of lines) {
+          if (line.trim() === '') continue
+          
           if (line.startsWith('data: ')) {
-            const data = line.slice(6)
+            const data = line.slice(6).trim()
             if (data === '[DONE]') {
-              onEnd()
+              const outputTokens = this.tokenCounter.countTokens(accumulatedContent, 'anthropic', model)
+              const cost = this.pricingManager.calculateCost('anthropic', model, inputTokens, outputTokens)
+              
+              onEnd({
+                usage: finalUsage || { promptTokens: inputTokens, completionTokens: outputTokens, totalTokens: inputTokens + outputTokens },
+                cost
+              })
               return
             }
             
             try {
               const parsed = JSON.parse(data)
               if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+                accumulatedContent += parsed.delta.text
                 onChunk(parsed.delta.text)
               } else if (parsed.type === 'message_stop') {
-                onEnd()
+                const outputTokens = this.tokenCounter.countTokens(accumulatedContent, 'anthropic', model)
+                const cost = this.pricingManager.calculateCost('anthropic', model, inputTokens, outputTokens)
+                
+                onEnd({
+                  usage: finalUsage || { promptTokens: inputTokens, completionTokens: outputTokens, totalTokens: inputTokens + outputTokens },
+                  cost
+                })
+                return
+              } else if (parsed.type === 'message_delta' && parsed.usage) {
+                // Anthropic provides usage info in message_delta events
+                finalUsage = this.tokenCounter.parseUsageFromResponse({ usage: parsed.usage }, 'anthropic')
+              } else if (parsed.type === 'message_start' && parsed.message?.usage) {
+                // Extract usage from message_start event
+                finalUsage = this.tokenCounter.parseUsageFromResponse({ usage: parsed.message.usage }, 'anthropic')
+              } else if (parsed.type === 'error') {
+                console.error('Anthropic streaming error:', parsed.error)
+                onError(new Error(parsed.error?.message || 'Streaming error'))
                 return
               }
             } catch (e) {
-              // Skip invalid JSON
+              // Only log if it's not just an incomplete JSON chunk
+              if (data.length > 10) {
+                console.warn('Failed to parse Anthropic streaming JSON chunk:', data.substring(0, 100) + '...', e.message)
+              }
+              // Continue processing other chunks
             }
           }
         }
       }
       
-      onEnd()
+      // Process any remaining data in buffer
+      if (buffer.trim() && buffer.startsWith('data: ')) {
+        const data = buffer.slice(6).trim()
+        if (data !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.type === 'message_delta' && parsed.usage) {
+              finalUsage = this.tokenCounter.parseUsageFromResponse({ usage: parsed.usage }, 'anthropic')
+            }
+          } catch (e) {
+            // Ignore final buffer parsing errors
+          }
+        }
+      }
+      
+      const outputTokens = this.tokenCounter.countTokens(accumulatedContent, 'anthropic', model)
+      const cost = this.pricingManager.calculateCost('anthropic', model, inputTokens, outputTokens)
+      
+      onEnd({
+        usage: finalUsage || { promptTokens: inputTokens, completionTokens: outputTokens, totalTokens: inputTokens + outputTokens },
+        cost
+      })
     } catch (error) {
       if (error.name === 'AbortError') {
         // Stream was cancelled, don't call onError - this is handled by the cancel handler
@@ -627,6 +734,54 @@ class LLMManager {
     }
 
     throw new Error('Failed to start local LLM')
+  }
+
+  /**
+   * Calculate usage and cost for a set of messages
+   * @param {string} provider - The provider name
+   * @param {string} model - The model name
+   * @param {Array} messages - Array of message objects
+   * @returns {Promise<{usage: {promptTokens: number, completionTokens: number, totalTokens: number}, cost: number}>}
+   */
+  async calculateUsageForMessages(provider, model, messages) {
+    let totalPromptTokens = 0
+    let totalCompletionTokens = 0
+    let totalCost = 0
+
+    for (const message of messages) {
+      if (message.role === 'user' || message.role === 'system') {
+        // Count input tokens
+        const tokens = this.tokenCounter.countTokens(message.content || '', provider, model)
+        totalPromptTokens += tokens
+        
+        // Calculate input cost
+        const cost = this.pricingManager.calculateCost(provider, model, tokens, 0)
+        if (cost !== null) {
+          totalCost += cost
+        }
+      } else if (message.role === 'assistant') {
+        // Count output tokens
+        const tokens = this.tokenCounter.countTokens(message.content || '', provider, model)
+        totalCompletionTokens += tokens
+        
+        // Calculate output cost
+        const cost = this.pricingManager.calculateCost(provider, model, 0, tokens)
+        if (cost !== null) {
+          totalCost += cost
+        }
+      }
+    }
+
+    const totalTokens = totalPromptTokens + totalCompletionTokens
+
+    return {
+      usage: {
+        promptTokens: totalPromptTokens,
+        completionTokens: totalCompletionTokens,
+        totalTokens
+      },
+      cost: totalCost
+    }
   }
 }
 

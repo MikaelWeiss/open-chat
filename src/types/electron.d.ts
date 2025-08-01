@@ -23,9 +23,14 @@ export interface ElectronAPI {
     }) => Promise<string | { streamId: string }>
     getProviders: () => Promise<Provider[]>
     fetchModels: (providerId: string) => Promise<string[]>
+    calculateUsage: (params: {
+      provider: string
+      model: string
+      messages: Message[]
+    }) => Promise<{ usage: { promptTokens: number; completionTokens: number; totalTokens: number }; cost: number }>
     onStreamChunk: (callback: (data: { streamId: string; chunk: string }) => void) => void
     onStreamError: (callback: (data: { streamId: string; error: Error }) => void) => void
-    onStreamEnd: (callback: (data: { streamId: string }) => void) => void
+    onStreamEnd: (callback: (data: { streamId: string; usage?: { promptTokens: number; completionTokens: number; totalTokens: number }; cost?: number }) => void) => void
     removeStreamListeners: () => void
   }
   
@@ -52,6 +57,12 @@ export interface Message {
     path: string
     mimeType: string
   }[]
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
+  cost?: number
 }
 
 export interface Conversation {
@@ -68,6 +79,7 @@ export interface Conversation {
 export interface Settings {
   theme: 'system' | 'light' | 'dark'
   defaultProvider: string
+  showPricing?: boolean
   providers: {
     [key: string]: {
       apiKey: string

@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sendMessage: (params) => ipcRenderer.invoke('llm:sendMessage', params),
     getProviders: () => ipcRenderer.invoke('llm:getProviders'),
     fetchModels: (providerId) => ipcRenderer.invoke('llm:fetchModels', providerId),
+    calculateUsage: (params) => ipcRenderer.invoke('llm:calculateUsage', params),
     cancelStream: (conversationId) => ipcRenderer.invoke('llm:cancelStream', conversationId),
     
     // Streaming handlers

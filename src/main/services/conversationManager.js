@@ -121,6 +121,8 @@ class ConversationManager {
       timestamp: new Date().toISOString()
     }
     
+    // Note: usage and cost are calculated dynamically, not stored
+    
     conversation.messages.push(newMessage)
     conversation.updatedAt = new Date().toISOString()
     

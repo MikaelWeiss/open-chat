@@ -122,12 +122,13 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       setStreamingMessage(prev => prev + chunk)
     }
 
-    const handleStreamEnd = ({ conversationId, streamId }) => {
+    const handleStreamEnd = ({ streamId, usage, cost }) => {
       // Streaming finished, add the complete message
       if (streamingMessage && conversation) {
         addMessage(conversation.id, {
           role: 'assistant',
           content: streamingMessage
+          // Note: usage and cost are now calculated dynamically, not stored
         })
       }
       setStreamingMessage('')
@@ -423,8 +424,9 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         onCancel={() => {
           // Additional cancel logic if needed
         }}
-        disabled={availableModels.length === 0 || !selectedModel || !selectedModel.model}
+        disabled={availableModels.length === 0 || !selectedModel || !selectedModel.model || isLoading}
         isLoading={isLoading}
+        messages={conversation.messages}
       />
     </div>
   )

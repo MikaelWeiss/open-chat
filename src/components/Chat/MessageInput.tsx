@@ -1,8 +1,10 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Send, Paperclip, Loader2, Square } from 'lucide-react'
+import { Send, Paperclip, Loader2, Square, Zap, DollarSign } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useConversationStore } from '@/stores/conversationStore'
+import { useUsageStats } from '@/hooks/useUsageStats'
+import type { Message } from '@/types/electron'
 
 interface MessageInputProps {
   value: string
@@ -11,6 +13,7 @@ interface MessageInputProps {
   onCancel?: () => void
   disabled?: boolean
   isLoading?: boolean
+  messages?: Message[]
 }
 
 export interface MessageInputHandle {
@@ -18,7 +21,7 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ value, onChange, onSend, onCancel, disabled = false, isLoading = false }, ref) => {
+  ({ value, onChange, onSend, onCancel, disabled = false, isLoading = false, messages = [] }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const { settings } = useSettingsStore()
     const { isStreaming, cancelStream } = useConversationStore()
@@ -73,6 +76,8 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       onSend()
     }
   }
+
+  const { totalTokens, totalPromptTokens, totalCompletionTokens, totalCost } = useUsageStats(messages)
 
   return (
     <div className="border-t border-border p-4">
@@ -141,12 +146,35 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         </button>
       </div>
       
-      <p className="text-xs text-muted-foreground mt-2">
-        {settings?.keyboard?.sendMessage === 'cmd-enter' 
-          ? `Press ${navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd' : 'Ctrl'}+Enter to send, Enter for new line`
-          : 'Press Enter to send, Shift+Enter for new line'
-        }
-      </p>
+      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+        <span>
+          {settings?.keyboard?.sendMessage === 'cmd-enter' 
+            ? `Press ${navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd' : 'Ctrl'}+Enter to send, Enter for new line`
+            : 'Press Enter to send, Shift+Enter for new line'
+          }
+        </span>
+        {(totalTokens > 0 || (totalCost > 0 && settings?.showPricing)) && (
+          <div className="flex items-center gap-3">
+            {totalTokens > 0 && (
+              <div className="flex items-center gap-1">
+                <Zap className="h-3 w-3" />
+                <span>{totalTokens.toLocaleString()}</span>
+                {totalPromptTokens > 0 && totalCompletionTokens > 0 && (
+                  <span className="text-muted-foreground/70">
+                    ({totalPromptTokens.toLocaleString()} in, {totalCompletionTokens.toLocaleString()} out)
+                  </span>
+                )}
+              </div>
+            )}
+            {totalCost > 0 && settings?.showPricing && (
+              <div className="flex items-center gap-1">
+                <DollarSign className="h-3 w-3" />
+                <span>${totalCost.toFixed(4)}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 })

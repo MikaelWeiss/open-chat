@@ -81,9 +81,8 @@ ipcMain.handle('llm:sendMessage', async (event, { conversationId, provider, mode
       mainWindow.webContents.send('llm:streamChunk', { streamId, chunk })
     }, (error) => {
       mainWindow.webContents.send('llm:streamError', { streamId, error })
-      mainWindow.webContents.send('llm:streamEnd', { conversationId, streamId })
-    }, () => {
-      mainWindow.webContents.send('llm:streamEnd', { conversationId, streamId })
+    }, (data) => {
+      mainWindow.webContents.send('llm:streamEnd', { streamId, ...data })
     })
     
     return { streamId }
@@ -119,6 +118,10 @@ ipcMain.handle('llm:fetchModels', async (event, providerId) => {
   } catch (error) {
     throw error
   }
+})
+
+ipcMain.handle('llm:calculateUsage', async (event, { provider, model, messages }) => {
+  return await llmManager.calculateUsageForMessages(provider, model, messages)
 })
 
 // IPC Handlers for File Operations

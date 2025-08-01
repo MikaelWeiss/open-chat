@@ -15,12 +15,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   // Local state for form inputs
   const [theme, setTheme] = useState('system')
   const [sendKey, setSendKey] = useState('enter')
+  const [showPricing, setShowPricing] = useState(false)
 
   // Sync local state with settings store
   useEffect(() => {
     if (settings) {
       setTheme(settings.theme || 'system')
       setSendKey(settings.keyboard?.sendMessage || 'enter')
+      setShowPricing(settings.showPricing || false)
     }
   }, [settings])
 
@@ -37,6 +39,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         sendMessage: newSendKey as 'enter' | 'cmd-enter'
       } 
     })
+  }
+
+  const handleShowPricingChange = async (show: boolean) => {
+    setShowPricing(show)
+    await updateSettings({ showPricing: show })
   }
   
   if (!isOpen) return null
@@ -89,7 +96,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
           {/* Tab Content */}
           <div className="flex-1 p-6 overflow-y-auto">
-            {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} />}
+            {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} showPricing={showPricing} setShowPricing={handleShowPricingChange} />}
             {activeTab === 'models' && <ModelsSettings />}
             {activeTab === 'mcp' && <MCPSettings />}
           </div>
@@ -101,7 +108,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   )
 }
 
-function GeneralSettings({ theme, setTheme, sendKey, setSendKey }: any) {
+function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, setShowPricing }: any) {
   return (
     <div className="space-y-6">
       <div>
@@ -118,6 +125,30 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey }: any) {
               <option value="light">Light</option>
               <option value="dark">Dark</option>
             </select>
+          </div>
+        </div>
+      </div>
+      
+      <div>
+        <h3 className="text-lg font-medium mb-4">Usage & Pricing</h3>
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="showPricing"
+              checked={showPricing}
+              onChange={(e) => setShowPricing(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <div className="flex-1">
+              <label htmlFor="showPricing" className="text-sm font-medium cursor-pointer">
+                Show pricing information
+              </label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Display estimated costs for API usage. Note: Pricing estimates are approximate and may not reflect actual costs. 
+                Actual billing depends on your provider's pricing structure and may vary.
+              </p>
+            </div>
           </div>
         </div>
       </div>

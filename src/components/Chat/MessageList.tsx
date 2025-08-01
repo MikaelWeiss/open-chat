@@ -5,6 +5,7 @@ import { User, Bot, Loader2 } from 'lucide-react'
 import type { Message } from '@/types/electron'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 interface MessageListProps {
   messages: Message[]
@@ -13,6 +14,7 @@ interface MessageListProps {
 }
 
 export default function MessageList({ messages, isLoading = false, streamingMessage = '' }: MessageListProps) {
+  const { settings } = useSettingsStore()
   const [loadingMessage, setLoadingMessage] = useState('Thinking')
   
   useEffect(() => {
@@ -61,6 +63,7 @@ export default function MessageList({ messages, isLoading = false, streamingMess
               <span className="text-xs text-muted-foreground">
                 {format(new Date(message.timestamp), 'h:mm a')}
               </span>
+              {/* Usage and cost are now shown in aggregate, not per message */}
             </div>
             
             <div className="prose prose-sm dark:prose-invert max-w-none">
