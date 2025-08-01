@@ -519,7 +519,10 @@ function ProvidersSettings() {
             <div className="space-y-3">
               <h5 className="text-sm font-medium text-muted-foreground">Cloud Providers (API Key Required)</h5>
               <div className="grid gap-3">
-                {providerPresets.filter(preset => !preset.isLocal).map((preset) => (
+                {providerPresets
+                  .filter(preset => !preset.isLocal)
+                  .filter(preset => !settings?.providers?.[preset.id]?.configured)
+                  .map((preset) => (
                   <button
                     key={preset.id}
                     onClick={() => handleAddPreset(preset)}
@@ -536,7 +539,10 @@ function ProvidersSettings() {
             <div className="space-y-3">
               <h5 className="text-sm font-medium text-muted-foreground">Local Providers (No API Key)</h5>
               <div className="grid gap-3">
-                {providerPresets.filter(preset => preset.isLocal).map((preset) => (
+                {providerPresets
+                  .filter(preset => preset.isLocal)
+                  .filter(preset => !settings?.providers?.[preset.id]?.configured)
+                  .map((preset) => (
                   <button
                     key={preset.id}
                     onClick={() => handleAddPreset(preset)}
@@ -1216,7 +1222,10 @@ function ModelsSettings() {
             <div className="space-y-3">
               <h5 className="text-sm font-medium text-muted-foreground">Cloud Providers (API Key Required)</h5>
               <div className="grid gap-3">
-                {providerPresets.filter(preset => !preset.isLocal).map((preset) => (
+                {providerPresets
+                  .filter(preset => !preset.isLocal)
+                  .filter(preset => !settings?.providers?.[preset.id]?.configured)
+                  .map((preset) => (
                   <button
                     key={preset.id}
                     onClick={() => handleAddPreset(preset)}
@@ -1232,7 +1241,10 @@ function ModelsSettings() {
             <div className="space-y-3">
               <h5 className="text-sm font-medium text-muted-foreground">Local Providers (No API Key)</h5>
               <div className="grid gap-3">
-                {providerPresets.filter(preset => preset.isLocal).map((preset) => (
+                {providerPresets
+                  .filter(preset => preset.isLocal)
+                  .filter(preset => !settings?.providers?.[preset.id]?.configured)
+                  .map((preset) => (
                   <button
                     key={preset.id}
                     onClick={() => handleAddPreset(preset)}
