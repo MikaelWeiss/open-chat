@@ -3,11 +3,13 @@ import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns'
 import type { Conversation } from '@/types/electron'
 import clsx from 'clsx'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 
 interface SidebarProps {
   isOpen: boolean
+  width: number
   onToggle: () => void
+  onWidthChange: (width: number) => void
   conversations: Conversation[]
   selectedConversation: Conversation | null
   onSelectConversation: (conversation: Conversation) => void
@@ -18,7 +20,9 @@ interface SidebarProps {
 
 export default function Sidebar({
   isOpen,
+  width,
   onToggle,
+  onWidthChange,
   conversations,
   selectedConversation,
   onSelectConversation,
@@ -28,6 +32,11 @@ export default function Sidebar({
 }: SidebarProps) {
   const { settings } = useSettingsStore()
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [isResizing, setIsResizing] = useState(false)
+  const sidebarRef = useRef<HTMLDivElement>(null)
+  
+  const MIN_WIDTH = 240
+  const MAX_WIDTH = 480
   
   // Check if there are any configured providers
   const hasConfiguredProviders = settings?.providers 
@@ -64,6 +73,33 @@ export default function Sidebar({
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
   const modifierKey = isMac ? '⌘' : 'Ctrl'
 
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+    
+    const startX = e.clientX
+    const startWidth = width
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - startX
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + deltaX))
+      onWidthChange(newWidth)
+    }
+    
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [width, onWidthChange])
+
   const getConversationsByDate = () => {
     const grouped = new Map<string, Conversation[]>()
     
@@ -93,17 +129,19 @@ export default function Sidebar({
 
   return (
     <div
+      ref={sidebarRef}
       className={clsx(
-        'relative flex flex-col bg-secondary border-r border-border transition-all duration-200',
-        isOpen ? 'w-80' : 'w-0'
+        'relative flex flex-col bg-secondary',
+        isOpen ? '' : 'w-0'
       )}
+      style={{ width: isOpen ? `${width}px` : '0px' }}
     >
       <div className={clsx('flex flex-col h-full', !isOpen && 'invisible')}>
         {/* Window controls area */}
         <div className="h-6 drag-region" />
         
         {/* Header */}
-        <div className="px-4 py-5 border-b border-border">
+        <div className="px-4 py-5 border-b border-border backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold no-drag">Open Chat</h1>
             <div className="flex items-center gap-2 no-drag">
@@ -126,10 +164,10 @@ export default function Sidebar({
         </div>
 
         {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent">
           {conversationsByDate.map(([dateKey, convs]) => (
             <div key={dateKey}>
-              <div className="px-4 py-2 text-xs font-medium text-muted-foreground">
+              <div className="px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 bg-secondary/80 backdrop-blur-sm border-b border-border/50">
                 {getDateLabel(dateKey)}
               </div>
               {convs.map((conversation) => (
@@ -142,7 +180,7 @@ export default function Sidebar({
                 >
                   <button
                     onClick={() => onSelectConversation(conversation)}
-                    className="flex-1 px-4 py-3 text-left"
+                    className="flex-1 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
                   >
                     <div className="font-medium text-sm truncate pr-8">
                       {conversation.title}
@@ -157,7 +195,7 @@ export default function Sidebar({
                   </button>
                   <button
                     onClick={(e) => handleDeleteClick(e, conversation.id)}
-                    className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200"
+                    className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
                     title={`Delete conversation (${modifierKey}+click to skip confirmation)`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -195,10 +233,18 @@ export default function Sidebar({
         </div>
       )}
 
+      {/* Resize Handle */}
+      {isOpen && (
+        <div
+          className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize"
+          onMouseDown={handleMouseDown}
+        />
+      )}
+      
       {/* Toggle Button */}
       <button
         onClick={onToggle}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 bg-secondary border border-border rounded-full p-1 hover:bg-accent transition-colors no-drag"
+        className="absolute -right-3 top-1/2 -translate-y-1/2 bg-secondary border border-border rounded-full p-1 hover:bg-accent transition-colors no-drag z-10"
       >
         {isOpen ? (
           <ChevronLeft className="h-4 w-4" />

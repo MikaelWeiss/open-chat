@@ -74,3 +74,60 @@ html, body, #root {
 .no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* Custom scrollbar styles */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb-border {
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+.hover\:scrollbar-thumb-muted-foreground:hover {
+  scrollbar-color: hsl(var(--muted-foreground)) transparent;
+}
+
+.scrollbar-track-transparent {
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+/* Webkit scrollbar styles for better cross-browser support */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.scrollbar-thin:hover::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground));
+}
+
+.scrollbar-thin::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Animation utilities */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: fade-in 0.3s ease-out;
+}

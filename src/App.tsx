@@ -9,6 +9,7 @@ import { useSettingsStore } from './stores/settingsStore'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarWidth, setSidebarWidth] = useState(320) // Default 320px (80 * 4)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const chatViewRef = useRef<ChatViewHandle>(null)
@@ -132,7 +133,9 @@ function App() {
     <div className="flex h-screen bg-background text-foreground">
       <Sidebar
         isOpen={sidebarOpen}
+        width={sidebarWidth}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
+        onWidthChange={setSidebarWidth}
         conversations={conversations}
         selectedConversation={selectedConversation}
         onSelectConversation={selectConversation}

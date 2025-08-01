@@ -80,11 +80,11 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
   const { totalTokens, totalPromptTokens, totalCompletionTokens, totalCost } = useUsageStats(messages)
 
   return (
-    <div className="border-t border-border p-4">
-      <div className="flex items-end gap-2">
+    <div className="border-t border-border p-4 min-w-0">
+      <div className="flex items-end gap-2 min-w-0">
         <button
           className={clsx(
-            'p-2 rounded-lg transition-colors',
+            'p-2 rounded-lg transition-all duration-200 hover:scale-105',
             disabled 
               ? 'text-muted-foreground cursor-not-allowed' 
               : 'hover:bg-accent'
@@ -108,10 +108,10 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 : "Type a message..."
           }
           className={clsx(
-            'flex-1 resize-none rounded-lg px-4 py-2 min-h-[40px] max-h-[200px] focus:outline-none',
+            'flex-1 resize-none rounded-lg px-4 py-2 min-h-[40px] max-h-[200px] focus:outline-none transition-all duration-200 border',
             disabled || isLoading
-              ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed'
-              : 'bg-secondary focus:ring-2 focus:ring-primary'
+              ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed border-border/50'
+              : 'bg-secondary focus:ring-2 focus:ring-primary border-border hover:border-primary/30 focus:border-primary/50 shadow-sm'
           )}
           rows={1}
           disabled={disabled || isLoading}
@@ -121,12 +121,12 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           onClick={handleCancelOrSend}
           disabled={disabled || (!isStreaming && (!value.trim() || isLoading))}
           className={clsx(
-            'p-2 rounded-lg transition-colors',
+            'p-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm',
             disabled || (!isStreaming && (!value.trim() || isLoading))
               ? 'bg-secondary text-muted-foreground cursor-not-allowed'
               : isStreaming
-                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:shadow-md'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md'
           )}
           title={
             isStreaming 
@@ -146,15 +146,15 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         </button>
       </div>
       
-      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-        <span>
+      <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
+        <span className="truncate">
           {settings?.keyboard?.sendMessage === 'cmd-enter' 
             ? `Press ${navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd' : 'Ctrl'}+Enter to send, Enter for new line`
             : 'Press Enter to send, Shift+Enter for new line'
           }
         </span>
         {(totalTokens > 0 || (totalCost > 0 && settings?.showPricing)) && (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
             {totalTokens > 0 && (
               <div className="flex items-center gap-1">
                 <Zap className="h-3 w-3" />

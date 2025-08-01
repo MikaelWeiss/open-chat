@@ -328,28 +328,29 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col min-w-0">
       {/* Window controls area */}
       <div className="h-6 drag-region" />
       
       {/* Header */}
-      <div className="border-b border-border px-4 py-3 drag-region">
-        <div className="flex items-center justify-between">
-          <div className="no-drag">
-            <h2 className="text-lg font-semibold">{conversation.title}</h2>
+      <div className="border-b border-border px-4 py-3 drag-region min-w-0 backdrop-blur-sm bg-background/80">
+        <div className="flex items-center justify-between min-w-0 gap-4">
+          <div className="no-drag min-w-0 flex-1">
+            <h2 className="text-lg font-semibold truncate">{conversation.title}</h2>
             {/* Only show provider/model info if there are configured providers and conversation has provider/model */}
             {availableModels.length > 0 && conversation.provider && conversation.model && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground truncate">
                 {conversation.provider.charAt(0).toUpperCase() + conversation.provider.slice(1).replace(/-/g, ' ')} • {conversation.model}
               </p>
             )}
           </div>
           
           {/* Show Add Provider button if no providers, otherwise show model selector */}
+          <div className="flex-shrink-0">
           {availableModels.length === 0 ? (
             <button
               onClick={onOpenSettings}
-              className="no-drag px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm inline-flex items-center gap-2"
+              className="no-drag px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all duration-200 hover:scale-105 text-sm inline-flex items-center gap-2 shadow-sm hover:shadow-md"
             >
               <Settings className="h-4 w-4" />
               Add Provider
@@ -360,7 +361,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
               <div className="relative no-drag">
                 <button
                   onClick={() => setShowModelSelector(!showModelSelector)}
-                  className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-colors text-sm"
+                  className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 text-sm shadow-sm border border-border hover:border-primary/30"
                 >
                   <span className={!selectedModel || !selectedModel.model ? 'text-muted-foreground' : ''}>
                     {selectedModel && selectedModel.model ? selectedModel.model : 'Select Model'}
@@ -409,6 +410,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
               </div>
             )
           )}
+          </div>
         </div>
       </div>
 

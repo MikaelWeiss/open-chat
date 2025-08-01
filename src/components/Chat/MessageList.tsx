@@ -37,15 +37,15 @@ export default function MessageList({ messages, isLoading = false, streamingMess
   }, [isLoading])
   
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-6">
+    <div className="flex-1 overflow-y-auto p-4 space-y-6 min-w-0 scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent">
       {messages.map((message) => (
-        <div key={message.id} className="flex gap-3">
+        <div key={message.id} className="flex gap-3 min-w-0 animate-in fade-in duration-300">
           <div
             className={clsx(
-              'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
+              'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border',
               message.role === 'user'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary'
+                ? 'bg-primary text-primary-foreground border-primary/20'
+                : 'bg-secondary border-border'
             )}
           >
             {message.role === 'user' ? (
@@ -55,7 +55,7 @@ export default function MessageList({ messages, isLoading = false, streamingMess
             )}
           </div>
           
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 space-y-2 min-w-0">
             <div className="flex items-baseline gap-2">
               <span className="font-medium">
                 {message.role === 'user' ? 'You' : 'Assistant'}
@@ -66,18 +66,18 @@ export default function MessageList({ messages, isLoading = false, streamingMess
               {/* Usage and cost are now shown in aggregate, not per message */}
             </div>
             
-            <div className="prose prose-sm dark:prose-invert max-w-none">
+            <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
                   pre: ({ children }) => (
-                    <pre className="bg-secondary p-3 rounded-lg overflow-x-auto">
+                    <pre className="bg-secondary border border-border p-3 rounded-lg overflow-x-auto text-xs sm:text-sm shadow-sm">
                       {children}
                     </pre>
                   ),
                   code: ({ inline, children }) =>
                     inline ? (
-                      <code className="bg-secondary px-1 py-0.5 rounded text-sm">
+                      <code className="bg-secondary border border-border px-1.5 py-0.5 rounded text-sm shadow-sm">
                         {children}
                       </code>
                     ) : (
@@ -94,12 +94,12 @@ export default function MessageList({ messages, isLoading = false, streamingMess
       
       {/* Streaming message */}
       {streamingMessage && (
-        <div className="flex gap-3">
+        <div className="flex gap-3 min-w-0">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-secondary">
             <Bot className="h-4 w-4" />
           </div>
           
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 space-y-2 min-w-0">
             <div className="flex items-baseline gap-2">
               <span className="font-medium">Assistant</span>
               <span className="text-xs text-muted-foreground">
@@ -107,18 +107,18 @@ export default function MessageList({ messages, isLoading = false, streamingMess
               </span>
             </div>
             
-            <div className="prose prose-sm dark:prose-invert max-w-none">
+            <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
                   pre: ({ children }) => (
-                    <pre className="bg-secondary p-3 rounded-lg overflow-x-auto">
+                    <pre className="bg-secondary border border-border p-3 rounded-lg overflow-x-auto text-xs sm:text-sm shadow-sm">
                       {children}
                     </pre>
                   ),
                   code: ({ inline, children }) =>
                     inline ? (
-                      <code className="bg-secondary px-1 py-0.5 rounded text-sm">
+                      <code className="bg-secondary border border-border px-1.5 py-0.5 rounded text-sm shadow-sm">
                         {children}
                       </code>
                     ) : (
@@ -136,12 +136,12 @@ export default function MessageList({ messages, isLoading = false, streamingMess
       
       {/* Loading indicator - show when loading and no streaming started yet */}
       {isLoading && !streamingMessage && (
-        <div className="flex gap-3">
+        <div className="flex gap-3 min-w-0">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-secondary">
             <Bot className="h-4 w-4" />
           </div>
           
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 space-y-2 min-w-0">
             <div className="flex items-baseline gap-2">
               <span className="font-medium">Assistant</span>
             </div>
