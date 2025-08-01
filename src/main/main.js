@@ -69,23 +69,35 @@ ipcMain.handle('settings:update', async (event, settings) => {
 })
 
 // IPC Handlers for LLM Operations
-ipcMain.handle('llm:sendMessage', async (event, { provider, model, messages, stream }) => {
+ipcMain.handle('llm:sendMessage', async (event, { conversationId, provider, model, messages, stream }) => {
   if (stream) {
     // For streaming, we'll send chunks back via events
     const streamId = Date.now().toString()
     
-    llmManager.streamCompletion(provider, model, messages, (chunk) => {
+    // Notify frontend that streaming started
+    mainWindow.webContents.send('llm:streamStart', { conversationId, streamId })
+    
+    llmManager.streamCompletion(conversationId, provider, model, messages, (chunk) => {
       mainWindow.webContents.send('llm:streamChunk', { streamId, chunk })
     }, (error) => {
       mainWindow.webContents.send('llm:streamError', { streamId, error })
+      mainWindow.webContents.send('llm:streamEnd', { conversationId, streamId })
     }, () => {
-      mainWindow.webContents.send('llm:streamEnd', { streamId })
+      mainWindow.webContents.send('llm:streamEnd', { conversationId, streamId })
     })
     
     return { streamId }
   } else {
     return await llmManager.getCompletion(provider, model, messages)
   }
+})
+
+ipcMain.handle('llm:cancelStream', async (event, conversationId) => {
+  const cancelled = llmManager.cancelStream(conversationId)
+  if (cancelled) {
+    mainWindow.webContents.send('llm:streamCancelled', { conversationId })
+  }
+  return cancelled
 })
 
 ipcMain.handle('llm:getProviders', async () => {

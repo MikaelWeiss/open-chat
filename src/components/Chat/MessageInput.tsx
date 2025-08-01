@@ -1,12 +1,14 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Send, Paperclip, Loader2 } from 'lucide-react'
+import { Send, Paperclip, Loader2, Square } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useConversationStore } from '@/stores/conversationStore'
 
 interface MessageInputProps {
   value: string
   onChange: (value: string) => void
   onSend: () => void
+  onCancel?: () => void
   disabled?: boolean
   isLoading?: boolean
 }
@@ -16,9 +18,10 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ value, onChange, onSend, disabled = false, isLoading = false }, ref) => {
+  ({ value, onChange, onSend, onCancel, disabled = false, isLoading = false }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const { settings } = useSettingsStore()
+    const { isStreaming, cancelStream } = useConversationStore()
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -34,6 +37,13 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
   }, [value])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle escape key for canceling streams
+    if (e.key === 'Escape' && isStreaming) {
+      e.preventDefault()
+      handleCancelOrSend()
+      return
+    }
+    
     if (disabled || isLoading) return
     
     const sendKey = settings?.keyboard?.sendMessage || 'enter'
@@ -44,14 +54,23 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       // Enter sends, Shift+Enter for new line
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        onSend()
+        handleCancelOrSend()
       }
     } else if (sendKey === 'cmd-enter') {
       // Cmd/Ctrl+Enter sends, Enter for new line
       if (e.key === 'Enter' && isCtrlOrCmd) {
         e.preventDefault()
-        onSend()
+        handleCancelOrSend()
       }
+    }
+  }
+
+  const handleCancelOrSend = () => {
+    if (isStreaming) {
+      cancelStream()
+      onCancel?.()
+    } else {
+      onSend()
     }
   }
 
@@ -94,18 +113,28 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         />
         
         <button
-          onClick={onSend}
-          disabled={disabled || !value.trim() || isLoading}
+          onClick={handleCancelOrSend}
+          disabled={disabled || (!isStreaming && (!value.trim() || isLoading))}
           className={clsx(
             'p-2 rounded-lg transition-colors',
-            disabled || !value.trim() || isLoading
+            disabled || (!isStreaming && (!value.trim() || isLoading))
               ? 'bg-secondary text-muted-foreground cursor-not-allowed'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              : isStreaming
+                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
           )}
-          title={isLoading ? "Generating response..." : "Send message"}
+          title={
+            isStreaming 
+              ? "Stop generation (Esc)" 
+              : isLoading 
+                ? "Generating response..." 
+                : "Send message"
+          }
         >
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isStreaming ? (
+            <Square className="h-4 w-4" />
           ) : (
             <Send className="h-4 w-4" />
           )}

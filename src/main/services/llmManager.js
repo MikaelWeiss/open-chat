@@ -4,6 +4,7 @@ class LLMManager {
   constructor() {
     this.settingsManager = null
     this.localLLMProcess = null
+    this.activeStreamControllers = new Map()
   }
 
   async initialize(settingsManager) {
@@ -181,13 +182,16 @@ class LLMManager {
     }
   }
 
-  async streamCompletion(provider, model, messages, onChunk, onError, onEnd) {
+  async streamCompletion(conversationId, provider, model, messages, onChunk, onError, onEnd) {
     const config = this.settingsManager.getProviderConfig(provider)
     
     if (!config || !config.configured) {
       onError(new Error(`Provider ${provider} is not configured`))
       return
     }
+
+    const controller = new AbortController()
+    this.activeStreamControllers.set(conversationId, controller)
 
     try {
       switch (provider) {
@@ -198,27 +202,43 @@ class LLMManager {
         case 'deepinfra':
         case 'fireworks':
         case 'together':
-          await this.openAIStream(config, model, messages, onChunk, onError, onEnd)
+          await this.openAIStream(config, model, messages, controller.signal, onChunk, onError, onEnd)
           break
         case 'anthropic':
-          await this.anthropicStream(config, model, messages, onChunk, onError, onEnd)
+          await this.anthropicStream(config, model, messages, controller.signal, onChunk, onError, onEnd)
           break
         case 'google-gemini':
-          await this.googleGeminiStream(config, model, messages, onChunk, onError, onEnd)
+          await this.googleGeminiStream(config, model, messages, controller.signal, onChunk, onError, onEnd)
           break
         case 'ollama':
         case 'vllm':
         case 'llamacpp':
         case 'local':
-          await this.localLLMStream(config, model, messages, onChunk, onError, onEnd)
+          await this.localLLMStream(config, model, messages, controller.signal, onChunk, onError, onEnd)
           break
         default:
           // For custom providers, try OpenAI-compatible streaming
-          await this.openAIStream(config, model, messages, onChunk, onError, onEnd)
+          await this.openAIStream(config, model, messages, controller.signal, onChunk, onError, onEnd)
       }
     } catch (error) {
+      if (error.name === 'AbortError') {
+        // Stream was cancelled, this is expected
+        return
+      }
       onError(error)
+    } finally {
+      this.activeStreamControllers.delete(conversationId)
     }
+  }
+
+  cancelStream(conversationId) {
+    const controller = this.activeStreamControllers.get(conversationId)
+    if (controller) {
+      controller.abort()
+      this.activeStreamControllers.delete(conversationId)
+      return true
+    }
+    return false
   }
 
   async openAICompletion(config, model, messages) {
@@ -243,10 +263,11 @@ class LLMManager {
     return data.choices[0].message.content
   }
 
-  async openAIStream(config, model, messages, onChunk, onError, onEnd) {
+  async openAIStream(config, model, messages, signal, onChunk, onError, onEnd) {
     try {
       const response = await fetch(`${config.endpoint}/chat/completions`, {
         method: 'POST',
+        signal,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${config.apiKey}`
@@ -294,6 +315,10 @@ class LLMManager {
         }
       }
     } catch (error) {
+      if (error.name === 'AbortError') {
+        // Stream was cancelled, don't call onError - this is handled by the cancel handler
+        return
+      }
       onError(error)
     }
   }
@@ -327,7 +352,7 @@ class LLMManager {
     return data.content[0].text
   }
 
-  async anthropicStream(config, model, messages, onChunk, onError, onEnd) {
+  async anthropicStream(config, model, messages, signal, onChunk, onError, onEnd) {
     try {
       // Convert OpenAI format to Anthropic format
       const anthropicMessages = messages.map(m => ({
@@ -337,6 +362,7 @@ class LLMManager {
 
       const response = await fetch(`${config.endpoint}/messages`, {
         method: 'POST',
+        signal,
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': config.apiKey,
@@ -389,6 +415,10 @@ class LLMManager {
       
       onEnd()
     } catch (error) {
+      if (error.name === 'AbortError') {
+        // Stream was cancelled, don't call onError - this is handled by the cancel handler
+        return
+      }
       onError(error)
     }
   }
@@ -416,10 +446,11 @@ class LLMManager {
     return data.choices[0].message.content
   }
 
-  async googleGeminiStream(config, model, messages, onChunk, onError, onEnd) {
+  async googleGeminiStream(config, model, messages, signal, onChunk, onError, onEnd) {
     try {
       const response = await fetch(`${config.endpoint}/chat/completions`, {
         method: 'POST',
+        signal,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${config.apiKey}`
@@ -468,6 +499,10 @@ class LLMManager {
       
       onEnd()
     } catch (error) {
+      if (error.name === 'AbortError') {
+        // Stream was cancelled, don't call onError - this is handled by the cancel handler
+        return
+      }
       onError(error)
     }
   }
@@ -497,13 +532,14 @@ class LLMManager {
     return data.choices[0].message.content
   }
 
-  async localLLMStream(config, model, messages, onChunk, onError, onEnd) {
+  async localLLMStream(config, model, messages, signal, onChunk, onError, onEnd) {
     try {
       // Start local LLM if needed
       await this.ensureLocalLLMRunning(config)
 
       const response = await fetch(`${config.endpoint}/v1/chat/completions`, {
         method: 'POST',
+        signal,
         headers: {
           'Content-Type': 'application/json'
         },
@@ -551,6 +587,10 @@ class LLMManager {
       
       onEnd()
     } catch (error) {
+      if (error.name === 'AbortError') {
+        // Stream was cancelled, don't call onError - this is handled by the cancel handler
+        return
+      }
       onError(error)
     }
   }

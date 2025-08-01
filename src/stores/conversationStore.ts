@@ -6,6 +6,8 @@ interface ConversationStore {
   selectedConversation: Conversation | null
   loading: boolean
   error: string | null
+  isStreaming: boolean
+  streamingConversationId: string | null
   
   // Actions
   loadConversations: () => Promise<void>
@@ -14,6 +16,8 @@ interface ConversationStore {
   deleteConversation: (conversationId: string) => Promise<void>
   renameConversation: (conversationId: string, newTitle: string) => Promise<void>
   addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => Promise<void>
+  setStreaming: (conversationId: string | null) => void
+  cancelStream: () => Promise<void>
 }
 
 export const useConversationStore = create<ConversationStore>((set, get) => ({
@@ -21,6 +25,8 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
   selectedConversation: null,
   loading: false,
   error: null,
+  isStreaming: false,
+  streamingConversationId: null,
   
   loadConversations: async () => {
     set({ loading: true, error: null })
@@ -189,6 +195,25 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       }
     } catch (error) {
       set({ error: error.message })
+    }
+  },
+  
+  setStreaming: (conversationId) => {
+    set({ 
+      isStreaming: conversationId !== null, 
+      streamingConversationId: conversationId 
+    })
+  },
+  
+  cancelStream: async () => {
+    const state = get()
+    if (state.streamingConversationId) {
+      try {
+        await window.electronAPI.llm.cancelStream(state.streamingConversationId)
+        set({ isStreaming: false, streamingConversationId: null })
+      } catch (error) {
+        console.error('Failed to cancel stream:', error)
+      }
     }
   }
 }))

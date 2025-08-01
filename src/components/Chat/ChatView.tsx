@@ -24,7 +24,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   const [selectedModel, setSelectedModel] = useState<{provider: string, model: string} | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [streamingMessage, setStreamingMessage] = useState('')
-  const { addMessage } = useConversationStore()
+  const { addMessage, setStreaming, isStreaming } = useConversationStore()
   const { settings } = useSettingsStore()
   const { addToast } = useToastStore()
   const messageInputRef = useRef<MessageInputHandle>(null)
@@ -110,6 +110,10 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
 
   // Set up streaming event listeners
   useEffect(() => {
+    const handleStreamStart = ({ conversationId, streamId }) => {
+      setStreaming(conversationId)
+    }
+
     const handleStreamChunk = ({ streamId, chunk }) => {
       // First chunk received - we can stop showing loading indicator
       if (isLoading) {
@@ -118,7 +122,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       setStreamingMessage(prev => prev + chunk)
     }
 
-    const handleStreamEnd = ({ streamId }) => {
+    const handleStreamEnd = ({ conversationId, streamId }) => {
       // Streaming finished, add the complete message
       if (streamingMessage && conversation) {
         addMessage(conversation.id, {
@@ -127,6 +131,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         })
       }
       setStreamingMessage('')
+      setStreaming(null)
       // Don't need to set isLoading(false) here since it's already false from first chunk
     }
 
@@ -140,18 +145,35 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       })
       setStreamingMessage('')
       setIsLoading(false)
+      setStreaming(null)
+    }
+
+    const handleStreamCancelled = ({ conversationId }) => {
+      // Save any partial response that was streamed before cancellation
+      if (streamingMessage && conversation) {
+        addMessage(conversation.id, {
+          role: 'assistant',
+          content: streamingMessage
+        })
+      }
+      
+      setStreamingMessage('')
+      setIsLoading(false)
+      setStreaming(null)
     }
 
     // Add event listeners
+    window.electronAPI.llm.onStreamStart(handleStreamStart)
     window.electronAPI.llm.onStreamChunk(handleStreamChunk)
     window.electronAPI.llm.onStreamEnd(handleStreamEnd)
     window.electronAPI.llm.onStreamError(handleStreamError)
+    window.electronAPI.llm.onStreamCancelled(handleStreamCancelled)
 
     // Cleanup
     return () => {
       window.electronAPI.llm.removeStreamListeners()
     }
-  }, [streamingMessage, conversation, addMessage, addToast])
+  }, [streamingMessage, conversation, addMessage, addToast, setStreaming, isLoading])
 
   const handleSend = async () => {
     if (!message.trim() || isLoading) return
@@ -212,6 +234,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       
       // Send to LLM with streaming
       const result = await window.electronAPI.llm.sendMessage({
+        conversationId: updatedConversation.id,
         provider: selectedModel.provider,
         model: selectedModel.model,
         messages: llmMessages,
@@ -222,6 +245,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       if (!result?.streamId) {
         // Fallback to non-streaming if streaming failed
         const response = await window.electronAPI.llm.sendMessage({
+          conversationId: updatedConversation.id,
           provider: selectedModel.provider,
           model: selectedModel.model,
           messages: llmMessages,
@@ -396,6 +420,9 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         value={message}
         onChange={setMessage}
         onSend={handleSend}
+        onCancel={() => {
+          // Additional cancel logic if needed
+        }}
         disabled={availableModels.length === 0 || !selectedModel || !selectedModel.model}
         isLoading={isLoading}
       />

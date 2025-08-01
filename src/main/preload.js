@@ -26,8 +26,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sendMessage: (params) => ipcRenderer.invoke('llm:sendMessage', params),
     getProviders: () => ipcRenderer.invoke('llm:getProviders'),
     fetchModels: (providerId) => ipcRenderer.invoke('llm:fetchModels', providerId),
+    cancelStream: (conversationId) => ipcRenderer.invoke('llm:cancelStream', conversationId),
     
     // Streaming handlers
+    onStreamStart: (callback) => {
+      ipcRenderer.on('llm:streamStart', (event, data) => callback(data))
+    },
     onStreamChunk: (callback) => {
       ipcRenderer.on('llm:streamChunk', (event, data) => callback(data))
     },
@@ -37,12 +41,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onStreamEnd: (callback) => {
       ipcRenderer.on('llm:streamEnd', (event, data) => callback(data))
     },
+    onStreamCancelled: (callback) => {
+      ipcRenderer.on('llm:streamCancelled', (event, data) => callback(data))
+    },
     
     // Cleanup streaming listeners
     removeStreamListeners: () => {
+      ipcRenderer.removeAllListeners('llm:streamStart')
       ipcRenderer.removeAllListeners('llm:streamChunk')
       ipcRenderer.removeAllListeners('llm:streamError')
       ipcRenderer.removeAllListeners('llm:streamEnd')
+      ipcRenderer.removeAllListeners('llm:streamCancelled')
     }
   },
   
