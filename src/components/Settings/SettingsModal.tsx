@@ -1196,6 +1196,7 @@ function ModelsSettings() {
     delete newProviders[providerId]
     await updateSettings({ providers: newProviders })
     setConfirmRemoveProvider(null)
+    setShowApiKeyModal(null)
   }
 
   if (showAddProvider) {
