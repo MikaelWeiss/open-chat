@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { X, RefreshCw, Edit, ExternalLink } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import clsx from 'clsx'
 import { useSettingsStore, useToastStore } from '../../stores/settingsStore'
@@ -153,6 +153,8 @@ function ProvidersSettings() {
   const [customProvider, setCustomProvider] = useState({ name: '', endpoint: '', apiKey: '' })
   const [loadingModels, setLoadingModels] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [showManageApiKey, setShowManageApiKey] = useState<string | null>(null)
+  const [newApiKey, setNewApiKey] = useState('')
 
   const providerPresets = [
     // Cloud Providers (API Key Required)
@@ -542,61 +544,44 @@ function ProvidersSettings() {
             <div key={providerId} className="border border-border rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="font-medium capitalize">{providerId.replace(/-/g, ' ')}</h4>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={clsx(
-                      'text-xs px-2 py-1 rounded',
-                      provider.configured
-                        ? 'bg-green-500/20 text-green-500'
-                        : 'bg-yellow-500/20 text-yellow-500'
-                    )}
-                  >
-                    {provider.configured ? 'Configured' : 'Not Configured'}
-                  </span>
-                  <button
-                    onClick={() => handleDeleteClick(providerId)}
-                    className="text-xs text-red-500 hover:text-red-400"
-                  >
-                    Remove
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleDeleteClick(providerId)}
+                  className="text-xs text-red-500 hover:text-red-400"
+                >
+                  Remove
+                </button>
               </div>
               
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium">API Key</label>
-                  <div className="flex gap-2 mt-1">
-                    <input
-                      type="password"
-                      value={provider.apiKey || ''}
-                      onChange={(e) => handleUpdateApiKey(providerId, e.target.value)}
-                      placeholder="sk-..."
-                      className="flex-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">API Key</label>
                     <button
-                      onClick={() => handleRefreshModels(providerId)}
-                      disabled={!provider.apiKey || loadingModels === providerId}
-                      className="px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-colors disabled:opacity-50"
+                      onClick={() => {
+                        setShowManageApiKey(providerId)
+                        setNewApiKey(provider.apiKey || '')
+                      }}
+                      className="px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-colors text-sm"
                     >
-                      {loadingModels === providerId ? '...' : 'Refresh Models'}
+                      Manage API Key
                     </button>
                   </div>
                 </div>
                 
-                <div>
-                  <label className="text-sm font-medium">Endpoint</label>
-                  <input
-                    type="text"
-                    value={provider.endpoint}
-                    readOnly
-                    className="w-full mt-1 px-3 py-2 bg-secondary/50 rounded-lg text-muted-foreground"
-                  />
-                </div>
-                
                 {provider.models && provider.models.length > 0 && (
                   <div>
-                    <label className="text-sm font-medium">Available Models ({provider.models.length})</label>
-                    <div className="mt-1 p-2 bg-secondary/50 rounded-lg max-h-20 overflow-y-auto">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium">Available Models ({provider.models.length})</label>
+                      <button
+                        onClick={() => handleRefreshModels(providerId)}
+                        disabled={!provider.apiKey || loadingModels === providerId}
+                        className="p-1 hover:bg-accent rounded transition-colors disabled:opacity-50"
+                        title="Refresh Models"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${loadingModels === providerId ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
+                    <div className="p-2 bg-secondary/50 rounded-lg max-h-20 overflow-y-auto">
                       <div className="text-xs text-muted-foreground">
                         {provider.models.join(', ')}
                       </div>
@@ -606,6 +591,84 @@ function ProvidersSettings() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* API Key Management Modal */}
+      {showManageApiKey && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                Manage API Key - {showManageApiKey.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowManageApiKey(null)
+                  setNewApiKey('')
+                }}
+                className="p-2 hover:bg-accent rounded-lg transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            
+            {(() => {
+              const preset = providerPresets.find(p => p.id === showManageApiKey)
+              return preset && preset.apiKeyUrl && !preset.isLocal && (
+                <div className="mb-4 p-3 bg-secondary/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Need an API key? Get one from the provider:
+                  </p>
+                  <button
+                    onClick={() => window.electronAPI.shell.openExternal(preset.apiKeyUrl)}
+                    className="text-sm text-primary hover:underline focus:outline-none flex items-center gap-1"
+                  >
+                    Visit {preset.name} API Keys <ExternalLink className="h-3 w-3" />
+                  </button>
+                </div>
+              )
+            })()}
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">API Key</label>
+                <input
+                  type="password"
+                  value={newApiKey}
+                  onChange={(e) => setNewApiKey(e.target.value)}
+                  placeholder={
+                    providerPresets.find(p => p.id === showManageApiKey)?.isLocal 
+                      ? 'Optional for local providers' 
+                      : 'Enter your API key'
+                  }
+                  className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowManageApiKey(null)
+                    setNewApiKey('')
+                  }}
+                  className="px-4 py-2 bg-secondary hover:bg-accent rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    await handleUpdateApiKey(showManageApiKey, newApiKey)
+                    setShowManageApiKey(null)
+                    setNewApiKey('')
+                  }}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
