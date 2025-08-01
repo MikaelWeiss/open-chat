@@ -193,7 +193,7 @@ function ProvidersSettings() {
     { 
       id: 'google-gemini', 
       name: 'Google Gemini', 
-      endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
       description: 'Native multimodal capabilities',
       apiKeyUrl: 'https://aistudio.google.com/app/apikey'
     },

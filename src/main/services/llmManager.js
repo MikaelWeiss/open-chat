@@ -42,6 +42,7 @@ class LLMManager {
         case 'openai':
         case 'groq':
         case 'openrouter':
+        case 'google-gemini':
           response = await fetch(`${config.endpoint}/models`, {
             headers: {
               'Authorization': `Bearer ${config.apiKey}`,
