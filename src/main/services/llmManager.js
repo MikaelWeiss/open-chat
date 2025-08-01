@@ -13,6 +13,74 @@ class LLMManager {
     this.capabilityDetector = new ModelCapabilityDetector()
   }
 
+  async parseApiError(response, providerName) {
+    // Start with enhanced status-based message as fallback
+    let errorMessage = `${providerName} API error: ${response.statusText}`
+    
+    // Enhance status-based messages immediately
+    if (response.status === 404) {
+      errorMessage = `${providerName} API error: Resource not found (404) - This usually means the model doesn't exist or isn't available`
+    } else if (response.status === 401) {
+      errorMessage = `${providerName} API error: Unauthorized (401) - Please check your API key`
+    } else if (response.status === 403) {
+      errorMessage = `${providerName} API error: Forbidden (403) - API key may lack required permissions`
+    } else if (response.status === 429) {
+      errorMessage = `${providerName} API error: Rate limited (429) - Please wait before trying again`
+    } else if (response.status >= 500) {
+      errorMessage = `${providerName} API error: Server error (${response.status}) - The service may be temporarily unavailable`
+    }
+    
+    try {
+      // Try to get more detailed error info from response body
+      const responseClone = response.clone()
+      const errorText = await responseClone.text()
+      
+      if (errorText && errorText.trim()) {
+        // Try to parse as JSON
+        try {
+          const errorBody = JSON.parse(errorText)
+          
+          // Parse different error formats
+          if (errorBody.error) {
+            if (typeof errorBody.error === 'string') {
+              errorMessage = `${providerName} API error: ${errorBody.error}`
+            } else if (errorBody.error.message) {
+              errorMessage = `${providerName} API error: ${errorBody.error.message}`
+            } else if (errorBody.error.code && errorBody.error.message) {
+              errorMessage = `${providerName} API error (${errorBody.error.code}): ${errorBody.error.message}`
+            }
+          } else if (errorBody.message) {
+            errorMessage = `${providerName} API error: ${errorBody.message}`
+          } else if (errorBody.detail) {
+            errorMessage = `${providerName} API error: ${errorBody.detail}`
+          }
+        } catch (jsonError) {
+          // If not JSON, use the text directly (truncated)
+          if (errorText.length > 100) {
+            errorMessage = `${providerName} API error: ${errorText.substring(0, 200)}...`
+          } else {
+            errorMessage = `${providerName} API error: ${errorText}`
+          }
+        }
+      }
+      
+      // Add helpful context for common error patterns
+      if (errorMessage.toLowerCase().includes('model') && errorMessage.toLowerCase().includes('does not exist')) {
+        errorMessage += ' - Please check if the model name is correct and available'
+      } else if (errorMessage.toLowerCase().includes('rate limit') || errorMessage.toLowerCase().includes('quota')) {
+        errorMessage += ' - Please wait before trying again or check your usage limits'
+      } else if (errorMessage.toLowerCase().includes('authentication') || errorMessage.toLowerCase().includes('unauthorized')) {
+        errorMessage += ' - Please check your API key is valid and has proper permissions'
+      }
+      
+    } catch (parseError) {
+      // If all parsing fails, we already have the enhanced status message
+      console.warn('Failed to parse API error response:', parseError)
+    }
+    
+    return errorMessage
+  }
+
   async initialize(settingsManager) {
     this.settingsManager = settingsManager
   }
@@ -148,7 +216,8 @@ class LLMManager {
       // Extract model IDs from response if we made an API call
       if (response) {
         if (!response.ok) {
-          throw new Error(`Failed to fetch models: ${response.statusText}`)
+          const errorMessage = await this.parseApiError(response, providerId.charAt(0).toUpperCase() + providerId.slice(1))
+          throw new Error(errorMessage)
         }
         
         const data = await response.json()
@@ -314,7 +383,8 @@ class LLMManager {
     })
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`)
+      const errorMessage = await this.parseApiError(response, 'OpenAI')
+      throw new Error(errorMessage)
     }
 
     const data = await response.json()
@@ -353,7 +423,8 @@ class LLMManager {
       })
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.statusText}`)
+        const errorMessage = await this.parseApiError(response, 'OpenAI')
+        throw new Error(errorMessage)
       }
 
       const reader = response.body.getReader()
@@ -436,7 +507,8 @@ class LLMManager {
     })
 
     if (!response.ok) {
-      throw new Error(`Anthropic API error: ${response.statusText}`)
+      const errorMessage = await this.parseApiError(response, 'Anthropic')
+      throw new Error(errorMessage)
     }
 
     const data = await response.json()
@@ -482,7 +554,8 @@ class LLMManager {
       })
 
       if (!response.ok) {
-        throw new Error(`Anthropic API error: ${response.statusText}`)
+        const errorMessage = await this.parseApiError(response, 'Anthropic')
+        throw new Error(errorMessage)
       }
 
       const reader = response.body.getReader()
@@ -600,7 +673,8 @@ class LLMManager {
     })
 
     if (!response.ok) {
-      throw new Error(`Google Gemini API error: ${response.statusText}`)
+      const errorMessage = await this.parseApiError(response, 'Google Gemini')
+      throw new Error(errorMessage)
     }
 
     const data = await response.json()
@@ -625,7 +699,8 @@ class LLMManager {
       })
 
       if (!response.ok) {
-        throw new Error(`Google Gemini API error: ${response.statusText}`)
+        const errorMessage = await this.parseApiError(response, 'Google Gemini')
+        throw new Error(errorMessage)
       }
 
       const reader = response.body.getReader()
@@ -686,7 +761,8 @@ class LLMManager {
     })
 
     if (!response.ok) {
-      throw new Error(`Local LLM API error: ${response.statusText}`)
+      const errorMessage = await this.parseApiError(response, 'Local LLM')
+      throw new Error(errorMessage)
     }
 
     const data = await response.json()
@@ -713,7 +789,8 @@ class LLMManager {
       })
 
       if (!response.ok) {
-        throw new Error(`Local LLM API error: ${response.statusText}`)
+        const errorMessage = await this.parseApiError(response, 'Local LLM')
+        throw new Error(errorMessage)
       }
 
       const reader = response.body.getReader()
