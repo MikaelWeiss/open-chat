@@ -62,15 +62,23 @@ function ModelCapabilityIcons({
     }
   ]
 
+  const isClickable = modelId && providerId && onCapabilityToggle
+  const hasAnyCapabilities = capabilityItems.some(item => item.enabled)
+  
   return (
     <div 
-      className={`flex items-center gap-1 ${className}`}
+      className={clsx(
+        "flex items-center gap-1",
+        className,
+        // Show a minimum clickable area when no capabilities are visible but manual toggling is enabled
+        !hasAnyCapabilities && isClickable && "min-w-[16px] min-h-[16px] border border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-gray-400 dark:hover:border-gray-500"
+      )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      title={!hasAnyCapabilities && isClickable ? "Click to add capabilities" : undefined}
     >
       {capabilityItems.map(({ key, icon: Icon, enabled, color, grayColor, title }) => {
         const shouldShow = enabled || isHovered
-        const isClickable = modelId && providerId && onCapabilityToggle
         const isManualOverride = capabilities.manualOverrides?.[key] !== undefined
         
         if (!shouldShow) return null
@@ -81,8 +89,7 @@ function ModelCapabilityIcons({
             className={clsx(
               "w-4 h-4 transition-colors",
               enabled ? color : grayColor,
-              isClickable && "cursor-pointer hover:scale-110",
-              isManualOverride && "ring-1 ring-yellow-400 ring-opacity-50 rounded-sm"
+              isClickable && "cursor-pointer hover:scale-110"
             )}
             title={`${title}${isManualOverride ? ' (manually set)' : ''}${isClickable ? ' - Click to toggle' : ''}`}
             onClick={() => isClickable && handleCapabilityClick(key)}
