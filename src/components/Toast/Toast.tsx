@@ -30,7 +30,7 @@ const ToastItem = ({ toast }: { toast: Toast }) => {
   return (
     <div
       className={clsx(
-        'pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-background shadow-lg ring-1 ring-border border',
+        'pointer-events-auto w-full max-w-md min-w-[280px] overflow-hidden rounded-lg bg-background shadow-lg ring-1 ring-border border',
         'transform transition-all duration-300 ease-in-out translate-x-0 opacity-100'
       )}
     >
@@ -39,10 +39,10 @@ const ToastItem = ({ toast }: { toast: Toast }) => {
           <div className="flex-shrink-0">
             <ToastIcon type={toast.type} />
           </div>
-          <div className="ml-3 w-0 flex-1 pt-0.5">
-            <p className="text-sm font-medium text-foreground">{toast.title}</p>
+          <div className="ml-3 flex-1 pt-0.5 min-w-0">
+            <p className="text-sm font-medium text-foreground break-words">{toast.title}</p>
             {toast.message && (
-              <p className="mt-1 text-sm text-muted-foreground">{toast.message}</p>
+              <p className="mt-1 text-sm text-muted-foreground break-words">{toast.message}</p>
             )}
           </div>
           <div className="ml-4 flex flex-shrink-0">
