@@ -70,6 +70,17 @@ function CodeBlock({ children, className, isDark }: CodeBlockProps) {
 export default function MessageList({ messages, isLoading = false, streamingMessage = '' }: MessageListProps) {
   const { settings } = useSettingsStore()
   const [loadingMessage, setLoadingMessage] = useState('Thinking')
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+  
+  const copyToClipboard = async (text: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedMessageId(messageId)
+      setTimeout(() => setCopiedMessageId(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy text: ', err)
+    }
+  }
   
   // Detect if we're in dark mode
   const isDark = document.documentElement.classList.contains('dark')
@@ -189,6 +200,23 @@ export default function MessageList({ messages, isLoading = false, streamingMess
                 {message.content}
               </ReactMarkdown>
             </div>
+            
+            <button
+              onClick={() => copyToClipboard(message.content, message.id)}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-secondary/50 group"
+            >
+              {copiedMessageId === message.id ? (
+                <>
+                  <Check className="h-3 w-3" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </>
+              )}
+            </button>
           </div>
         </div>
       ))}
@@ -217,6 +245,23 @@ export default function MessageList({ messages, isLoading = false, streamingMess
               </ReactMarkdown>
               <div className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
             </div>
+            
+            <button
+              onClick={() => copyToClipboard(streamingMessage, 'streaming')}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-secondary/50 group"
+            >
+              {copiedMessageId === 'streaming' ? (
+                <>
+                  <Check className="h-3 w-3" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </>
+              )}
+            </button>
           </div>
         </div>
       )}
