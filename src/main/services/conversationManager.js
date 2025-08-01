@@ -142,8 +142,8 @@ class ConversationManager {
     const imagePath = path.join(this.dataPath, 'images', conversationId)
     const audioPath = path.join(this.dataPath, 'audio', conversationId)
     
-    await fs.rmdir(imagePath, { recursive: true }).catch(() => {})
-    await fs.rmdir(audioPath, { recursive: true }).catch(() => {})
+    await fs.rm(imagePath, { recursive: true }).catch(() => {})
+    await fs.rm(audioPath, { recursive: true }).catch(() => {})
   }
 
   generateTitle(content) {
