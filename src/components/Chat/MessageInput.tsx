@@ -109,6 +109,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           }
           className={clsx(
             'flex-1 resize-none rounded-lg px-4 py-2 min-h-[40px] max-h-[200px] focus:outline-none transition-all duration-200 border',
+            'scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent',
             disabled || isLoading
               ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed border-border/50'
               : 'bg-secondary focus:ring-2 focus:ring-primary border-border hover:border-primary/30 focus:border-primary/50 shadow-sm'
