@@ -152,6 +152,7 @@ function ProvidersSettings() {
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
   const [customProvider, setCustomProvider] = useState({ name: '', endpoint: '', apiKey: '' })
   const [loadingModels, setLoadingModels] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   const providerPresets = [
     // Cloud Providers (API Key Required)
@@ -335,6 +336,21 @@ function ProvidersSettings() {
     const newProviders = { ...settings?.providers }
     delete newProviders[providerId]
     await updateSettings({ providers: newProviders })
+  }
+
+  const handleDeleteClick = (providerId: string) => {
+    setDeleteConfirm(providerId)
+  }
+
+  const handleConfirmDelete = () => {
+    if (deleteConfirm) {
+      handleRemoveProvider(deleteConfirm)
+      setDeleteConfirm(null)
+    }
+  }
+
+  const handleCancelDelete = () => {
+    setDeleteConfirm(null)
   }
 
   if (showAddProvider) {
@@ -538,7 +554,7 @@ function ProvidersSettings() {
                     {provider.configured ? 'Configured' : 'Not Configured'}
                   </span>
                   <button
-                    onClick={() => handleRemoveProvider(providerId)}
+                    onClick={() => handleDeleteClick(providerId)}
                     className="text-xs text-red-500 hover:text-red-400"
                   >
                     Remove
@@ -590,6 +606,33 @@ function ProvidersSettings() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold mb-2">Delete Provider</h3>
+            <p className="text-muted-foreground mb-6">
+              Are you sure you want to delete the "{deleteConfirm.replace(/-/g, ' ')}" provider? 
+              This will remove all its configuration and models.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancelDelete}
+                className="px-4 py-2 bg-secondary hover:bg-accent rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
