@@ -31,12 +31,7 @@ function createWindow() {
     trafficLightPosition: { x: 12, y: 12 }
   })
 
-  if (isDev) {
-    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
-    mainWindow.webContents.openDevTools()
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
-  }
+  mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
 }
 
 function showAndFocusWindow() {
