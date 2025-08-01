@@ -191,7 +191,7 @@ export default function MessageList({ messages, isLoading = false, streamingMess
       <ul className="list-disc list-inside my-2 space-y-1">{children}</ul>
     ),
     ol: ({ children }: any) => (
-      <ol className="list-decimal list-inside my-2 space-y-1">{children}</ol>
+      <ol className="list-decimal list-outside my-2 space-y-1 ml-6">{children}</ol>
     ),
     li: ({ children }: any) => (
       <li className="ml-2">{children}</li>
