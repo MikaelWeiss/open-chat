@@ -51,32 +51,22 @@ class LLMManager {
           break
           
         case 'anthropic':
-          // Anthropic doesn't have a models endpoint, return known models
-          return [
-            'claude-3-5-sonnet-20241022',
-            'claude-3-5-haiku-20241022', 
-            'claude-3-opus-20240229',
-            'claude-3-sonnet-20240229',
-            'claude-3-haiku-20240307'
-          ]
+          response = await fetch(`${config.endpoint}/v1/models`, {
+            headers: {
+              'x-api-key': config.apiKey,
+              'anthropic-version': '2023-06-01'
+            }
+          })
+          break
           
         case 'deepinfra':
-          // DeepInfra doesn't have a models endpoint, return popular models
-          return [
-            'deepseek-ai/DeepSeek-V3-0324',
-            'deepseek-ai/DeepSeek-R1',
-            'meta-llama/Llama-3.3-70B-Instruct',
-            'meta-llama/Llama-3.1-70B-Instruct',
-            'meta-llama/Llama-3.1-8B-Instruct',
-            'Qwen/Qwen2.5-72B-Instruct',
-            'Qwen/Qwen2.5-32B-Instruct',
-            'Qwen/Qwen2.5-14B-Instruct',
-            'Qwen/Qwen2.5-7B-Instruct',
-            'microsoft/WizardLM-2-8x22B',
-            'microsoft/WizardLM-2-7B',
-            'mistralai/Mixtral-8x7B-Instruct-v0.1',
-            'mistralai/Mistral-7B-Instruct-v0.3'
-          ]
+          response = await fetch(`${config.endpoint}/v1/models`, {
+            headers: {
+              'Authorization': `Bearer ${config.apiKey}`,
+              'Content-Type': 'application/json'
+            }
+          })
+          break
           
         case 'local':
           response = await fetch(`${config.endpoint}/v1/models`, {
