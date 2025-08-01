@@ -42,6 +42,16 @@ function QuickChatApp() {
   useEffect(() => {
     const handleConversationUpdate = async (data: { conversationId?: string, action: string }) => {
       const currentId = selectedConversation?.id
+      const store = useConversationStore.getState()
+      
+      // Skip the 'created' broadcast if we already have this conversation in our list
+      // This prevents duplicates when we create a conversation locally
+      if (data.action === 'created' && data.conversationId) {
+        const existingConversation = store.conversations.find(c => c.id === data.conversationId)
+        if (existingConversation) {
+          return // Skip reload, we already have this conversation
+        }
+      }
       
       if (data.action === 'message_added' && data.conversationId === currentId) {
         // If a message was added to our current conversation from another window,

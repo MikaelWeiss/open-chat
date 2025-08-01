@@ -185,28 +185,26 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       
       const newMessage = await window.electronAPI.conversations.addMessage(actualConversationId, message)
       if (newMessage) {
-        // After adding the message, get the updated conversation to get any title changes
-        const updatedConversations = await window.electronAPI.conversations.getAll()
-        const updatedConversation = updatedConversations.find(c => c.id === actualConversationId)
+        // For temporary conversations that just became real, we need to update our local state
+        // but we should be careful not to duplicate when the broadcast arrives
+        const wasTemporary = state.selectedConversation?.isTemporary
         
-        set(state => {
-          const wasTemporary = state.selectedConversation?.isTemporary
+        if (wasTemporary) {
+          // Get the updated conversation to get any title changes
+          const updatedConversations = await window.electronAPI.conversations.getAll()
+          const updatedConversation = updatedConversations.find(c => c.id === actualConversationId)
           
-          return {
-            conversations: wasTemporary 
-              ? [updatedConversation, ...state.conversations]
-              : state.conversations.map(c => {
-                  if (c.id === actualConversationId) {
-                    return updatedConversation
-                  }
-                  return c
-                }),
+          set(state => ({
+            // Filter out any existing conversation with this ID to prevent duplicates
+            conversations: [updatedConversation, ...state.conversations.filter(c => c.id !== actualConversationId)],
             selectedConversation: {
               ...updatedConversation,
               isTemporary: false
             }
-          }
-        })
+          }))
+        }
+        // For existing conversations, we'll let the broadcast handle the update
+        // to avoid duplicate fetching and potential race conditions
       }
     } catch (error) {
       set({ error: error.message })
