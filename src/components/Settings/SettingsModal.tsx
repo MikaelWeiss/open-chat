@@ -288,14 +288,16 @@ function ProvidersSettings() {
 
       await updateSettings({ providers: newProviders })
       
-      // Auto-test and refresh models for the newly added provider
+      // Auto-fetch models for the newly added provider
       const providerId = selectedPreset || customProvider.name.toLowerCase().replace(/\s+/g, '-')
       if (customProvider.apiKey || isLocalProvider) {
         try {
-          // Auto-test the connection
+          // Auto-test the connection and fetch models
           await handleTestProvider(providerId, true) // true = auto-test (no success toast)
+          // If test succeeds, fetch models
+          await handleRefreshModels(providerId)
         } catch (error) {
-          console.error('Failed to auto-test provider:', error)
+          console.error('Failed to auto-test and fetch models for provider:', error)
           // Don't block the provider addition if test fails
         }
       }
@@ -672,26 +674,36 @@ function ProvidersSettings() {
                   </div>
                 </div>
                 
-                {provider.models && provider.models.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-medium">Available Models ({provider.models.length})</label>
-                      <button
-                        onClick={() => handleRefreshModels(providerId)}
-                        disabled={!provider.apiKey || loadingModels === providerId}
-                        className="p-1 hover:bg-accent rounded transition-colors disabled:opacity-50"
-                        title="Refresh Models"
-                      >
-                        <RefreshCw className={`h-4 w-4 ${loadingModels === providerId ? 'animate-spin' : ''}`} />
-                      </button>
-                    </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium">
+                      {provider.models && provider.models.length > 0 
+                        ? `Available Models (${provider.models.length})` 
+                        : 'Available Models (0)'}
+                    </label>
+                    <button
+                      onClick={() => handleRefreshModels(providerId)}
+                      disabled={!provider.apiKey || loadingModels === providerId}
+                      className="p-1 hover:bg-accent rounded transition-colors disabled:opacity-50"
+                      title="Refresh Models"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${loadingModels === providerId ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                  {provider.models && provider.models.length > 0 ? (
                     <div className="p-2 bg-secondary/50 rounded-lg max-h-20 overflow-y-auto">
                       <div className="text-xs text-muted-foreground">
                         {provider.models.join(', ')}
                       </div>
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="p-2 bg-secondary/50 rounded-lg">
+                      <div className="text-xs text-muted-foreground">
+                        No models found. Click refresh to fetch models.
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
