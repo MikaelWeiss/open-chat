@@ -60,13 +60,63 @@ class LLMManager {
           break
           
         case 'deepinfra':
-          response = await fetch(`${config.endpoint}/v1/models`, {
-            headers: {
-              'Authorization': `Bearer ${config.apiKey}`,
-              'Content-Type': 'application/json'
-            }
-          })
-          break
+          // Return predefined models for DeepInfra instead of making API call
+          return Promise.resolve({
+            data: [
+              // Latest Featured Models
+              { id: 'zai-org/GLM-4.5' },
+              { id: 'zai-org/GLM-4.5-Air' },
+              { id: 'moonshotai/Kimi-K2-Instruct' },
+              
+              // DeepSeek Models
+              { id: 'deepseek-ai/DeepSeek-V3-0324' },
+              { id: 'deepseek-ai/DeepSeek-V3-0324-Turbo' },
+              { id: 'deepseek-ai/DeepSeek-V3' },
+              { id: 'deepseek-ai/DeepSeek-R1-0528' },
+              { id: 'deepseek-ai/DeepSeek-R1-0528-Turbo' },
+              { id: 'deepseek-ai/DeepSeek-R1-Distill-Llama-70B' },
+              
+              // Qwen Models
+              { id: 'Qwen/Qwen3-Coder-480B-A35B-Instruct' },
+              { id: 'Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo' },
+              { id: 'Qwen/Qwen3-235B-A22B-Thinking-2507' },
+              { id: 'Qwen/Qwen3-235B-A22B-Instruct-2507' },
+              { id: 'Qwen/Qwen3-32B' },
+              { id: 'Qwen/Qwen3-30B-A3B' },
+              { id: 'Qwen/Qwen3-14B' },
+              { id: 'Qwen/QwQ-32B' },
+              
+              // Meta Llama Models
+              { id: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-Turbo' },
+              { id: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8' },
+              { id: 'meta-llama/Llama-4-Scout-17B-16E-Instruct' },
+              { id: 'meta-llama/Llama-3.3-70B-Instruct' },
+              { id: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
+              { id: 'meta-llama/Llama-Guard-4-12B' },
+              
+              // Mistral Models
+              { id: 'mistralai/Mistral-Small-3.2-24B-Instruct-2506' },
+              { id: 'mistralai/Devstral-Small-2507' },
+              { id: 'mistralai/Mixtral-8x7B-Instruct-v0.1' },
+              
+              // Google Models
+              { id: 'google/gemini-2.5-flash' },
+              { id: 'google/gemini-2.5-pro' },
+              { id: 'google/gemma-3-27b-it' },
+              { id: 'google/gemma-3-12b-it' },
+              { id: 'google/gemma-3-4b-it' },
+              
+              // Anthropic Models
+              { id: 'anthropic/claude-4-opus' },
+              { id: 'anthropic/claude-4-sonnet' },
+              
+              // Microsoft Models
+              { id: 'microsoft/phi-4' },
+              
+              // Other Popular Models
+              { id: 'Gryphe/MythoMax-L2-13b' }
+            ]
+          }).then(data => data.data.map(model => model.id))
           
         case 'local':
           response = await fetch(`${config.endpoint}/v1/models`, {

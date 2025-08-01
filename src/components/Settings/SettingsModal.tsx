@@ -1,7 +1,7 @@
 import { X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import clsx from 'clsx'
-import { useSettingsStore } from '../../stores/settingsStore'
+import { useSettingsStore, useToastStore } from '../../stores/settingsStore'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -147,6 +147,7 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey }: any) {
 
 function ProvidersSettings() {
   const { settings, updateSettings } = useSettingsStore()
+  const { addToast } = useToastStore()
   const [showAddProvider, setShowAddProvider] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
   const [customProvider, setCustomProvider] = useState({ name: '', endpoint: '', apiKey: '' })
@@ -311,6 +312,16 @@ function ProvidersSettings() {
       const updatedSettings = await window.electronAPI.settings.get()
       // Update our local settings through the store
       await updateSettings(updatedSettings)
+      
+      // Show toast for DeepInfra about manual model addition
+      if (providerId === 'deepinfra') {
+        addToast({
+          type: 'info',
+          title: 'DeepInfra Models Updated',
+          message: 'If the model you want is missing, you can manually add it in the settings.',
+          duration: 8000
+        })
+      }
     } catch (error) {
       console.error('Failed to fetch models:', error)
       // Show error to user
