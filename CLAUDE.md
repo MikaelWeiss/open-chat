@@ -23,8 +23,6 @@ This is "Open Chat" - an Electron-based chat application in early development st
 ### Running the Application
 ```bash
 pnpm start
-# or
-npm run start
 ```
 This starts the Electron application using `electron .`
 

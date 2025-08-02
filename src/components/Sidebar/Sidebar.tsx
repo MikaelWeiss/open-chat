@@ -1,9 +1,10 @@
 import { ChevronLeft, ChevronRight, Plus, Settings, Trash2, MessageSquare, Star } from 'lucide-react'
-import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns'
+import { format } from 'date-fns'
 import type { Conversation } from '@/types/electron'
 import clsx from 'clsx'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef } from 'react'
+import { useConversationGrouping, useResizable, useContextMenu, useDeleteConfirmation, usePlatformInfo } from '@/hooks'
 
 interface SidebarProps {
   isOpen: boolean
@@ -35,135 +36,22 @@ export default function Sidebar({
   onOpenFeedback,
 }: SidebarProps) {
   const { settings } = useSettingsStore()
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; conversationId: string } | null>(null)
   const [starredCollapsed, setStarredCollapsed] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
   
-  const MIN_WIDTH = 240
-  const MAX_WIDTH = 480
+  // Use custom hooks
+  const { getConversationsByDate, getDateLabel } = useConversationGrouping(conversations)
+  const { handleMouseDown } = useResizable(width, onWidthChange, 240, 480)
+  const { contextMenu, handleRightClick, handleContextMenuAction, handleClickOutside } = useContextMenu()
+  const { deleteConfirm, handleDeleteClick, handleConfirmDelete, handleCancelDelete } = useDeleteConfirmation()
+  const { modifierKey } = usePlatformInfo()
   
   // Check if there are any configured providers
   const hasConfiguredProviders = settings?.providers 
     ? Object.values(settings.providers).some(provider => provider.configured) 
     : false
 
-  const handleDeleteClick = (e: React.MouseEvent, conversationId: string) => {
-    e.stopPropagation()
-    
-    // Check if Command (Mac) or Ctrl (Windows/Linux) is held down
-    const isModifierPressed = isMac ? e.metaKey : e.ctrlKey
-    
-    if (isModifierPressed) {
-      // Delete immediately without confirmation
-      onDeleteConversation(conversationId)
-    } else {
-      // Show confirmation dialog
-      setDeleteConfirm(conversationId)
-    }
-  }
-
-  const handleConfirmDelete = () => {
-    if (deleteConfirm) {
-      onDeleteConversation(deleteConfirm)
-      setDeleteConfirm(null)
-    }
-  }
-
-  const handleCancelDelete = () => {
-    setDeleteConfirm(null)
-  }
-
-  const handleRightClick = (e: React.MouseEvent, conversationId: string) => {
-    e.preventDefault()
-    e.stopPropagation()
-    
-    const rect = sidebarRef.current?.getBoundingClientRect()
-    if (rect) {
-      setContextMenu({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        conversationId
-      })
-    }
-  }
-
-  const handleContextMenuAction = (action: 'star' | 'delete', conversationId: string) => {
-    setContextMenu(null)
-    
-    if (action === 'star') {
-      onToggleStarConversation(conversationId)
-    } else if (action === 'delete') {
-      setDeleteConfirm(conversationId)
-    }
-  }
-
-  const handleClickOutside = () => {
-    setContextMenu(null)
-  }
-
-  // Get platform-specific modifier key for tooltip
-  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
-  const modifierKey = isMac ? '⌘' : 'Ctrl'
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    
-    const startX = e.clientX
-    const startWidth = width
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = e.clientX - startX
-      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + deltaX))
-      onWidthChange(newWidth)
-    }
-    
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-    
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-  }, [width, onWidthChange])
-
-  const getConversationsByDate = () => {
-    // Separate starred and non-starred conversations
-    const starredConversations = conversations.filter(conv => conv.starred)
-    const regularConversations = conversations.filter(conv => !conv.starred)
-    
-    // Group regular conversations by date
-    const grouped = new Map<string, Conversation[]>()
-    
-    regularConversations.forEach(conv => {
-      const dateKey = new Date(conv.updatedAt).toDateString()
-      if (!grouped.has(dateKey)) {
-        grouped.set(dateKey, [])
-      }
-      grouped.get(dateKey)!.push(conv)
-    })
-    
-    const regularByDate = Array.from(grouped.entries()).sort((a, b) => {
-      return new Date(b[0]).getTime() - new Date(a[0]).getTime()
-    })
-    
-    return { starredConversations, regularByDate }
-  }
-  
   const { starredConversations, regularByDate } = getConversationsByDate()
-
-  const getDateLabel = (dateString: string) => {
-    const date = new Date(dateString)
-    if (isToday(date)) return 'Today'
-    if (isYesterday(date)) return 'Yesterday'
-    if (isThisWeek(date)) return format(date, 'EEEE')
-    if (isThisMonth(date)) return format(date, 'MMMM d')
-    return format(date, 'MMMM d, yyyy')
-  }
 
   return (
     <div
@@ -233,7 +121,7 @@ export default function Sidebar({
                     'group relative flex items-center w-full hover:bg-accent transition-colors',
                     selectedConversation?.id === conversation.id && 'bg-accent'
                   )}
-                  onContextMenu={(e) => handleRightClick(e, conversation.id)}
+                  onContextMenu={(e) => handleRightClick(e, conversation.id, sidebarRef)}
                 >
                   <button
                     onClick={() => onSelectConversation(conversation)}
@@ -252,7 +140,7 @@ export default function Sidebar({
                     </div>
                   </button>
                   <button
-                    onClick={(e) => handleDeleteClick(e, conversation.id)}
+                    onClick={(e) => handleDeleteClick(e, conversation.id, onDeleteConversation)}
                     className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
                     title={`Delete conversation (${modifierKey}+click to skip confirmation)`}
                   >
@@ -276,7 +164,7 @@ export default function Sidebar({
                     'group relative flex items-center w-full hover:bg-accent transition-colors',
                     selectedConversation?.id === conversation.id && 'bg-accent'
                   )}
-                  onContextMenu={(e) => handleRightClick(e, conversation.id)}
+                  onContextMenu={(e) => handleRightClick(e, conversation.id, sidebarRef)}
                 >
                   <button
                     onClick={() => onSelectConversation(conversation)}
@@ -294,7 +182,7 @@ export default function Sidebar({
                     </div>
                   </button>
                   <button
-                    onClick={(e) => handleDeleteClick(e, conversation.id)}
+                    onClick={(e) => handleDeleteClick(e, conversation.id, onDeleteConversation)}
                     className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
                     title={`Delete conversation (${modifierKey}+click to skip confirmation)`}
                   >
@@ -323,7 +211,7 @@ export default function Sidebar({
                 Cancel
               </button>
               <button
-                onClick={handleConfirmDelete}
+                onClick={() => handleConfirmDelete(onDeleteConversation)}
                 className="px-3 py-2 text-sm bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 transition-colors"
               >
                 Delete
@@ -348,7 +236,13 @@ export default function Sidebar({
             }}
           >
             <button
-              onClick={() => handleContextMenuAction('star', contextMenu.conversationId)}
+              onClick={() => handleContextMenuAction('star', contextMenu.conversationId, (action, id) => {
+                if (action === 'star') {
+                  onToggleStarConversation(id)
+                } else if (action === 'delete') {
+                  handleDeleteClick({ stopPropagation: () => {} } as React.MouseEvent, id, onDeleteConversation)
+                }
+              })}
               className="w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors flex items-center gap-2"
             >
               <Star className="h-4 w-4" />
@@ -356,7 +250,13 @@ export default function Sidebar({
             </button>
             <div className="border-t border-border my-1" />
             <button
-              onClick={() => handleContextMenuAction('delete', contextMenu.conversationId)}
+              onClick={() => handleContextMenuAction('delete', contextMenu.conversationId, (action, id) => {
+                if (action === 'star') {
+                  onToggleStarConversation(id)
+                } else if (action === 'delete') {
+                  handleDeleteClick({ stopPropagation: () => {} } as React.MouseEvent, id, onDeleteConversation)
+                }
+              })}
               className="w-full px-3 py-2 text-sm text-left hover:bg-accent text-destructive transition-colors flex items-center gap-2"
             >
               <Trash2 className="h-4 w-4" />

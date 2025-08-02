@@ -3,21 +3,11 @@ import { Send, Paperclip, Loader2, Square, Zap, DollarSign, X, FileText, Image, 
 import clsx from 'clsx'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useConversationStore } from '@/stores/conversationStore'
-import { useUsageStats } from '@/hooks/useUsageStats'
+import { useUsageStats, useFileAttachments, useKeyboardShortcuts, usePlatformInfo } from '@/hooks'
 import type { Message, ModelCapabilities } from '@/types/electron'
 
-interface FileAttachment {
-  path: string
-  base64: string
-  mimeType: string
-  name: string
-  type: 'image' | 'audio' | 'file'
-}
-
 interface MessageInputProps {
-  value: string
-  onChange: (value: string) => void
-  onSend: (attachments?: FileAttachment[]) => void
+  onSend: (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => void
   onCancel?: () => void
   disabled?: boolean
   isLoading?: boolean
@@ -30,11 +20,16 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ value, onChange, onSend, onCancel, disabled = false, isLoading = false, messages = [], modelCapabilities }, ref) => {
+  ({ onSend, onCancel, disabled = false, isLoading = false, messages = [], modelCapabilities }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const { settings } = useSettingsStore()
-    const { isStreaming, cancelStream } = useConversationStore()
-    const [attachments, setAttachments] = useState<FileAttachment[]>([])
+    const { isStreaming } = useConversationStore()
+    const [message, setMessage] = useState('')
+    
+    // Use custom hooks
+    const { attachments, addAttachment, removeAttachment, clearAttachments } = useFileAttachments()
+    const { handleKeyDown } = useKeyboardShortcuts()
+    const { getModifierKeyLabel } = usePlatformInfo()
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -47,84 +42,30 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       textareaRef.current.style.height = 'auto'
       textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
     }
-  }, [value])
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Handle escape key for canceling streams
-    if (e.key === 'Escape' && isStreaming) {
-      e.preventDefault()
-      handleCancelOrSend()
-      return
-    }
-    
-    if (disabled || isLoading) return
-    
-    const sendKey = settings?.keyboard?.sendMessage || 'enter'
-    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
-    const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey
-
-    if (sendKey === 'enter') {
-      // Enter sends, Shift+Enter for new line
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        handleCancelOrSend()
-      }
-    } else if (sendKey === 'cmd-enter') {
-      // Cmd/Ctrl+Enter sends, Enter for new line
-      if (e.key === 'Enter' && isCtrlOrCmd) {
-        e.preventDefault()
-        handleCancelOrSend()
-      }
-    }
-  }
+  }, [message])
 
   const handleCancelOrSend = () => {
     if (isStreaming) {
-      cancelStream()
       onCancel?.()
     } else {
-      onSend(attachments.length > 0 ? attachments : undefined)
-      // Clear attachments after sending
-      setAttachments([])
+      onSend(message, attachments.length > 0 ? attachments : undefined)
+      setMessage('')
+      clearAttachments()
     }
+  }
+
+  const handleKeyDownWrapper = (e: React.KeyboardEvent) => {
+    handleKeyDown(e, {
+      onSend: handleCancelOrSend,
+      onCancel,
+      disabled,
+      isLoading
+    })
   }
 
   const handleAttachFile = async () => {
     if (disabled) return
-    
-    // This function should only be called when the button is visible (i.e., when capabilities exist)
-    // But we'll add a safety check just in case
-    const hasCapabilities = modelCapabilities?.vision || modelCapabilities?.audio || modelCapabilities?.files
-    if (!hasCapabilities) return
-    
-    try {
-      const result = await window.electronAPI.files.selectFileByCapabilities(modelCapabilities)
-      if (result) {
-        // Determine attachment type based on MIME type
-        let type: 'image' | 'audio' | 'file' = 'file'
-        if (result.mimeType.startsWith('image/')) {
-          type = 'image'
-        } else if (result.mimeType.startsWith('audio/')) {
-          type = 'audio'
-        }
-        
-        const attachment: FileAttachment = {
-          path: result.path,
-          base64: result.base64,
-          mimeType: result.mimeType,
-          name: result.name,
-          type
-        }
-        
-        setAttachments(prev => [...prev, attachment])
-      }
-    } catch (error) {
-      console.error('Failed to select file:', error)
-    }
-  }
-
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index))
+    await addAttachment(modelCapabilities)
   }
 
   const getAttachmentIcon = (type: string) => {
@@ -189,9 +130,9 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         
         <textarea
           ref={textareaRef}
-          value={value}
-          onChange={(e) => !disabled && !isLoading && onChange(e.target.value)}
-          onKeyDown={handleKeyDown}
+          value={message}
+          onChange={(e) => !disabled && !isLoading && setMessage(e.target.value)}
+          onKeyDown={handleKeyDownWrapper}
           placeholder={
             disabled 
               ? "Add an AI provider to start chatting..." 
@@ -212,10 +153,10 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         
         <button
           onClick={handleCancelOrSend}
-          disabled={disabled || (!isStreaming && (!value.trim() && attachments.length === 0) || isLoading)}
+          disabled={disabled || (!isStreaming && (!message.trim() && attachments.length === 0) || isLoading)}
           className={clsx(
             'p-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm',
-            disabled || (!isStreaming && (!value.trim() && attachments.length === 0) || isLoading)
+            disabled || (!isStreaming && (!message.trim() && attachments.length === 0) || isLoading)
               ? 'bg-secondary text-muted-foreground cursor-not-allowed'
               : isStreaming
                 ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:shadow-md'
@@ -242,7 +183,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
         <span className="truncate">
           {settings?.keyboard?.sendMessage === 'cmd-enter' 
-            ? `Press ${navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd' : 'Ctrl'}+Enter to send, Enter for new line`
+            ? `Press ${getModifierKeyLabel()}+Enter to send, Enter for new line`
             : 'Press Enter to send, Shift+Enter for new line'
           }
         </span>

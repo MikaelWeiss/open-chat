@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
+import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import {ChevronDown, Settings, Eye, Volume2, FileText } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
 import type { Conversation, ModelCapabilities } from '@/types/electron'
 import { useConversationStore } from '@/stores/conversationStore'
-import { useSettingsStore, useToastStore } from '@/stores/settingsStore'
+import { useSettingsStore } from '@/stores/settingsStore'
+import { useModelSelection, useStreamingChat } from '@/hooks'
 import clsx from 'clsx'
 
 interface ChatViewProps {
@@ -71,15 +72,20 @@ export interface ChatViewHandle {
 
 const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   ({ conversation, onOpenSettings }, ref) => {
-  const [message, setMessage] = useState('')
-  const [showModelSelector, setShowModelSelector] = useState(false)
-  const [selectedModel, setSelectedModel] = useState<{provider: string, model: string} | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [streamingMessage, setStreamingMessage] = useState('')
-  const { addMessage, setStreaming } = useConversationStore()
   const { settings } = useSettingsStore()
-  const { addToast } = useToastStore()
   const messageInputRef = useRef<MessageInputHandle>(null)
+  
+  // Use custom hooks
+  const {
+    selectedModel,
+    setSelectedModel,
+    availableModels,
+    modelsByProvider,
+    showModelSelector,
+    setShowModelSelector
+  } = useModelSelection(conversation)
+  
+  const { isLoading, streamingMessage, sendMessage } = useStreamingChat()
 
   useImperativeHandle(ref, () => ({
     focusInput: () => {
@@ -87,69 +93,6 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
     }
   }))
 
-  // Get available models from configured providers (filtered by enabled models)
-  const availableModels = React.useMemo(() => {
-    if (!settings?.providers) return []
-    
-    const models: Array<{provider: string, model: string, providerName: string, capabilities?: ModelCapabilities}> = []
-    Object.entries(settings.providers).forEach(([providerId, provider]) => {
-      if (provider.configured && provider.models && (provider.enabled !== false)) {
-        // Filter models based on enabled models setting
-        const enabledModels = provider.enabledModels || provider.models.slice(0, 3) // Default to first 3
-        enabledModels.forEach(model => {
-          if (provider.models.includes(model)) { // Ensure model still exists
-            models.push({
-              provider: providerId,
-              model,
-              providerName: providerId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-              capabilities: provider.modelCapabilities?.[model]
-            })
-          }
-        })
-      }
-    })
-    return models
-  }, [settings?.providers])
-
-  // Group models by provider for display
-  const modelsByProvider = React.useMemo(() => {
-    const grouped: Record<string, Array<{provider: string, model: string, providerName: string, capabilities?: ModelCapabilities}>> = {}
-    availableModels.forEach(model => {
-      if (!grouped[model.providerName]) {
-        grouped[model.providerName] = []
-      }
-      grouped[model.providerName].push(model)
-    })
-    
-    // Sort providers alphabetically
-    const sortedProviders: Record<string, Array<{provider: string, model: string, providerName: string, capabilities?: ModelCapabilities}>> = {}
-    Object.keys(grouped)
-      .sort((a, b) => a.localeCompare(b))
-      .forEach(providerName => {
-        sortedProviders[providerName] = grouped[providerName]
-      })
-    
-    return sortedProviders
-  }, [availableModels])
-
-  // Sync selected model with conversation's model
-  useEffect(() => {
-    if (conversation && conversation.provider && conversation.model) {
-      // If conversation has a model, use it
-      setSelectedModel({ provider: conversation.provider, model: conversation.model })
-    } else if (!selectedModel && availableModels.length > 0) {
-      // If no model selected and no conversation model, use default or first available
-      const defaultProvider = settings?.defaultProvider
-      let defaultModel = availableModels[0]
-      
-      if (defaultProvider) {
-        const providerModel = availableModels.find(m => m.provider === defaultProvider)
-        if (providerModel) defaultModel = providerModel
-      }
-      
-      setSelectedModel({ provider: defaultModel.provider, model: defaultModel.model })
-    }
-  }, [conversation, availableModels, settings?.defaultProvider])
 
   // Focus input when conversation changes
   useEffect(() => {
@@ -161,281 +104,10 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
     }
   }, [conversation?.id])
 
-  // Set up streaming event listeners
-  useEffect(() => {
-    const handleStreamStart = ({ conversationId }: { conversationId: string; streamId: string }) => {
-      setStreaming(conversationId)
-    }
 
-    const handleStreamChunk = ({ chunk }: { streamId: string; chunk: string }) => {
-      // First chunk received - we can stop showing loading indicator
-      if (isLoading) {
-        setIsLoading(false)
-      }
-      setStreamingMessage(prev => prev + chunk)
-    }
-
-    const handleStreamEnd = () => {
-      // Streaming finished, add the complete message
-      if (streamingMessage && conversation) {
-        addMessage(conversation.id, {
-          role: 'assistant',
-          content: streamingMessage
-          // Note: usage and cost are now calculated dynamically, not stored
-        })
-      }
-      setStreamingMessage('')
-      setStreaming(null)
-      // Don't need to set isLoading(false) here since it's already false from first chunk
-    }
-
-    const handleStreamError = ({ error }: { streamId: string; error: Error }) => {
-      console.error('Stream error:', error)
-      addToast({
-        type: 'error',
-        title: 'Message Failed',
-        message: error.message || 'Failed to get response from the model. Please check your provider configuration.',
-        duration: 7000
-      })
-      setStreamingMessage('')
-      setIsLoading(false)
-      setStreaming(null)
-    }
-
-    const handleStreamCancelled = (): void => {
-      // Save any partial response that was streamed before cancellation
-      if (streamingMessage && conversation) {
-        addMessage(conversation.id, {
-          role: 'assistant',
-          content: streamingMessage
-        })
-      }
-      
-      setStreamingMessage('')
-      setIsLoading(false)
-      setStreaming(null)
-    }
-
-    // Add event listeners
-    window.electronAPI.llm.onStreamStart(handleStreamStart)
-    window.electronAPI.llm.onStreamChunk(handleStreamChunk)
-    window.electronAPI.llm.onStreamEnd(handleStreamEnd)
-    window.electronAPI.llm.onStreamError(handleStreamError)
-    window.electronAPI.llm.onStreamCancelled(handleStreamCancelled)
-
-    // Cleanup
-    return () => {
-      window.electronAPI.llm.removeStreamListeners()
-    }
-  }, [streamingMessage, conversation, addMessage, addToast, setStreaming, isLoading])
-
-  const handleSend = async (attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => {
-    if ((!message.trim() && !attachments?.length) || isLoading) return
-    
-    // Require a model to be selected
-    if (!selectedModel || !selectedModel.model) {
-      return
-    }
-    
-    setIsLoading(true)
-    
-    try {
-      let currentConversation = conversation
-      
-      // If conversation is temporary, update it with the selected model
-      if (currentConversation?.isTemporary) {
-        currentConversation = {
-          ...currentConversation,
-          provider: selectedModel.provider,
-          model: selectedModel.model
-        }
-        // Update the store with the new model info
-        const { selectConversation } = useConversationStore.getState()
-        selectConversation(currentConversation)
-      }
-      
-      // If no conversation exists and we have a selected model, create a temporary one
-      if (!currentConversation && selectedModel) {
-        // Use the createConversation from the store to create a temporary conversation
-        const { createConversation } = useConversationStore.getState()
-        await createConversation(selectedModel.provider, selectedModel.model)
-        currentConversation = useConversationStore.getState().selectedConversation
-      }
-      
-      if (!currentConversation) return
-      
-      const userMessage = message.trim()
-      
-      // Add user message to conversation with attachments
-      await addMessage(currentConversation.id, {
-        role: 'user',
-        content: userMessage,
-        attachments: attachments?.map(att => ({
-          type: att.type,
-          path: att.path,
-          mimeType: att.mimeType
-        }))
-      })
-      setMessage('')
-      
-      // Get updated conversation with all messages for context
-      const updatedConversation = useConversationStore.getState().selectedConversation
-      if (!updatedConversation) return
-      
-      // Prepare messages for LLM (convert to the format expected by the API)
-      const llmMessages: Array<{role: 'user' | 'assistant', content: string | Array<{type: string, text?: string, source?: any}>}> = updatedConversation.messages.map(msg => {
-        let content = msg.content
-        
-        // For the user message we just added, include file content if there are attachments
-        if (msg.role === 'user' && attachments?.length && msg === updatedConversation.messages[updatedConversation.messages.length - 1]) {
-          // Create multimodal content for the latest user message with attachments
-          const contentParts = []
-          
-          // Add text content if present
-          if (content.trim()) {
-            contentParts.push({
-              type: 'text',
-              text: content
-            })
-          }
-          
-          // Add file attachments
-          attachments.forEach(attachment => {
-            if (attachment.type === 'image') {
-              contentParts.push({
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: attachment.mimeType,
-                  data: attachment.base64
-                }
-              })
-            } else if (attachment.type === 'audio') {
-              // For audio files, add as text description for now
-              // Different providers handle audio differently
-              contentParts.push({
-                type: 'text',
-                text: `[Audio file: ${attachment.name}]`
-              })
-            } else {
-              // Handle different file types
-              if (attachment.mimeType.startsWith('text/') || 
-                  attachment.mimeType === 'application/json' ||
-                  attachment.mimeType === 'application/javascript' ||
-                  attachment.mimeType === 'application/xml') {
-                // Text-based files - decode and include content
-                try {
-                  const fileContent = atob(attachment.base64)
-                  contentParts.push({
-                    type: 'text',
-                    text: `File: ${attachment.name}\n\`\`\`\n${fileContent}\n\`\`\``
-                  })
-                } catch (e) {
-                  contentParts.push({
-                    type: 'text',
-                    text: `[File: ${attachment.name} - Unable to decode content]`
-                  })
-                }
-              } else if (attachment.mimeType === 'application/pdf') {
-                // PDF files - send as base64 using Anthropic's document format
-                // This works with Claude and other models that support PDF processing
-                contentParts.push({
-                  type: 'document',
-                  source: {
-                    type: 'base64',
-                    media_type: attachment.mimeType,
-                    data: attachment.base64
-                  }
-                })
-              } else if (attachment.mimeType.includes('document') ||
-                        attachment.mimeType.includes('spreadsheet') ||
-                        attachment.mimeType.includes('presentation') ||
-                        attachment.mimeType.includes('officedocument')) {
-                // Other document files - provide better description and offer to process
-                contentParts.push({
-                  type: 'text',
-                  text: `I've received a document file: ${attachment.name} (${attachment.mimeType}). This appears to be a ${
-                    attachment.mimeType.includes('spreadsheet') ? 'spreadsheet' :
-                    attachment.mimeType.includes('presentation') ? 'presentation' :
-                    'document'
-                  } file. Please let me know if you'd like me to help you with anything specific about this file.`
-                })
-              } else {
-                // Other binary files - show as placeholder
-                contentParts.push({
-                  type: 'text',
-                  text: `[File: ${attachment.name} - Binary file not displayed]`
-                })
-              }
-            }
-          })
-          
-          return {
-            role: msg.role,
-            content: contentParts.length === 1 && contentParts[0].type === 'text' 
-              ? contentParts[0].text 
-              : contentParts
-          }
-        }
-        
-        return {
-          role: msg.role,
-          content: content
-        }
-      })
-      
-      // Reset streaming message for new response
-      setStreamingMessage('')
-      
-      // Send to LLM with streaming
-      const result = await window.electronAPI.llm.sendMessage({
-        conversationId: updatedConversation.id,
-        provider: selectedModel.provider,
-        model: selectedModel.model,
-        messages: llmMessages as any,
-        stream: true
-      })
-      
-      // For streaming, result contains streamId, actual response comes via events
-      if (typeof result === 'string' || !result?.streamId) {
-        // Fallback to non-streaming if streaming failed
-        const response = await window.electronAPI.llm.sendMessage({
-          conversationId: updatedConversation.id,
-          provider: selectedModel.provider,
-          model: selectedModel.model,
-          messages: llmMessages as any,
-          stream: false
-        })
-        
-        if (response && typeof response === 'string') {
-          await addMessage(currentConversation.id, {
-            role: 'assistant',
-            content: response
-          })
-        }
-        setIsLoading(false)
-      }
-      // For successful streaming, don't set isLoading(false) here - let the first chunk handle it
-      // But set a safety timeout in case streaming never starts
-      if (typeof result === 'object' && result?.streamId) {
-        setTimeout(() => {
-          if (isLoading && !streamingMessage) {
-            console.warn('Streaming timeout - no chunks received')
-            setIsLoading(false)
-          }
-        }, 10000) // 10 second timeout
-      }
-    } catch (error) {
-      console.error('Error sending message to LLM:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to get response from the model. Please check your provider configuration.'
-      addToast({
-        type: 'error',
-        title: 'Message Failed',
-        message: errorMessage,
-        duration: 7000
-      })
-      setIsLoading(false)
-    }
+  const handleSend = async (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => {
+    if (!selectedModel) return
+    await sendMessage(message, selectedModel, conversation, attachments)
   }
 
   if (!conversation) {
@@ -578,8 +250,6 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       {/* Input */}
       <MessageInput
         ref={messageInputRef}
-        value={message}
-        onChange={setMessage}
         onSend={handleSend}
         onCancel={() => {
           // Additional cancel logic if needed
