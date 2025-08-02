@@ -9,7 +9,11 @@ import { useConversationStore } from './stores/conversationStore'
 import { useSettingsStore } from './stores/settingsStore'
 
 function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  // Check if we're in quick chat mode
+  const searchParams = new URLSearchParams(window.location.search)
+  const isQuickChat = searchParams.get('mode') === 'quickchat'
+  
+  const [sidebarOpen, setSidebarOpen] = useState(!isQuickChat)
   const [sidebarWidth, setSidebarWidth] = useState(320) // Default 320px (80 * 4)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -229,47 +233,52 @@ function App() {
   }, [createConversation, settingsOpen, shortcutsOpen, sidebarOpen])
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      <Sidebar
-        isOpen={sidebarOpen}
-        width={sidebarWidth}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-        onWidthChange={setSidebarWidth}
-        conversations={conversations}
-        selectedConversation={selectedConversation}
-        onSelectConversation={selectConversation}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onNewConversation={createConversation}
-        onDeleteConversation={deleteConversation}
-        onToggleStarConversation={toggleStarConversation}
-        onOpenFeedback={handleOpenFeedback}
-      />
+    <div className={`flex h-screen bg-background text-foreground ${isQuickChat ? 'quick-chat-mode' : ''}`}>
+      {!isQuickChat && (
+        <Sidebar
+          isOpen={sidebarOpen}
+          width={sidebarWidth}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          onWidthChange={setSidebarWidth}
+          conversations={conversations}
+          selectedConversation={selectedConversation}
+          onSelectConversation={selectConversation}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onNewConversation={createConversation}
+          onDeleteConversation={deleteConversation}
+          onToggleStarConversation={toggleStarConversation}
+          onOpenFeedback={handleOpenFeedback}
+        />
+      )}
       
       <ChatView
         ref={chatViewRef}
         conversation={selectedConversation}
-
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
+      {!isQuickChat && (
+        <>
+          <SettingsModal
+            isOpen={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+          />
 
-      <ShortcutsModal
-        isOpen={shortcutsOpen}
-        onClose={() => setShortcutsOpen(false)}
-      />
+          <ShortcutsModal
+            isOpen={shortcutsOpen}
+            onClose={() => setShortcutsOpen(false)}
+          />
 
-      <SettingsErrorModal
-        isOpen={corruptionStatus?.corrupted || false}
-        onClose={() => {}} // Don't allow closing this modal - they must fix the issue
-        corruptionStatus={corruptionStatus || { corrupted: false, error: null, settingsPath: '' }}
-        onReset={resetSettings}
-        onOpenInEditor={openSettingsInEditor}
-        onRefresh={reloadSettings}
-      />
+          <SettingsErrorModal
+            isOpen={corruptionStatus?.corrupted || false}
+            onClose={() => {}} // Don't allow closing this modal - they must fix the issue
+            corruptionStatus={corruptionStatus || { corrupted: false, error: null, settingsPath: '' }}
+            onReset={resetSettings}
+            onOpenInEditor={openSettingsInEditor}
+            onRefresh={reloadSettings}
+          />
+        </>
+      )}
 
       <ToastContainer />
     </div>

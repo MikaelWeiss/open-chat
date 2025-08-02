@@ -68,7 +68,9 @@ function createQuickChatWindow() {
     resizable: true
   })
 
-  quickChatWindow.loadFile(path.join(__dirname, '../../dist/quick-chat.html'))
+  quickChatWindow.loadFile(path.join(__dirname, '../../dist/index.html'), { 
+    query: { mode: 'quickchat' } 
+  })
   
   quickChatWindow.on('closed', () => {
     quickChatWindow = null

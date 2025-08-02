@@ -21,13 +21,7 @@ const htmlContent = fs.readFileSync('index.html', 'utf8')
 
 fs.writeFileSync('dist/index.html', htmlContent);
 
-// Copy quick-chat.html to dist
-const quickChatHtmlContent = fs.readFileSync('quick-chat.html', 'utf8')
-  .replace('src="/src/quick-chat.tsx"', 'src="./quick-chat.js"')
-  .replace('href="/favicon.svg"', 'href="./favicon.svg"')
-  .replace('</head>', '  <link rel="stylesheet" href="./main.css">\n  </head>');
-
-fs.writeFileSync('dist/quick-chat.html', quickChatHtmlContent);
+// No longer need quick-chat.html - we use the same index.html with URL params
 
 // Copy favicon if it exists
 if (fs.existsSync('public/favicon.svg')) {
@@ -48,8 +42,7 @@ async function processCss() {
 
 const buildOptions = {
   entryPoints: {
-    'main': 'src/main.tsx',
-    'quick-chat': 'src/quick-chat.tsx'
+    'main': 'src/main.tsx'
   },
   bundle: true,
   outdir: 'dist',
