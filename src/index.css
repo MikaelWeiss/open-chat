@@ -132,6 +132,16 @@ html, body, #root {
   animation: fade-in 0.3s ease-out;
 }
 
+/* Ensure markdown content doesn't block scroll events */
+.prose * {
+  overscroll-behavior-x: contain;
+}
+
+.prose .overflow-x-auto {
+  overflow-y: visible !important;
+  overscroll-behavior-x: contain;
+}
+
 /* Quick Chat Window Styles */
 .quick-chat-window {
   @apply h-screen overflow-hidden;
@@ -152,4 +162,21 @@ html, body, #root {
 
 .quick-chat-window .px-4.py-3 {
   @apply px-3 py-2; /* Smaller header padding */
+}
+
+/* Ensure markdown content doesn't block scrolling */
+.prose * {
+  pointer-events: auto;
+}
+
+/* Ensure nested scrollable elements don't block parent scroll */
+.prose .overflow-x-auto {
+  overscroll-behavior-x: contain;
+}
+
+/* Fix for tables and code blocks blocking scroll */
+.prose pre,
+.prose .overflow-x-auto {
+  /* Allow vertical scroll to bubble up to parent */
+  overflow-y: visible !important;
 }

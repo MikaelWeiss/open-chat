@@ -174,7 +174,7 @@ export default function MessageList({ messages, isLoading = false, streamingMess
       </blockquote>
     ),
     table: ({ children }: any) => (
-      <div className="overflow-x-auto my-4">
+      <div className="overflow-x-auto overflow-y-visible my-4" style={{ overscrollBehaviorX: 'contain' }}>
         <table className="min-w-full border border-border rounded-lg">
           {children}
         </table>
