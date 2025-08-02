@@ -141,9 +141,12 @@ export default function MessageList({ messages, isLoading = false, streamingMess
   }, [isLoading])
   
   const markdownComponents = {
-    pre: ({ children }: any) => <div>{children}</div>,
     code: ({ inline, className, children, ...props }: any) => {
-      if (inline) {
+      // Force inline rendering for short code snippets without newlines
+      const codeText = String(children)
+      const isActuallyInline = inline || (!className && !codeText.includes('\n') && codeText.length < 100)
+      
+      if (isActuallyInline) {
         return (
           <code className="bg-secondary border border-border px-1.5 py-0.5 rounded text-sm shadow-sm font-mono">
             {children}
