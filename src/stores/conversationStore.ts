@@ -75,7 +75,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
         selectedConversation
       })
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: error instanceof Error ? error.message : String(error), loading: false })
     }
   },
   
@@ -104,11 +104,11 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
         isTemporary: true
       }
       
-      set(state => ({
+      set(() => ({
         selectedConversation: tempConversation
       }))
     } catch (error) {
-      set({ error: error.message })
+      set({ error: error instanceof Error ? error.message : String(error) })
     }
   },
   
@@ -146,7 +146,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
         })
       }
     } catch (error) {
-      set({ error: error.message })
+      set({ error: error instanceof Error ? error.message : String(error) })
     }
   },
   
@@ -164,7 +164,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
         }))
       }
     } catch (error) {
-      set({ error: error.message })
+      set({ error: error instanceof Error ? error.message : String(error) })
     }
   },
   
@@ -182,7 +182,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
         }))
       }
     } catch (error) {
-      set({ error: error.message })
+      set({ error: error instanceof Error ? error.message : String(error) })
     }
   },
   
@@ -190,7 +190,6 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     try {
       const state = get()
       let actualConversationId = conversationId
-      let actualConversation = state.selectedConversation
       
       // If this is a temporary conversation, create it in the backend first
       if (state.selectedConversation?.isTemporary) {
@@ -199,7 +198,6 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
           state.selectedConversation.model
         )
         actualConversationId = newConversation.id
-        actualConversation = newConversation
       }
       
       const newMessage = await window.electronAPI.conversations.addMessage(actualConversationId, message)
@@ -213,20 +211,22 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
           const updatedConversations = await window.electronAPI.conversations.getAll()
           const updatedConversation = updatedConversations.find(c => c.id === actualConversationId)
           
-          set(state => ({
-            // Filter out any existing conversation with this ID to prevent duplicates
-            conversations: [updatedConversation, ...state.conversations.filter(c => c.id !== actualConversationId)],
-            selectedConversation: {
-              ...updatedConversation,
-              isTemporary: false
-            }
-          }))
+          if (updatedConversation) {
+            set(state => ({
+              // Filter out any existing conversation with this ID to prevent duplicates
+              conversations: [updatedConversation, ...state.conversations.filter(c => c.id !== actualConversationId)],
+              selectedConversation: {
+                ...updatedConversation,
+                isTemporary: false
+              }
+            }))
+          }
         }
         // For existing conversations, we'll let the broadcast handle the update
         // to avoid duplicate fetching and potential race conditions
       }
     } catch (error) {
-      set({ error: error.message })
+      set({ error: error instanceof Error ? error.message : String(error) })
     }
   },
   

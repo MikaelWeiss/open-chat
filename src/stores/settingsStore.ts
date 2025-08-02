@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import type { Settings } from '@/types/electron'
 
+// Helper function to safely extract error message
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message
+  return String(error)
+}
+
 // Toast store
 interface Toast {
   id: string
@@ -66,7 +72,7 @@ interface SettingsStore {
   reloadSettings: () => Promise<void>
 }
 
-export const useSettingsStore = create<SettingsStore>((set, get) => ({
+export const useSettingsStore = create<SettingsStore>((set) => ({
   settings: null,
   loading: false,
   error: null,
@@ -79,7 +85,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const corruptionStatus = await window.electronAPI.settings.getCorruptionStatus()
       set({ settings, corruptionStatus, loading: false })
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: getErrorMessage(error), loading: false })
     }
   },
   
@@ -88,7 +94,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const updated = await window.electronAPI.settings.update(newSettings)
       set({ settings: updated })
     } catch (error) {
-      set({ error: error.message })
+      set({ error: getErrorMessage(error) })
     }
   },
 
@@ -107,7 +113,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const corruptionStatus = await window.electronAPI.settings.getCorruptionStatus()
       set({ settings, corruptionStatus })
     } catch (error) {
-      set({ error: error.message })
+      set({ error: getErrorMessage(error) })
       throw error
     }
   },
@@ -131,7 +137,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         loading: false 
       })
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: getErrorMessage(error), loading: false })
       throw error
     }
   }

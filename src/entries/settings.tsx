@@ -7,7 +7,6 @@ import { useSettingsStore } from '../stores/settingsStore'
 // Standalone settings entry point for code splitting
 function SettingsApp() {
   const { 
-    settings, 
     corruptionStatus, 
     loadSettings, 
     resetSettings, 
