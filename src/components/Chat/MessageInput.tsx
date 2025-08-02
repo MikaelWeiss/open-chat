@@ -6,10 +6,18 @@ import { useConversationStore } from '@/stores/conversationStore'
 import { useUsageStats } from '@/hooks/useUsageStats'
 import type { Message, ModelCapabilities } from '@/types/electron'
 
+interface FileAttachment {
+  path: string
+  base64: string
+  mimeType: string
+  name: string
+  type: 'image' | 'audio' | 'file'
+}
+
 interface MessageInputProps {
   value: string
   onChange: (value: string) => void
-  onSend: () => void
+  onSend: (attachments?: FileAttachment[]) => void
   onCancel?: () => void
   disabled?: boolean
   isLoading?: boolean

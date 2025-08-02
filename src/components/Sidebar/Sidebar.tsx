@@ -36,7 +36,6 @@ export default function Sidebar({
 }: SidebarProps) {
   const { settings } = useSettingsStore()
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-  const [isResizing, setIsResizing] = useState(false)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; conversationId: string } | null>(null)
   const [starredCollapsed, setStarredCollapsed] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
@@ -109,7 +108,6 @@ export default function Sidebar({
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
-    setIsResizing(true)
     
     const startX = e.clientX
     const startWidth = width
@@ -121,7 +119,6 @@ export default function Sidebar({
     }
     
     const handleMouseUp = () => {
-      setIsResizing(false)
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
       document.body.style.cursor = ''

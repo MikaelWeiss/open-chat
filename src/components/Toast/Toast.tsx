@@ -1,4 +1,3 @@
-import React from 'react'
 import { X, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react'
 import { useToastStore } from '@/stores/settingsStore'
 import clsx from 'clsx'

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Sidebar from './components/Sidebar/Sidebar'
 import ChatView, { ChatViewHandle } from './components/Chat/ChatView'
 import SettingsModal from './components/Settings/SettingsModal'
@@ -248,7 +248,7 @@ function App() {
       <ChatView
         ref={chatViewRef}
         conversation={selectedConversation}
-        sidebarOpen={sidebarOpen}
+
         onOpenSettings={() => setSettingsOpen(true)}
       />
 

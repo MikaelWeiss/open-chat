@@ -3,11 +3,10 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { User, Bot, Loader2, Copy, Check, FileText, Image, Volume2 } from 'lucide-react'
+import { User, Bot, Copy, Check, FileText, Image, Volume2 } from 'lucide-react'
 import type { Message } from '@/types/electron'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
-import { useSettingsStore } from '@/stores/settingsStore'
 
 interface MessageListProps {
   messages: Message[]
@@ -104,7 +103,6 @@ function AttachmentDisplay({ attachments }: { attachments: Message['attachments'
 }
 
 export default function MessageList({ messages, isLoading = false, streamingMessage = '' }: MessageListProps) {
-  const { settings } = useSettingsStore()
   const [loadingMessage, setLoadingMessage] = useState('Thinking')
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   
@@ -141,7 +139,7 @@ export default function MessageList({ messages, isLoading = false, streamingMess
   }, [isLoading])
   
   const markdownComponents = {
-    code: ({ inline, className, children, ...props }: any) => {
+    code: ({ inline, className, children }: any) => {
       // Force inline rendering for short code snippets without newlines
       const codeText = String(children)
       const isActuallyInline = inline || (!className && !codeText.includes('\n') && codeText.length < 100)

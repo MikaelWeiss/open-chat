@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Send, Paperclip, ChevronDown, Settings, Eye, Volume2, FileText } from 'lucide-react'
+import {ChevronDown, Settings, Eye, Volume2, FileText } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
 import type { Conversation, ModelCapabilities } from '@/types/electron'
@@ -9,7 +9,6 @@ import clsx from 'clsx'
 
 interface ChatViewProps {
   conversation: Conversation | null
-  sidebarOpen: boolean
   onOpenSettings?: () => void
 }
 
@@ -71,13 +70,13 @@ export interface ChatViewHandle {
 }
 
 const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
-  ({ conversation, sidebarOpen, onOpenSettings }, ref) => {
+  ({ conversation, onOpenSettings }, ref) => {
   const [message, setMessage] = useState('')
   const [showModelSelector, setShowModelSelector] = useState(false)
   const [selectedModel, setSelectedModel] = useState<{provider: string, model: string} | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [streamingMessage, setStreamingMessage] = useState('')
-  const { addMessage, setStreaming, isStreaming } = useConversationStore()
+  const { addMessage, setStreaming } = useConversationStore()
   const { settings } = useSettingsStore()
   const { addToast } = useToastStore()
   const messageInputRef = useRef<MessageInputHandle>(null)
@@ -164,11 +163,11 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
 
   // Set up streaming event listeners
   useEffect(() => {
-    const handleStreamStart = ({ conversationId, streamId }) => {
+    const handleStreamStart = ({ conversationId }: { conversationId: string; streamId: string }) => {
       setStreaming(conversationId)
     }
 
-    const handleStreamChunk = ({ streamId, chunk }) => {
+    const handleStreamChunk = ({ chunk }: { streamId: string; chunk: string }) => {
       // First chunk received - we can stop showing loading indicator
       if (isLoading) {
         setIsLoading(false)
@@ -176,7 +175,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       setStreamingMessage(prev => prev + chunk)
     }
 
-    const handleStreamEnd = ({ streamId, usage, cost }) => {
+    const handleStreamEnd = () => {
       // Streaming finished, add the complete message
       if (streamingMessage && conversation) {
         addMessage(conversation.id, {
@@ -190,7 +189,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       // Don't need to set isLoading(false) here since it's already false from first chunk
     }
 
-    const handleStreamError = ({ streamId, error }) => {
+    const handleStreamError = ({ error }: { streamId: string; error: Error }) => {
       console.error('Stream error:', error)
       addToast({
         type: 'error',
@@ -203,7 +202,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       setStreaming(null)
     }
 
-    const handleStreamCancelled = ({ conversationId }) => {
+    const handleStreamCancelled = (): void => {
       // Save any partial response that was streamed before cancellation
       if (streamingMessage && conversation) {
         addMessage(conversation.id, {
@@ -284,7 +283,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       if (!updatedConversation) return
       
       // Prepare messages for LLM (convert to the format expected by the API)
-      const llmMessages = updatedConversation.messages.map(msg => {
+      const llmMessages: Array<{role: 'user' | 'assistant', content: string | Array<{type: string, text?: string, source?: any}>}> = updatedConversation.messages.map(msg => {
         let content = msg.content
         
         // For the user message we just added, include file content if there are attachments
@@ -393,18 +392,18 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         conversationId: updatedConversation.id,
         provider: selectedModel.provider,
         model: selectedModel.model,
-        messages: llmMessages,
+        messages: llmMessages as any,
         stream: true
       })
       
       // For streaming, result contains streamId, actual response comes via events
-      if (!result?.streamId) {
+      if (typeof result === 'string' || !result?.streamId) {
         // Fallback to non-streaming if streaming failed
         const response = await window.electronAPI.llm.sendMessage({
           conversationId: updatedConversation.id,
           provider: selectedModel.provider,
           model: selectedModel.model,
-          messages: llmMessages,
+          messages: llmMessages as any,
           stream: false
         })
         
@@ -418,7 +417,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       }
       // For successful streaming, don't set isLoading(false) here - let the first chunk handle it
       // But set a safety timeout in case streaming never starts
-      if (result?.streamId) {
+      if (typeof result === 'object' && result?.streamId) {
         setTimeout(() => {
           if (isLoading && !streamingMessage) {
             console.warn('Streaming timeout - no chunks received')
@@ -428,10 +427,11 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       }
     } catch (error) {
       console.error('Error sending message to LLM:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get response from the model. Please check your provider configuration.'
       addToast({
         type: 'error',
         title: 'Message Failed',
-        message: error.message || 'Failed to get response from the model. Please check your provider configuration.',
+        message: errorMessage,
         duration: 7000
       })
       setIsLoading(false)

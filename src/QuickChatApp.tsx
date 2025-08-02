@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import {useEffect, useRef } from 'react'
 import ChatView, { ChatViewHandle } from './components/Chat/ChatView'
 import ToastContainer from './components/Toast/Toast'
 import { useConversationStore } from './stores/conversationStore'
@@ -173,7 +173,7 @@ function QuickChatApp() {
       <ChatView
         ref={chatViewRef}
         conversation={selectedConversation}
-        sidebarOpen={false}
+
       />
 
       <ToastContainer />
