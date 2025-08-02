@@ -10,7 +10,8 @@
     "build": "node build.js",
     "build:app": "node build.js && electron-builder",
     "start": "pnpm build && electron .",
-    "start:quick": "electron ."
+    "start:quick": "electron .",
+    "postinstall": "electron-builder install-app-deps"
   },
   "keywords": [
     "chat",
@@ -48,5 +49,8 @@
     "remark-gfm": "^4.0.0",
     "tiktoken": "^1.0.21",
     "zustand": "^4.5.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["electron"]
   }
 }
