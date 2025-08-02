@@ -19,7 +19,7 @@
     "react"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "packageManager": "pnpm@10.13.1",
   "devDependencies": {
     "@types/react": "^18.3.3",
