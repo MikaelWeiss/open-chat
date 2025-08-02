@@ -13,13 +13,27 @@ if (!fs.existsSync('dist')) {
   fs.mkdirSync('dist', { recursive: true });
 }
 
-// Copy index.html to dist
-const htmlContent = fs.readFileSync('index.html', 'utf8')
-  .replace('src="/src/main.tsx"', 'src="./main.js"')
+// Copy index.html to dist and create additional entry point HTML files
+const baseHtmlContent = fs.readFileSync('index.html', 'utf8')
   .replace('href="/favicon.svg"', 'href="./favicon.svg"')
   .replace('</head>', '  <link rel="stylesheet" href="./main.css">\n  </head>');
 
-fs.writeFileSync('dist/index.html', htmlContent);
+// Main app HTML
+const mainHtmlContent = baseHtmlContent
+  .replace('src="/src/main.tsx"', 'type="module" src="./main.js"');
+fs.writeFileSync('dist/index.html', mainHtmlContent);
+
+// Settings HTML
+const settingsHtmlContent = baseHtmlContent
+  .replace('src="/src/main.tsx"', 'type="module" src="./settings.js"')
+  .replace('<title>Open Chat</title>', '<title>Open Chat - Settings</title>');
+fs.writeFileSync('dist/settings.html', settingsHtmlContent);
+
+// Shortcuts HTML
+const shortcutsHtmlContent = baseHtmlContent
+  .replace('src="/src/main.tsx"', 'type="module" src="./shortcuts.js"')
+  .replace('<title>Open Chat</title>', '<title>Open Chat - Shortcuts</title>');
+fs.writeFileSync('dist/shortcuts.html', shortcutsHtmlContent);
 
 // No longer need quick-chat.html - we use the same index.html with URL params
 
@@ -42,13 +56,16 @@ async function processCss() {
 
 const buildOptions = {
   entryPoints: {
-    'main': 'src/main.tsx'
+    'main': 'src/entries/main.tsx',
+    'settings': 'src/entries/settings.tsx',
+    'shortcuts': 'src/entries/shortcuts.tsx'
   },
   bundle: true,
   outdir: 'dist',
   platform: 'browser',
   target: 'es2020',
-  format: 'iife',
+  format: 'esm', // Changed to esm to enable code splitting
+  splitting: true, // Enable code splitting
   sourcemap: isDev,
   minify: !isDev,
   metafile: true,

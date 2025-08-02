@@ -7,6 +7,8 @@ import ShortcutsModal from './components/Shortcuts/ShortcutsModal'
 import ToastContainer from './components/Toast/Toast'
 import { useConversationStore } from './stores/conversationStore'
 import { useSettingsStore } from './stores/settingsStore'
+import { DEFAULT_SIDEBAR_WIDTH } from './shared/constants'
+import { applyTheme, setupSystemThemeListener } from './shared/theme'
 
 function App() {
   // Check if we're in quick chat mode
@@ -14,7 +16,7 @@ function App() {
   const isQuickChat = searchParams.get('mode') === 'quickchat'
   
   const [sidebarOpen, setSidebarOpen] = useState(!isQuickChat)
-  const [sidebarWidth, setSidebarWidth] = useState(320) // Default 320px (80 * 4)
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const chatViewRef = useRef<ChatViewHandle>(null)
@@ -136,48 +138,21 @@ function App() {
 
   // Theme handling
   useEffect(() => {
-    const applyTheme = (theme: string) => {
-      const root = document.documentElement
-      
-      if (theme === 'system') {
-        // Use system preference
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        if (systemPrefersDark) {
-          root.classList.add('dark')
-        } else {
-          root.classList.remove('dark')
-        }
-      } else if (theme === 'dark') {
-        root.classList.add('dark')
-      } else {
-        root.classList.remove('dark')
-      }
-    }
-
     if (settings?.theme) {
       applyTheme(settings.theme)
     }
 
     // Listen for system theme changes when using system theme
     if (settings?.theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-        if (e.matches) {
-          document.documentElement.classList.add('dark')
-        } else {
-          document.documentElement.classList.remove('dark')
-        }
-      }
-
-      mediaQuery.addEventListener('change', handleSystemThemeChange)
-      return () => mediaQuery.removeEventListener('change', handleSystemThemeChange)
+      const cleanup = setupSystemThemeListener(settings.theme)
+      return cleanup || undefined
     }
   }, [settings?.theme])
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const isMac = navigator.userAgent.toUpperCase().indexOf('MAC') >= 0
       const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey
 
       // Cmd/Ctrl + N - New chat
