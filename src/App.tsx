@@ -21,7 +21,8 @@ function App() {
     loadConversations, 
     selectConversation,
     createConversation,
-    deleteConversation
+    deleteConversation,
+    toggleStarConversation
   } = useConversationStore()
   
   const { 
@@ -240,6 +241,7 @@ function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onNewConversation={createConversation}
         onDeleteConversation={deleteConversation}
+        onToggleStarConversation={toggleStarConversation}
         onOpenFeedback={handleOpenFeedback}
       />
       

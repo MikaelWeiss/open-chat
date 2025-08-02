@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus, Settings, Trash2, MessageSquare } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Settings, Trash2, MessageSquare, Star } from 'lucide-react'
 import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns'
 import type { Conversation } from '@/types/electron'
 import clsx from 'clsx'
@@ -16,6 +16,7 @@ interface SidebarProps {
   onOpenSettings: () => void
   onNewConversation: () => void
   onDeleteConversation: (conversationId: string) => void
+  onToggleStarConversation: (conversationId: string) => void
   onOpenFeedback: () => void
 }
 
@@ -30,11 +31,14 @@ export default function Sidebar({
   onOpenSettings,
   onNewConversation,
   onDeleteConversation,
+  onToggleStarConversation,
   onOpenFeedback,
 }: SidebarProps) {
   const { settings } = useSettingsStore()
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [isResizing, setIsResizing] = useState(false)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; conversationId: string } | null>(null)
+  const [starredCollapsed, setStarredCollapsed] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
   
   const MIN_WIDTH = 240
@@ -71,6 +75,34 @@ export default function Sidebar({
     setDeleteConfirm(null)
   }
 
+  const handleRightClick = (e: React.MouseEvent, conversationId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const rect = sidebarRef.current?.getBoundingClientRect()
+    if (rect) {
+      setContextMenu({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        conversationId
+      })
+    }
+  }
+
+  const handleContextMenuAction = (action: 'star' | 'delete', conversationId: string) => {
+    setContextMenu(null)
+    
+    if (action === 'star') {
+      onToggleStarConversation(conversationId)
+    } else if (action === 'delete') {
+      setDeleteConfirm(conversationId)
+    }
+  }
+
+  const handleClickOutside = () => {
+    setContextMenu(null)
+  }
+
   // Get platform-specific modifier key for tooltip
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
   const modifierKey = isMac ? '⌘' : 'Ctrl'
@@ -103,9 +135,14 @@ export default function Sidebar({
   }, [width, onWidthChange])
 
   const getConversationsByDate = () => {
+    // Separate starred and non-starred conversations
+    const starredConversations = conversations.filter(conv => conv.starred)
+    const regularConversations = conversations.filter(conv => !conv.starred)
+    
+    // Group regular conversations by date
     const grouped = new Map<string, Conversation[]>()
     
-    conversations.forEach(conv => {
+    regularConversations.forEach(conv => {
       const dateKey = new Date(conv.updatedAt).toDateString()
       if (!grouped.has(dateKey)) {
         grouped.set(dateKey, [])
@@ -113,12 +150,14 @@ export default function Sidebar({
       grouped.get(dateKey)!.push(conv)
     })
     
-    return Array.from(grouped.entries()).sort((a, b) => {
+    const regularByDate = Array.from(grouped.entries()).sort((a, b) => {
       return new Date(b[0]).getTime() - new Date(a[0]).getTime()
     })
+    
+    return { starredConversations, regularByDate }
   }
   
-  const conversationsByDate = getConversationsByDate()
+  const { starredConversations, regularByDate } = getConversationsByDate()
 
   const getDateLabel = (dateString: string) => {
     const date = new Date(dateString)
@@ -173,8 +212,62 @@ export default function Sidebar({
         </div>
 
         {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent">
-          {conversationsByDate.map(([dateKey, convs]) => (
+        <div 
+          className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent"
+          onClick={handleClickOutside}
+        >
+          {/* Starred Conversations Section */}
+          {starredConversations.length > 0 && (
+            <div>
+              <button
+                onClick={() => setStarredCollapsed(!starredCollapsed)}
+                className="w-full px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 bg-secondary/80 backdrop-blur-sm border-b border-border/50 flex items-center justify-between hover:bg-accent/50 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Star className="h-3 w-3 fill-current" />
+                  Starred ({starredConversations.length})
+                </span>
+                <ChevronRight className={clsx("h-3 w-3 transition-transform", !starredCollapsed && "rotate-90")} />
+              </button>
+              {!starredCollapsed && starredConversations.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  className={clsx(
+                    'group relative flex items-center w-full hover:bg-accent transition-colors',
+                    selectedConversation?.id === conversation.id && 'bg-accent'
+                  )}
+                  onContextMenu={(e) => handleRightClick(e, conversation.id)}
+                >
+                  <button
+                    onClick={() => onSelectConversation(conversation)}
+                    className="flex-1 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
+                  >
+                    <div className="font-medium text-sm truncate pr-8 flex items-center gap-2">
+                      <Star className="h-3 w-3 fill-current text-yellow-500" />
+                      {conversation.title}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1 ml-5">
+                      {hasConfiguredProviders && conversation.model ? (
+                        `${conversation.model} • ${format(new Date(conversation.updatedAt), 'h:mm a')}`
+                      ) : (
+                        format(new Date(conversation.updatedAt), 'h:mm a')
+                      )}
+                    </div>
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteClick(e, conversation.id)}
+                    className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
+                    title={`Delete conversation (${modifierKey}+click to skip confirmation)`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Regular Conversations by Date */}
+          {regularByDate.map(([dateKey, convs]) => (
             <div key={dateKey}>
               <div className="px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 bg-secondary/80 backdrop-blur-sm border-b border-border/50">
                 {getDateLabel(dateKey)}
@@ -186,6 +279,7 @@ export default function Sidebar({
                     'group relative flex items-center w-full hover:bg-accent transition-colors',
                     selectedConversation?.id === conversation.id && 'bg-accent'
                   )}
+                  onContextMenu={(e) => handleRightClick(e, conversation.id)}
                 >
                   <button
                     onClick={() => onSelectConversation(conversation)}
@@ -240,6 +334,39 @@ export default function Sidebar({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={handleClickOutside}
+          />
+          <div
+            className="absolute bg-background border border-border rounded-lg shadow-lg py-1 z-50 min-w-32"
+            style={{
+              left: `${contextMenu.x}px`,
+              top: `${contextMenu.y}px`,
+            }}
+          >
+            <button
+              onClick={() => handleContextMenuAction('star', contextMenu.conversationId)}
+              className="w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors flex items-center gap-2"
+            >
+              <Star className="h-4 w-4" />
+              {conversations.find(c => c.id === contextMenu.conversationId)?.starred ? 'Unstar' : 'Star'}
+            </button>
+            <div className="border-t border-border my-1" />
+            <button
+              onClick={() => handleContextMenuAction('delete', contextMenu.conversationId)}
+              className="w-full px-3 py-2 text-sm text-left hover:bg-accent text-destructive transition-colors flex items-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </button>
+          </div>
+        </>
       )}
 
       {/* Resize Handle */}

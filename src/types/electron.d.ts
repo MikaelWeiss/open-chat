@@ -7,6 +7,7 @@ export interface ElectronAPI {
     delete: (conversationId: string) => Promise<boolean>
     rename: (conversationId: string, newTitle: string) => Promise<Conversation | null>
     addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => Promise<Message | null>
+    toggleStar: (conversationId: string) => Promise<Conversation | null>
   }
   
   settings: {
@@ -117,6 +118,7 @@ export interface Conversation {
   model: string
   messages: Message[]
   isTemporary?: boolean
+  starred?: boolean
 }
 
 export interface ModelCapabilities {

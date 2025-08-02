@@ -12,7 +12,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     create: (provider, model) => ipcRenderer.invoke('conversations:create', provider, model),
     delete: (conversationId) => ipcRenderer.invoke('conversations:delete', conversationId),
     rename: (conversationId, newTitle) => ipcRenderer.invoke('conversations:rename', conversationId, newTitle),
-    addMessage: (conversationId, message) => ipcRenderer.invoke('conversations:addMessage', conversationId, message)
+    addMessage: (conversationId, message) => ipcRenderer.invoke('conversations:addMessage', conversationId, message),
+    toggleStar: (conversationId) => ipcRenderer.invoke('conversations:toggleStar', conversationId)
   },
   
   // Settings API

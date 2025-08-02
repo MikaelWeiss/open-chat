@@ -148,6 +148,12 @@ ipcMain.handle('conversations:rename', async (event, conversationId, newTitle) =
   return result
 })
 
+ipcMain.handle('conversations:toggleStar', async (event, conversationId) => {
+  const result = await conversationManager.toggleStarConversation(conversationId)
+  broadcastToAllWindows('conversation:updated', { action: 'starred', conversationId })
+  return result
+})
+
 ipcMain.handle('conversations:addMessage', async (event, conversationId, message) => {
   const result = await conversationManager.addMessage(conversationId, message)
   broadcastToAllWindows('conversation:updated', { action: 'message_added', conversationId })

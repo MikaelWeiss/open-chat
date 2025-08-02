@@ -15,6 +15,7 @@ interface ConversationStore {
   createConversation: (provider?: string, model?: string) => Promise<void>
   deleteConversation: (conversationId: string) => Promise<void>
   renameConversation: (conversationId: string, newTitle: string) => Promise<void>
+  toggleStarConversation: (conversationId: string) => Promise<void>
   addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => Promise<void>
   setStreaming: (conversationId: string | null) => void
   cancelStream: () => Promise<void>
@@ -152,6 +153,24 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
   renameConversation: async (conversationId, newTitle) => {
     try {
       const updated = await window.electronAPI.conversations.rename(conversationId, newTitle)
+      if (updated) {
+        set(state => ({
+          conversations: state.conversations.map(c => 
+            c.id === conversationId ? updated : c
+          ),
+          selectedConversation: state.selectedConversation?.id === conversationId 
+            ? updated 
+            : state.selectedConversation
+        }))
+      }
+    } catch (error) {
+      set({ error: error.message })
+    }
+  },
+  
+  toggleStarConversation: async (conversationId) => {
+    try {
+      const updated = await window.electronAPI.conversations.toggleStar(conversationId)
       if (updated) {
         set(state => ({
           conversations: state.conversations.map(c => 

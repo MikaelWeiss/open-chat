@@ -111,6 +111,17 @@ class ConversationManager {
     return conversation
   }
 
+  async toggleStarConversation(conversationId) {
+    const conversation = this.conversations.find(c => c.id === conversationId)
+    if (!conversation) return null
+    
+    conversation.starred = !conversation.starred
+    conversation.updatedAt = new Date().toISOString()
+    
+    await this.saveConversation(conversation)
+    return conversation
+  }
+
   async addMessage(conversationId, message) {
     const conversation = this.conversations.find(c => c.id === conversationId)
     if (!conversation) return null
