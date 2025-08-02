@@ -88,6 +88,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateGlobalShortcut: (shortcut) => ipcRenderer.invoke('app:updateGlobalShortcut', shortcut),
     disableGlobalShortcut: () => ipcRenderer.invoke('app:disableGlobalShortcut'),
     enableGlobalShortcut: () => ipcRenderer.invoke('app:enableGlobalShortcut'),
-    hideQuickChat: () => ipcRenderer.invoke('app:hideQuickChat')
+    hideQuickChat: () => ipcRenderer.invoke('app:hideQuickChat'),
+    sendFeedback: (message) => ipcRenderer.invoke('app:sendFeedback', message)
   }
 })

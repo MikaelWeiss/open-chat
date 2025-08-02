@@ -86,6 +86,7 @@ export interface ElectronAPI {
     disableGlobalShortcut: () => Promise<void>
     enableGlobalShortcut: () => Promise<void>
     hideQuickChat?: () => Promise<void>
+    sendFeedback: (message: string) => Promise<boolean>
   }
 }
 

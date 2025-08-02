@@ -554,6 +554,31 @@ ipcMain.handle('shell:openExternal', async (event, url) => {
   }
 })
 
+// IPC Handler for sending feedback
+ipcMain.handle('app:sendFeedback', async (event, message) => {
+  try {
+    const { exec } = require('child_process')
+    const util = require('util')
+    const execAsync = util.promisify(exec)
+    
+    // Escape the message for shell execution
+    const escapedMessage = message.replace(/"/g, '\\"').replace(/\n/g, '\\n')
+    
+    // Use macOS mail command to send email
+    const subject = 'Feedback from Open Chat User'
+    const body = `User feedback:\n\n${message}`
+    
+    // Create mailto URL and open with default email client
+    const mailtoUrl = `mailto:support@weisssolutions.org?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    
+    await shell.openExternal(mailtoUrl)
+    return true
+  } catch (error) {
+    console.error('Failed to send feedback:', error)
+    throw new Error('Failed to send feedback. Please try again.')
+  }
+})
+
 // App lifecycle
 app.whenReady().then(async () => {
   createWindow()

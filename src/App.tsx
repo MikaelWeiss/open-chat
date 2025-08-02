@@ -33,6 +33,18 @@ function App() {
     reloadSettings
   } = useSettingsStore()
 
+  const handleOpenFeedback = async () => {
+    const subject = 'Feedback for Open Chat'
+    const body = 'Hi,\n\nI wanted to share some feedback about Open Chat:\n\n'
+    const mailtoUrl = `mailto:support@weisssolutions.org?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    
+    try {
+      await window.electronAPI.shell.openExternal(mailtoUrl)
+    } catch (error) {
+      console.error('Failed to open mail client:', error)
+    }
+  }
+
   useEffect(() => {
     // Load initial data
     loadConversations()
@@ -228,6 +240,7 @@ function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onNewConversation={createConversation}
         onDeleteConversation={deleteConversation}
+        onOpenFeedback={handleOpenFeedback}
       />
       
       <ChatView

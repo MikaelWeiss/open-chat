@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus, Settings, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Settings, Trash2, MessageSquare } from 'lucide-react'
 import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns'
 import type { Conversation } from '@/types/electron'
 import clsx from 'clsx'
@@ -16,6 +16,7 @@ interface SidebarProps {
   onOpenSettings: () => void
   onNewConversation: () => void
   onDeleteConversation: (conversationId: string) => void
+  onOpenFeedback: () => void
 }
 
 export default function Sidebar({
@@ -29,6 +30,7 @@ export default function Sidebar({
   onOpenSettings,
   onNewConversation,
   onDeleteConversation,
+  onOpenFeedback,
 }: SidebarProps) {
   const { settings } = useSettingsStore()
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
@@ -151,6 +153,13 @@ export default function Sidebar({
                 title="New conversation"
               >
                 <Plus className="h-4 w-4" />
+              </button>
+              <button
+                onClick={onOpenFeedback}
+                className="p-2 hover:bg-accent rounded-lg transition-colors"
+                title="Send Feedback"
+              >
+                <MessageSquare className="h-4 w-4" />
               </button>
               <button
                 onClick={onOpenSettings}
