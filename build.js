@@ -51,6 +51,7 @@ const buildOptions = {
   format: 'iife',
   sourcemap: isDev,
   minify: !isDev,
+  metafile: true,
   define: {
     'process.env.NODE_ENV': JSON.stringify(isDev ? 'development' : 'production'),
   },
@@ -83,7 +84,14 @@ async function build() {
       
       console.log('👀 Watching for changes...');
     } else {
-      await esbuild.build(buildOptions);
+      const result = await esbuild.build(buildOptions);
+      
+      // Save metafile for esbuild-visualizer
+      if (result.metafile) {
+        fs.writeFileSync('dist/metafile.json', JSON.stringify(result.metafile, null, 2));
+        console.log('📊 Metafile saved to dist/metafile.json');
+      }
+      
       console.log('✅ Build completed successfully!');
     }
   } catch (error) {
