@@ -1,10 +1,18 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
-import { Send, Paperclip, Loader2, Square, Zap, DollarSign, X, FileText, Image, Volume2 } from 'lucide-react'
+import { Send, Paperclip, Loader2, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useUsageStats, useFileAttachments, useKeyboardShortcuts, usePlatformInfo } from '@/hooks'
 import type { Message, ModelCapabilities } from '@/types/electron'
+
+interface FileAttachment {
+  path: string
+  base64: string
+  mimeType: string
+  name: string
+  type: 'image' | 'audio' | 'file'
+}
 
 interface MessageInputProps {
   onSend: (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => void
@@ -14,6 +22,7 @@ interface MessageInputProps {
   messages?: Message[]
   modelCapabilities?: ModelCapabilities
   noProvider?: boolean
+  onOpenConversationSettings?: () => void
 }
 
 export interface MessageInputHandle {
@@ -23,7 +32,7 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ onSend, onCancel, disabled = false, isLoading = false, messages = [], modelCapabilities, noProvider = false }, ref) => {
+  ({ onSend, onCancel, disabled = false, isLoading = false, messages = [], modelCapabilities, noProvider = false, onOpenConversationSettings }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const { settings } = useSettingsStore()
     const { isStreaming } = useConversationStore()
@@ -191,6 +200,23 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             disabled={disabled}
           >
             <Paperclip className="h-4 w-4" />
+          </button>
+        )}
+        
+        {/* Conversation settings button - only show if enabled in settings */}
+        {settings?.showConversationSettings && (
+          <button
+            onClick={onOpenConversationSettings}
+            className={clsx(
+              'p-2 rounded-lg transition-all duration-200 hover:scale-105',
+              disabled 
+                ? 'text-muted-foreground cursor-not-allowed' 
+                : 'hover:bg-accent'
+            )}
+            title="Conversation settings"
+            disabled={disabled}
+          >
+            <Settings className="h-4 w-4" />
           </button>
         )}
         

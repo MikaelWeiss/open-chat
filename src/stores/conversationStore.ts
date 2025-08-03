@@ -1,6 +1,15 @@
 import { create } from 'zustand'
 import type { Conversation, Message } from '@/types/electron'
 
+export interface ConversationSettings {
+  temperature?: number
+  topP?: number
+  topK?: number
+  maxTokens?: number
+  systemPrompt?: string
+  stopSequences?: string[]
+}
+
 interface ConversationStore {
   conversations: Conversation[]
   selectedConversation: Conversation | null
@@ -8,6 +17,7 @@ interface ConversationStore {
   error: string | null
   isStreaming: boolean
   streamingConversationId: string | null
+  conversationSettings: Record<string, ConversationSettings>
   
   // Actions
   loadConversations: () => Promise<void>
@@ -19,6 +29,8 @@ interface ConversationStore {
   addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => Promise<void>
   setStreaming: (conversationId: string | null) => void
   cancelStream: () => Promise<void>
+  getConversationSettings: (conversationId: string) => ConversationSettings
+  updateConversationSettings: (conversationId: string, settings: ConversationSettings) => void
 }
 
 export const useConversationStore = create<ConversationStore>((set, get) => ({
@@ -28,6 +40,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
   error: null,
   isStreaming: false,
   streamingConversationId: null,
+  conversationSettings: {},
   
   loadConversations: async () => {
     const currentSelectedId = get().selectedConversation?.id
@@ -190,6 +203,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     try {
       const state = get()
       let actualConversationId = conversationId
+      const oldConversationId = conversationId
       
       // If this is a temporary conversation, create it in the backend first
       if (state.selectedConversation?.isTemporary) {
@@ -207,6 +221,19 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
         const wasTemporary = state.selectedConversation?.isTemporary
         
         if (wasTemporary) {
+          // Migrate conversation settings from old temporary ID to new real ID
+          const oldSettings = state.conversationSettings[oldConversationId]
+          if (oldSettings && oldConversationId !== actualConversationId) {
+            set(state => {
+              const newConversationSettings = { ...state.conversationSettings }
+              newConversationSettings[actualConversationId] = oldSettings
+              delete newConversationSettings[oldConversationId]
+              return {
+                conversationSettings: newConversationSettings
+              }
+            })
+          }
+          
           // Get the updated conversation to get any title changes
           const updatedConversations = await window.electronAPI.conversations.getAll()
           const updatedConversation = updatedConversations.find(c => c.id === actualConversationId)
@@ -247,5 +274,26 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
         console.error('Failed to cancel stream:', error)
       }
     }
+  },
+  
+  getConversationSettings: (conversationId) => {
+    const state = get()
+    return state.conversationSettings[conversationId] || {
+      temperature: 0.7,
+      topP: 0.95,
+      topK: undefined,
+      maxTokens: undefined,
+      systemPrompt: '',
+      stopSequences: undefined
+    }
+  },
+  
+  updateConversationSettings: (conversationId, settings) => {
+    set(state => ({
+      conversationSettings: {
+        ...state.conversationSettings,
+        [conversationId]: settings
+      }
+    }))
   }
 }))

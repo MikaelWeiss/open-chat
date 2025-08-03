@@ -1,8 +1,10 @@
-import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import {ChevronDown, Settings, Eye, Volume2, FileText } from 'lucide-react'
+import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
+import { ChevronDown, Settings, Eye, Volume2, FileText } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
+import ConversationSettingsModal from '../Settings/ConversationSettingsModal'
 import type { Conversation, ModelCapabilities } from '@/types/electron'
+import { useConversationStore } from '@/stores/conversationStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useModelSelection, useStreamingChat } from '@/hooks'
 import clsx from 'clsx'
@@ -73,6 +75,8 @@ export interface ChatViewHandle {
 
 const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   ({ conversation, onOpenSettings }, ref) => {
+  const [showConversationSettings, setShowConversationSettings] = useState(false)
+  const { getConversationSettings, updateConversationSettings } = useConversationStore()
   const { settings } = useSettingsStore()
   const messageInputRef = useRef<MessageInputHandle>(null)
   
@@ -292,7 +296,18 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
             ? settings?.providers[selectedModel.provider]?.modelCapabilities?.[selectedModel.model]
             : undefined
         }
+        onOpenConversationSettings={() => setShowConversationSettings(true)}
       />
+
+      {/* Conversation Settings Modal */}
+      {conversation && (
+        <ConversationSettingsModal
+          isOpen={showConversationSettings}
+          onClose={() => setShowConversationSettings(false)}
+          settings={getConversationSettings(conversation.id)}
+          onSave={(newSettings) => updateConversationSettings(conversation.id, newSettings)}
+        />
+      )}
     </div>
   )
 })

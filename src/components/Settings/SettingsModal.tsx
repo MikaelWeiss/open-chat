@@ -110,6 +110,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [theme, setTheme] = useState('system')
   const [sendKey, setSendKey] = useState('enter')
   const [showPricing, setShowPricing] = useState(false)
+  const [showConversationSettings, setShowConversationSettings] = useState(false)
   const [globalHotkey, setGlobalHotkey] = useState('')
 
   // Sync local state with settings store
@@ -118,6 +119,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setTheme(settings.theme || 'system')
       setSendKey(settings.keyboard?.sendMessage || 'enter')
       setShowPricing(settings.showPricing || false)
+      setShowConversationSettings(settings.showConversationSettings || false)
       setGlobalHotkey(settings.keyboard?.globalHotkey ?? '')
     }
   }, [settings])
@@ -152,6 +154,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const handleShowPricingChange = async (show: boolean) => {
     setShowPricing(show)
     await updateSettings({ showPricing: show })
+  }
+
+  const handleShowConversationSettingsChange = async (show: boolean) => {
+    setShowConversationSettings(show)
+    await updateSettings({ showConversationSettings: show })
   }
   
   if (!isOpen) return null
@@ -204,7 +211,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
           {/* Tab Content */}
           <div className="flex-1 p-6 overflow-y-auto">
-            {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} showPricing={showPricing} setShowPricing={handleShowPricingChange} globalHotkey={globalHotkey} setGlobalHotkey={handleGlobalHotkeyChange} />}
+            {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} showPricing={showPricing} setShowPricing={handleShowPricingChange} showConversationSettings={showConversationSettings} setShowConversationSettings={handleShowConversationSettingsChange} globalHotkey={globalHotkey} setGlobalHotkey={handleGlobalHotkeyChange} />}
             {activeTab === 'models' && <ModelsSettings />}
             {activeTab === 'mcp' && <MCPSettings />}
           </div>
@@ -376,7 +383,7 @@ function HotkeyCapture({ value, onChange, onClear }: { value: string, onChange: 
   )
 }
 
-function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, setShowPricing, globalHotkey, setGlobalHotkey }: any) {
+function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, setShowPricing, showConversationSettings, setShowConversationSettings, globalHotkey, setGlobalHotkey }: any) {
 
   const handleClearHotkey = () => {
     setGlobalHotkey('')
@@ -420,6 +427,29 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, se
               <p className="text-xs text-muted-foreground mt-1">
                 Display estimated costs for API usage. Note: Pricing estimates are approximate and may not reflect actual costs. 
                 Actual billing depends on your provider's pricing structure and may vary.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-medium mb-4">Advanced Settings</h3>
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="showConversationSettings"
+              checked={showConversationSettings}
+              onChange={(e) => setShowConversationSettings(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <div className="flex-1">
+              <label htmlFor="showConversationSettings" className="text-sm font-medium cursor-pointer">
+                Show conversation settings
+              </label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Display a settings icon next to the message input to access advanced conversation options like temperature, system prompt, and other model parameters.
               </p>
             </div>
           </div>

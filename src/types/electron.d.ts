@@ -153,6 +153,7 @@ export interface Settings {
   theme: 'system' | 'light' | 'dark'
   defaultProvider: string
   showPricing?: boolean
+  showConversationSettings?: boolean
   providers: {
     [key: string]: {
       apiKey: string
