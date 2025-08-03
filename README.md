@@ -64,28 +64,6 @@ npm build:app
 
 This creates distributable packages in the `dist` folder for your platform.
 
-## Troubleshooting
-
-### Electron Installation Issues
-```bash
-rm -rf node_modules pnpm-lock.yaml
-npm install
-npm rebuild electron
-```
-
-### Build Issues
-```bash
-# Clear build cache
-rm -rf dist
-npm build
-```
-
-### Dependencies Issues
-```bash
-# Update all dependencies
-npm update
-```
-
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
