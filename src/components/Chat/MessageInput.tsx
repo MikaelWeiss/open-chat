@@ -55,6 +55,61 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }
   }, [message])
 
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    if (disabled || isLoading) return
+    
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      
+      // Check if the item is an image
+      if (item.type.startsWith('image/')) {
+        // Only allow image pasting if the model supports vision
+        if (!modelCapabilities?.vision) {
+          console.log('Image paste blocked: model does not support vision')
+          return
+        }
+        
+        e.preventDefault()
+        
+        const file = item.getAsFile()
+        if (!file) continue
+
+        try {
+          // Convert file to base64
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => {
+              const result = reader.result as string
+              // Remove the data URL prefix to get just the base64 data
+              const base64Data = result.split(',')[1]
+              resolve(base64Data)
+            }
+            reader.onerror = reject
+            reader.readAsDataURL(file)
+          })
+
+          // Create attachment object
+          const attachment: FileAttachment = {
+            path: '', // No file path for pasted images
+            base64,
+            mimeType: file.type,
+            name: `pasted-image-${Date.now()}.${file.type.split('/')[1]}`,
+            type: 'image'
+          }
+
+          setAttachments(prev => [...prev, attachment])
+        } catch (error) {
+          console.error('Failed to process pasted image:', error)
+        }
+        
+        break // Only process the first image found
+      }
+    }
+  }
+
   const handleCancelOrSend = () => {
     if (isStreaming) {
       onCancel?.()
@@ -142,8 +197,9 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         <textarea
           ref={textareaRef}
           value={message}
-          onChange={(e) => !disabled && setMessage(e.target.value)}
+          onChange={(e) => !disabled && !isLoading && setMessage(e.target.value)}
           onKeyDown={handleKeyDownWrapper}
+          onPaste={handlePaste}
           placeholder={
             noProvider
               ? "Add an AI provider to start chatting..." 
