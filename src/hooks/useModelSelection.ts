@@ -71,8 +71,13 @@ export function useModelSelection(conversation: Conversation | null): UseModelSe
   // Sync selected model with conversation's model
   useEffect(() => {
     if (conversation && conversation.provider && conversation.model) {
-      // If conversation has a model, use it
-      setSelectedModel({ provider: conversation.provider, model: conversation.model })
+      // Only sync if we don't have a selected model or if the conversation's model is different
+      // This prevents overriding user selections during state restoration
+      if (!selectedModel || 
+          selectedModel.provider !== conversation.provider || 
+          selectedModel.model !== conversation.model) {
+        setSelectedModel({ provider: conversation.provider, model: conversation.model })
+      }
     } else if (!selectedModel && availableModels.length > 0) {
       // If no model selected and no conversation model, use default or first available
       const defaultProvider = settings?.defaultProvider
@@ -85,7 +90,7 @@ export function useModelSelection(conversation: Conversation | null): UseModelSe
       
       setSelectedModel({ provider: defaultModel.provider, model: defaultModel.model })
     }
-  }, [conversation, availableModels, settings?.defaultProvider, selectedModel])
+  }, [conversation, availableModels, settings?.defaultProvider])
 
   return {
     selectedModel,

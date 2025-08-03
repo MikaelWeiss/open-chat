@@ -15,6 +15,7 @@ interface UseFileAttachmentsReturn {
   addAttachment: (modelCapabilities?: ModelCapabilities) => Promise<void>
   removeAttachment: (index: number) => void
   clearAttachments: () => void
+  setAttachments: (attachments: FileAttachment[]) => void
   getAttachmentIcon: (type: string) => any
 }
 
@@ -77,6 +78,7 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
     addAttachment,
     removeAttachment,
     clearAttachments,
+    setAttachments,
     getAttachmentIcon
   }
 }

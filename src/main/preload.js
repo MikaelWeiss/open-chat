@@ -85,11 +85,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
     removeAppListeners: () => {
       ipcRenderer.removeAllListeners('app:triggerNewConversation')
       ipcRenderer.removeAllListeners('conversation:updated')
+      ipcRenderer.removeAllListeners('quickChat:requestStateSave')
+      ipcRenderer.removeAllListeners('quickChat:restoreState')
     },
     updateGlobalShortcut: (shortcut) => ipcRenderer.invoke('app:updateGlobalShortcut', shortcut),
     disableGlobalShortcut: () => ipcRenderer.invoke('app:disableGlobalShortcut'),
     enableGlobalShortcut: () => ipcRenderer.invoke('app:enableGlobalShortcut'),
     hideQuickChat: () => ipcRenderer.invoke('app:hideQuickChat'),
     sendFeedback: (message) => ipcRenderer.invoke('app:sendFeedback', message)
+  },
+  
+  // Quick Chat State Management
+  quickChat: {
+    saveState: (state) => ipcRenderer.invoke('quickChat:saveState', state),
+    loadState: () => ipcRenderer.invoke('quickChat:loadState'),
+    clearState: () => ipcRenderer.invoke('quickChat:clearState'),
+    onRequestStateSave: (callback) => {
+      ipcRenderer.on('quickChat:requestStateSave', () => callback())
+    },
+    onRestoreState: (callback) => {
+      ipcRenderer.on('quickChat:restoreState', (event, state) => callback(state))
+    },
+    removeQuickChatListeners: () => {
+      ipcRenderer.removeAllListeners('quickChat:requestStateSave')
+      ipcRenderer.removeAllListeners('quickChat:restoreState')
+    }
   }
 })

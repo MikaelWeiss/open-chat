@@ -17,6 +17,8 @@ interface MessageInputProps {
 
 export interface MessageInputHandle {
   focus: () => void
+  getQuickChatState?: () => { draftText: string; attachments: any[] }
+  restoreQuickChatState?: (state: { draftText: string; attachments: any[] }) => void
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
@@ -27,13 +29,21 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [message, setMessage] = useState('')
     
     // Use custom hooks
-    const { attachments, addAttachment, removeAttachment, clearAttachments } = useFileAttachments()
+    const { attachments, addAttachment, removeAttachment, clearAttachments, setAttachments } = useFileAttachments()
     const { handleKeyDown } = useKeyboardShortcuts()
     const { getModifierKeyLabel } = usePlatformInfo()
 
     useImperativeHandle(ref, () => ({
       focus: () => {
         textareaRef.current?.focus()
+      },
+      getQuickChatState: () => ({
+        draftText: message,
+        attachments: attachments
+      }),
+      restoreQuickChatState: (state) => {
+        setMessage(state.draftText || '')
+        setAttachments(state.attachments || [])
       }
     }))
 

@@ -14,6 +14,15 @@ let mainWindow
 let quickChatWindow
 let currentGlobalShortcut = null
 
+// Quick chat state storage for persistence across window recreations
+let quickChatState = {
+  draftText: '',
+  attachments: [],
+  selectedConversationId: null,
+  isNewConversation: false,
+  selectedModel: null
+}
+
 const isDev = process.env.NODE_ENV === 'development'
 
 // Broadcast function to send events to all windows
@@ -75,16 +84,28 @@ function createQuickChatWindow() {
   quickChatWindow.on('closed', () => {
     quickChatWindow = null
   })
+
+  // Send restore state signal once the window is ready
+  quickChatWindow.webContents.once('dom-ready', () => {
+    quickChatWindow.webContents.send('quickChat:restoreState', quickChatState)
+  })
+}
+
+function destroyQuickChatWindow() {
+  if (quickChatWindow && !quickChatWindow.isDestroyed()) {
+    quickChatWindow.destroy()
+    quickChatWindow = null
+  }
 }
 
 function toggleQuickChatWindow() {
-  if (quickChatWindow) {
-    if (quickChatWindow.isVisible()) {
-      quickChatWindow.hide()
-    } else {
-      quickChatWindow.show()
-      quickChatWindow.focus()
-    }
+  if (quickChatWindow && !quickChatWindow.isDestroyed()) {
+    // Request state save before destroying
+    quickChatWindow.webContents.send('quickChat:requestStateSave')
+    // Give time for state saving, then destroy
+    setTimeout(() => {
+      destroyQuickChatWindow()
+    }, 100)
   } else {
     createQuickChatWindow()
   }
@@ -202,9 +223,35 @@ ipcMain.handle('app:enableGlobalShortcut', async () => {
 
 // IPC Handler for hiding quick chat window
 ipcMain.handle('app:hideQuickChat', async () => {
-  if (quickChatWindow && quickChatWindow.isVisible()) {
-    quickChatWindow.hide()
+  if (quickChatWindow && !quickChatWindow.isDestroyed()) {
+    // Request state save before destroying
+    quickChatWindow.webContents.send('quickChat:requestStateSave')
+    // Give time for state saving, then destroy
+    setTimeout(() => {
+      destroyQuickChatWindow()
+    }, 100)
   }
+})
+
+// IPC Handlers for Quick Chat State Persistence
+ipcMain.handle('quickChat:saveState', async (event, state) => {
+  quickChatState = { ...quickChatState, ...state }
+  return true
+})
+
+ipcMain.handle('quickChat:loadState', async () => {
+  return quickChatState
+})
+
+ipcMain.handle('quickChat:clearState', async () => {
+  quickChatState = {
+    draftText: '',
+    attachments: [],
+    selectedConversationId: null,
+    isNewConversation: false,
+    selectedModel: null
+  }
+  return true
 })
 
 ipcMain.handle('settings:getCorruptionStatus', async () => {

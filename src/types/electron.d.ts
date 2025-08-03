@@ -93,6 +93,15 @@ export interface ElectronAPI {
     hideQuickChat?: () => Promise<void>
     sendFeedback: (message: string) => Promise<boolean>
   }
+  
+  quickChat: {
+    saveState: (state: Partial<QuickChatState>) => Promise<boolean>
+    loadState: () => Promise<QuickChatState>
+    clearState: () => Promise<boolean>
+    onRequestStateSave: (callback: () => void) => void
+    onRestoreState: (callback: (state: QuickChatState) => void) => void
+    removeQuickChatListeners: () => void
+  }
 }
 
 export interface Message {
@@ -173,6 +182,20 @@ export interface Provider {
   id: string
   name: string
   models: string[]
+}
+
+export interface QuickChatState {
+  draftText: string
+  attachments: Array<{
+    path: string
+    base64: string
+    mimeType: string
+    name: string
+    type: 'image' | 'audio' | 'file'
+  }>
+  selectedConversationId: string | null
+  isNewConversation: boolean
+  selectedModel: { provider: string; model: string } | null
 }
 
 declare global {

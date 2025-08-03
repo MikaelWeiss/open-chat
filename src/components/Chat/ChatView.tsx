@@ -67,6 +67,8 @@ function ModelCapabilityIcons({ capabilities, className = '' }: ModelCapabilityI
 
 export interface ChatViewHandle {
   focusInput: () => void
+  saveQuickChatState?: (baseState: { selectedConversationId: string | null; isNewConversation: boolean }) => void
+  restoreQuickChatState?: (state: any) => void
 }
 
 const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
@@ -89,6 +91,34 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   useImperativeHandle(ref, () => ({
     focusInput: () => {
       messageInputRef.current?.focus()
+    },
+    saveQuickChatState: (baseState) => {
+      // Get state from MessageInput component and combine with base state
+      const inputState = messageInputRef.current?.getQuickChatState?.()
+      const fullState = {
+        ...baseState,
+        draftText: inputState?.draftText || '',
+        attachments: inputState?.attachments || [],
+        selectedModel: selectedModel ? {
+          provider: selectedModel.provider,
+          model: selectedModel.model
+        } : null
+      }
+      
+      // Save to electron
+      window.electronAPI.quickChat.saveState(fullState)
+    },
+    restoreQuickChatState: (state) => {
+      // Restore model selection
+      if (state.selectedModel) {
+        setSelectedModel(state.selectedModel)
+      }
+      
+      // Restore input state
+      messageInputRef.current?.restoreQuickChatState?.({
+        draftText: state.draftText || '',
+        attachments: state.attachments || []
+      })
     }
   }))
 

@@ -207,6 +207,57 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [createConversation, settingsOpen, shortcutsOpen, sidebarOpen])
 
+  // Quick Chat State Management - only in quick chat mode
+  useEffect(() => {
+    if (!isQuickChat) return
+
+    const handleStateSaveRequest = async () => {
+      try {
+        // Get current state from ChatView
+        const currentState = {
+          selectedConversationId: selectedConversation?.id || null,
+          isNewConversation: selectedConversation?.isTemporary || false
+        }
+        
+        // Let the ChatView component handle saving its own state (draft text, attachments, etc.)
+        // The ChatView will call the electronAPI to save its state
+        chatViewRef.current?.saveQuickChatState?.(currentState)
+      } catch (error) {
+        console.error('Failed to save quick chat state:', error)
+      }
+    }
+
+    const handleStateRestore = async (state: any) => {
+      try {
+        if (state.selectedConversationId) {
+          // Find the conversation to restore
+          const conversations = await window.electronAPI.conversations.getAll()
+          const conversationToRestore = conversations.find(c => c.id === state.selectedConversationId)
+          
+          if (conversationToRestore) {
+            selectConversation(conversationToRestore)
+          } else if (state.isNewConversation) {
+            // Create a new temporary conversation
+            createConversation()
+          }
+        }
+        
+        // Let the ChatView component handle restoring its own state
+        chatViewRef.current?.restoreQuickChatState?.(state)
+      } catch (error) {
+        console.error('Failed to restore quick chat state:', error)
+      }
+    }
+
+    // Set up listeners
+    window.electronAPI.quickChat.onRequestStateSave(handleStateSaveRequest)
+    window.electronAPI.quickChat.onRestoreState(handleStateRestore)
+
+    return () => {
+      window.electronAPI.quickChat.removeQuickChatListeners()
+    }
+  }, [isQuickChat, selectedConversation, selectConversation, createConversation])
+
   return (
     <div className={`flex h-screen bg-background text-foreground ${isQuickChat ? 'quick-chat-mode' : ''}`}>
       {!isQuickChat && (
