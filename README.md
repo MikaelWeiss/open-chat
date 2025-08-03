@@ -11,7 +11,7 @@ Many AI provider chat interfaces (specifically Anthropic) lack essential feature
 Get up and running in one command:
 
 ```bash
-git clone https://github.com/yourusername/open-chat.git && cd open-chat && pnpm install && pnpm rebuild electron && pnpm start
+git clone https://github.com/mikaelweiss/open-chat.git && cd open-chat && npm install && npm start
 ```
 
 This will:
@@ -23,7 +23,7 @@ This will:
 
 ### Prerequisites
 - Node.js 18 or higher
-- pnpm (recommended) or npm
+- npm
 
 ### Manual Installation
 ```bash
@@ -32,19 +32,19 @@ git clone https://github.com/yourusername/open-chat.git
 cd open-chat
 
 # Install dependencies
-pnpm install
+npm install
 
 # Start development mode
-pnpm dev
+npm dev
 ```
 
 ### Available Scripts
 
-- `pnpm dev` - Start development server with hot reload (React + Electron)
-- `pnpm build` - Build the React app for production
-- `pnpm build:app` - Build and package the app with Electron Builder
-- `pnpm start` - Build and run in production mode
-- `pnpm start:quick` - Run without rebuilding (assumes built)
+- `npm dev` - Start development server with hot reload (React + Electron)
+- `npm build` - Build the React app for production
+- `npm build:app` - Build and package the app with Electron Builder
+- `npm start` - Build and run in production mode
+- `npm start:quick` - Run without rebuilding (assumes built)
 
 ## Contributing
 
@@ -54,12 +54,12 @@ Contributions are welcome! Please submit issues and pull requests!
 
 ### Development Build
 ```bash
-pnpm start
+npm start
 ```
 
 ### Packaged App
 ```bash
-pnpm build:app
+npm build:app
 ```
 
 This creates distributable packages in the `dist` folder for your platform.
@@ -69,21 +69,21 @@ This creates distributable packages in the `dist` folder for your platform.
 ### Electron Installation Issues
 ```bash
 rm -rf node_modules pnpm-lock.yaml
-pnpm install
-pnpm rebuild electron
+npm install
+npm rebuild electron
 ```
 
 ### Build Issues
 ```bash
 # Clear build cache
 rm -rf dist
-pnpm build
+npm build
 ```
 
 ### Dependencies Issues
 ```bash
 # Update all dependencies
-pnpm update
+npm update
 ```
 
 ## License
