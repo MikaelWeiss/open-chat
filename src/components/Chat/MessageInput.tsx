@@ -23,6 +23,7 @@ interface MessageInputProps {
   modelCapabilities?: ModelCapabilities
   noProvider?: boolean
   onOpenConversationSettings?: () => void
+  onAttachmentsChange?: (capabilities: { vision: boolean; audio: boolean; files: boolean }) => void
 }
 
 export interface MessageInputHandle {
@@ -32,7 +33,7 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ onSend, onCancel, disabled = false, isLoading = false, messages = [], modelCapabilities, noProvider = false, onOpenConversationSettings }, ref) => {
+  ({ onSend, onCancel, disabled = false, isLoading = false, messages = [], modelCapabilities, noProvider = false, onOpenConversationSettings, onAttachmentsChange }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const { settings } = useSettingsStore()
     const { isStreaming } = useConversationStore()
@@ -56,6 +57,35 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         setAttachments(state.attachments || [])
       }
     }))
+
+  // Function to calculate required capabilities based on current attachments
+  const calculateRequiredCapabilities = (currentAttachments: FileAttachment[]) => {
+    const capabilities = { vision: false, audio: false, files: false }
+    
+    currentAttachments.forEach(attachment => {
+      switch (attachment.type) {
+        case 'image':
+          capabilities.vision = true
+          break
+        case 'audio':
+          capabilities.audio = true
+          break
+        case 'file':
+          capabilities.files = true
+          break
+      }
+    })
+    
+    return capabilities
+  }
+
+  // Notify parent when attachments change
+  useEffect(() => {
+    if (onAttachmentsChange) {
+      const requiredCapabilities = calculateRequiredCapabilities(attachments)
+      onAttachmentsChange(requiredCapabilities)
+    }
+  }, [attachments, onAttachmentsChange])
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -109,7 +139,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             type: 'image'
           }
 
-          setAttachments(prev => [...prev, attachment])
+          setAttachments([...attachments, attachment])
         } catch (error) {
           console.error('Failed to process pasted image:', error)
         }

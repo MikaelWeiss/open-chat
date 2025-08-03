@@ -93,6 +93,40 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   
   const { isLoading, streamingMessage, sendMessage } = useStreamingChat()
 
+  // Get current attachments from MessageInput to determine required capabilities
+  const [requiredCapabilities, setRequiredCapabilities] = useState<{
+    vision: boolean
+    audio: boolean
+    files: boolean
+  }>({ vision: false, audio: false, files: false })
+
+  // Function to check if a model is compatible with current attachments
+  const isModelCompatible = (model: any) => {
+    if (!model.capabilities) return true // If no capabilities info, allow selection
+    
+    // Check if model has all required capabilities
+    if (requiredCapabilities.vision && !model.capabilities.vision) return false
+    if (requiredCapabilities.audio && !model.capabilities.audio) return false
+    if (requiredCapabilities.files && !model.capabilities.files) return false
+    
+    return true
+  }
+
+  // Function to get tooltip text for incompatible models
+  const getIncompatibilityReason = (model: any) => {
+    if (!model.capabilities) return null
+    
+    const missing: string[] = []
+    if (requiredCapabilities.vision && !model.capabilities.vision) missing.push('image')
+    if (requiredCapabilities.audio && !model.capabilities.audio) missing.push('audio')
+    if (requiredCapabilities.files && !model.capabilities.files) missing.push('file')
+    
+    if (missing.length === 0) return null
+    
+    const attachmentTypes = missing.join(', ')
+    return `Remove ${attachmentTypes} attachment${missing.length > 1 ? 's' : ''} to switch to this model`
+  }
+
   useImperativeHandle(ref, () => ({
     focusInput: () => {
       messageInputRef.current?.focus()
@@ -276,30 +310,49 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
                           <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-secondary/50 border-b border-border">
                             {providerName}
                           </div>
-                          {models.map((model) => (
-                            <button
-                              key={`${model.provider}-${model.model}`}
-                              onClick={() => {
-                                setSelectedModel({ provider: model.provider, model: model.model })
-                                setShowModelSelector(false)
-                                // Focus the input field after model selection
-                                setTimeout(() => {
-                                  messageInputRef.current?.focus()
-                                }, 100)
-                              }}
-                              className={clsx(
-                                'w-full text-left px-4 py-2 hover:bg-accent transition-colors border-b border-border/30 last:border-b-0',
-                                selectedModel?.provider === model.provider && selectedModel?.model === model.model
-                                  ? 'bg-accent'
-                                  : ''
-                              )}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="font-medium text-sm">{model.model}</div>
-                                <ModelCapabilityIcons capabilities={model.capabilities} />
-                              </div>
-                            </button>
-                          ))}
+                          {models.map((model) => {
+                            const compatible = isModelCompatible(model)
+                            const incompatibilityReason = getIncompatibilityReason(model)
+                            
+                            return (
+                              <button
+                                key={`${model.provider}-${model.model}`}
+                                onClick={() => {
+                                  if (!compatible) return // Prevent selection of incompatible models
+                                  setSelectedModel({ provider: model.provider, model: model.model })
+                                  setShowModelSelector(false)
+                                  // Focus the input field after model selection
+                                  setTimeout(() => {
+                                    messageInputRef.current?.focus()
+                                  }, 100)
+                                }}
+                                className={clsx(
+                                  'w-full text-left px-4 py-2 transition-colors border-b border-border/30 last:border-b-0',
+                                  !compatible 
+                                    ? 'cursor-not-allowed opacity-50' 
+                                    : 'hover:bg-accent cursor-pointer',
+                                  selectedModel?.provider === model.provider && selectedModel?.model === model.model
+                                    ? 'bg-accent'
+                                    : ''
+                                )}
+                                disabled={!compatible}
+                                title={incompatibilityReason || undefined}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className={clsx(
+                                    "font-medium text-sm",
+                                    !compatible ? "text-muted-foreground" : ""
+                                  )}>
+                                    {model.model}
+                                  </div>
+                                  <ModelCapabilityIcons 
+                                    capabilities={model.capabilities} 
+                                    className={!compatible ? "opacity-50" : ""}
+                                  />
+                                </div>
+                              </button>
+                            )
+                          })}
                         </div>
                       ))
                     )}
@@ -332,6 +385,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
             : undefined
         }
         onOpenConversationSettings={() => setShowConversationSettings(true)}
+        onAttachmentsChange={setRequiredCapabilities}
       />
 
       {/* Conversation Settings Modal */}
