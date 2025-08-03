@@ -316,8 +316,10 @@ class LLMManager {
       return
     }
 
+    // Use unique key for each stream to avoid conflicts when multiple messages are sent rapidly
+    const streamKey = `${conversationId}-${Date.now()}-${Math.random()}`
     const controller = new AbortController()
-    this.activeStreamControllers.set(conversationId, controller)
+    this.activeStreamControllers.set(streamKey, controller)
 
     try {
       switch (provider) {
@@ -354,18 +356,21 @@ class LLMManager {
       }
       onError(error)
     } finally {
-      this.activeStreamControllers.delete(conversationId)
+      this.activeStreamControllers.delete(streamKey)
     }
   }
 
   cancelStream(conversationId) {
-    const controller = this.activeStreamControllers.get(conversationId)
-    if (controller) {
-      controller.abort()
-      this.activeStreamControllers.delete(conversationId)
-      return true
+    let cancelled = false
+    // Find all streams for this conversation and cancel them
+    for (const [streamKey, controller] of this.activeStreamControllers.entries()) {
+      if (streamKey.startsWith(`${conversationId}-`)) {
+        controller.abort()
+        this.activeStreamControllers.delete(streamKey)
+        cancelled = true
+      }
     }
-    return false
+    return cancelled
   }
 
   async openAICompletion(config, model, messages) {
@@ -422,6 +427,8 @@ class LLMManager {
         })
       })
 
+
+
       if (!response.ok) {
         const errorMessage = await this.parseApiError(response, 'OpenAI')
         throw new Error(errorMessage)
@@ -429,9 +436,11 @@ class LLMManager {
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
+      let chunkCount = 0
 
       while (true) {
         const { done, value } = await reader.read()
+        chunkCount++
         if (done) break
 
         const chunk = decoder.decode(value)
@@ -475,6 +484,22 @@ class LLMManager {
             }
           }
         }
+      }
+      
+      // If we reach here, the stream ended without [DONE] marker
+      // Calculate final usage and cost as fallback
+      console.log('🏁 Stream ended naturally, accumulatedContent length:', accumulatedContent.length)
+      if (accumulatedContent) {
+        outputTokens = this.tokenCounter.countTokens(accumulatedContent, 'openai', model)
+        const cost = this.pricingManager.calculateCost('openai', model, inputTokens, outputTokens)
+        
+        onEnd({
+          usage: { promptTokens: inputTokens, completionTokens: outputTokens, totalTokens: inputTokens + outputTokens },
+          cost
+        })
+      } else {
+        console.log('⚠️ No content accumulated, calling onEnd() without data')
+        onEnd()
       }
     } catch (error) {
       if (error.name === 'AbortError') {

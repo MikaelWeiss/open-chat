@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import type { Conversation, Message } from '@/types/electron'
+import { useState, useEffect, useRef } from 'react'
+import type { Conversation } from '@/types/electron'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useToastStore } from '@/stores/settingsStore'
 
@@ -25,41 +25,45 @@ interface UseStreamingChatReturn {
 export function useStreamingChat(): UseStreamingChatReturn {
   const [isLoading, setIsLoading] = useState(false)
   const [streamingMessage, setStreamingMessage] = useState('')
-  const { addMessage, setStreaming } = useConversationStore()
-  const { addToast } = useToastStore()
+  const streamingMessageRef = useRef('')
+
+
+  // Keep the ref in sync with the state
+  useEffect(() => {
+    streamingMessageRef.current = streamingMessage
+  }, [streamingMessage])
 
   // Set up streaming event listeners
   useEffect(() => {
     const handleStreamStart = ({ conversationId }: { conversationId: string; streamId: string }) => {
-      setStreaming(conversationId)
+      useConversationStore.getState().setStreaming(conversationId)
     }
 
     const handleStreamChunk = ({ chunk }: { streamId: string; chunk: string }) => {
       // First chunk received - we can stop showing loading indicator
-      if (isLoading) {
-        setIsLoading(false)
-      }
+      setIsLoading(false)
       setStreamingMessage(prev => prev + chunk)
     }
 
     const handleStreamEnd = () => {
       // Streaming finished, add the complete message
-      if (streamingMessage) {
+      if (streamingMessageRef.current) {
         const currentConversation = useConversationStore.getState().selectedConversation
         if (currentConversation) {
-          addMessage(currentConversation.id, {
+          useConversationStore.getState().addMessage(currentConversation.id, {
             role: 'assistant',
-            content: streamingMessage
+            content: streamingMessageRef.current
           })
         }
       }
       setStreamingMessage('')
-      setStreaming(null)
+      setIsLoading(false)
+      useConversationStore.getState().setStreaming(null)
     }
 
     const handleStreamError = ({ error }: { streamId: string; error: Error }) => {
       console.error('Stream error:', error)
-      addToast({
+      useToastStore.getState().addToast({
         type: 'error',
         title: 'Message Failed',
         message: error.message || 'Failed to get response from the model. Please check your provider configuration.',
@@ -67,24 +71,24 @@ export function useStreamingChat(): UseStreamingChatReturn {
       })
       setStreamingMessage('')
       setIsLoading(false)
-      setStreaming(null)
+      useConversationStore.getState().setStreaming(null)
     }
 
     const handleStreamCancelled = (): void => {
       // Save any partial response that was streamed before cancellation
-      if (streamingMessage) {
+      if (streamingMessageRef.current) {
         const currentConversation = useConversationStore.getState().selectedConversation
         if (currentConversation) {
-          addMessage(currentConversation.id, {
+          useConversationStore.getState().addMessage(currentConversation.id, {
             role: 'assistant',
-            content: streamingMessage
+            content: streamingMessageRef.current
           })
         }
       }
       
       setStreamingMessage('')
       setIsLoading(false)
-      setStreaming(null)
+      useConversationStore.getState().setStreaming(null)
     }
 
     // Add event listeners
@@ -98,7 +102,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
     return () => {
       window.electronAPI.llm.removeStreamListeners()
     }
-  }, [streamingMessage, addMessage, addToast, setStreaming, isLoading])
+  }, [])
 
   const sendMessage = async (
     message: string, 
@@ -107,6 +111,10 @@ export function useStreamingChat(): UseStreamingChatReturn {
     attachments?: FileAttachment[]
   ) => {
     if ((!message.trim() && !attachments?.length) || isLoading) return
+    
+    // Add small delay to prevent provider rate limiting/deduplication issues
+    // This is specifically needed for providers like Moonshot AI that have issues with rapid successive requests
+    await new Promise(resolve => setTimeout(resolve, 100))
     
     // Require a model to be selected
     if (!selectedModel || !selectedModel.model) {
@@ -143,7 +151,9 @@ export function useStreamingChat(): UseStreamingChatReturn {
       const userMessage = message.trim()
       
       // Add user message to conversation with attachments
-      await addMessage(currentConversation.id, {
+      const isTemporary = currentConversation.id.startsWith('temp-')
+      
+      await useConversationStore.getState().addMessage(currentConversation.id, {
         role: 'user',
         content: userMessage,
         attachments: attachments?.map(att => ({
@@ -153,9 +163,36 @@ export function useStreamingChat(): UseStreamingChatReturn {
         }))
       })
       
-      // Get updated conversation with all messages for context
-      const updatedConversation = useConversationStore.getState().selectedConversation
-      if (!updatedConversation) return
+      // Get updated conversation - different handling for temp vs existing conversations
+      let updatedConversation
+      if (isTemporary) {
+        // For temporary conversations, addMessage creates a real conversation and updates store
+        updatedConversation = useConversationStore.getState().selectedConversation
+        if (!updatedConversation) return
+      } else {
+        // For existing conversations, manually update to include new message immediately 
+        // (fixes race condition where addMessage doesn't update selectedConversation state)
+        const newMessage = {
+          id: `temp-${Date.now()}`, // Temporary ID until saved
+          role: 'user' as const,
+          content: userMessage,
+          timestamp: new Date().toISOString(),
+          attachments: attachments?.map(att => ({
+            type: att.type,
+            path: att.path,
+            mimeType: att.mimeType
+          }))
+        }
+        
+        updatedConversation = {
+          ...currentConversation,
+          messages: [...currentConversation.messages, newMessage],
+          updatedAt: new Date().toISOString()
+        }
+        
+        // Update the selected conversation state immediately
+        useConversationStore.getState().selectConversation(updatedConversation)
+      }
       
       // Prepare messages for LLM (convert to the format expected by the API)
       const llmMessages: Array<{role: 'user' | 'assistant', content: string | Array<{type: string, text?: string, source?: any}>}> = updatedConversation.messages.map(msg => {
@@ -261,6 +298,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
       
       // Reset streaming message for new response
       setStreamingMessage('')
+      streamingMessageRef.current = ''
       
       // Send to LLM with streaming
       const result = await window.electronAPI.llm.sendMessage({
@@ -283,7 +321,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
         })
         
         if (response && typeof response === 'string') {
-          await addMessage(currentConversation.id, {
+          await useConversationStore.getState().addMessage(currentConversation.id, {
             role: 'assistant',
             content: response
           })
@@ -294,16 +332,20 @@ export function useStreamingChat(): UseStreamingChatReturn {
       // But set a safety timeout in case streaming never starts
       if (typeof result === 'object' && result?.streamId) {
         setTimeout(() => {
-          if (isLoading && !streamingMessage) {
-            console.warn('Streaming timeout - no chunks received')
-            setIsLoading(false)
-          }
+          // Check current loading state, not the captured value
+          setIsLoading(currentIsLoading => {
+            if (currentIsLoading && !streamingMessageRef.current) {
+              console.warn('Streaming timeout - no chunks received')
+              return false
+            }
+            return currentIsLoading
+          })
         }, 10000) // 10 second timeout
       }
     } catch (error) {
       console.error('Error sending message to LLM:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to get response from the model. Please check your provider configuration.'
-      addToast({
+      useToastStore.getState().addToast({
         type: 'error',
         title: 'Message Failed',
         message: errorMessage,

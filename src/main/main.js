@@ -288,13 +288,13 @@ ipcMain.handle('llm:sendMessage', async (event, { conversationId, provider, mode
     // Notify frontend that streaming started
     senderWindow.webContents.send('llm:streamStart', { conversationId, streamId })
     
-    llmManager.streamCompletion(conversationId, provider, model, messages, (chunk) => {
-      senderWindow.webContents.send('llm:streamChunk', { streamId, chunk })
-    }, (error) => {
-      senderWindow.webContents.send('llm:streamError', { streamId, error })
-    }, (data) => {
-      senderWindow.webContents.send('llm:streamEnd', { streamId, ...data })
-    })
+            llmManager.streamCompletion(conversationId, provider, model, messages, (chunk) => {
+          senderWindow.webContents.send('llm:streamChunk', { streamId, chunk })
+        }, (error) => {
+          senderWindow.webContents.send('llm:streamError', { streamId, error })
+        }, (data) => {
+          senderWindow.webContents.send('llm:streamEnd', { streamId, ...data })
+        })
     
     return { streamId }
   } else {
