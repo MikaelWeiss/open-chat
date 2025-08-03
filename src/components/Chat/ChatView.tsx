@@ -283,8 +283,9 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         onCancel={() => {
           // Additional cancel logic if needed
         }}
-        disabled={availableModels.length === 0 || !selectedModel || !selectedModel.model || isLoading}
+        disabled={availableModels.length === 0 || !selectedModel || !selectedModel.model}
         isLoading={isLoading}
+        noProvider={availableModels.length === 0 || !selectedModel || !selectedModel.model}
         messages={conversation.messages}
         modelCapabilities={
           selectedModel 

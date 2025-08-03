@@ -13,6 +13,7 @@ interface MessageInputProps {
   isLoading?: boolean
   messages?: Message[]
   modelCapabilities?: ModelCapabilities
+  noProvider?: boolean
 }
 
 export interface MessageInputHandle {
@@ -22,7 +23,7 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ onSend, onCancel, disabled = false, isLoading = false, messages = [], modelCapabilities }, ref) => {
+  ({ onSend, onCancel, disabled = false, isLoading = false, messages = [], modelCapabilities, noProvider = false }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const { settings } = useSettingsStore()
     const { isStreaming } = useConversationStore()
@@ -141,10 +142,10 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         <textarea
           ref={textareaRef}
           value={message}
-          onChange={(e) => !disabled && !isLoading && setMessage(e.target.value)}
+          onChange={(e) => !disabled && setMessage(e.target.value)}
           onKeyDown={handleKeyDownWrapper}
           placeholder={
-            disabled 
+            noProvider
               ? "Add an AI provider to start chatting..." 
               : isLoading 
                 ? "Waiting for response..." 
@@ -153,20 +154,20 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           className={clsx(
             'flex-1 resize-none rounded-lg px-4 py-2 min-h-[40px] max-h-[200px] focus:outline-none transition-all duration-200 border',
             'scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent',
-            disabled || isLoading
+            disabled
               ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed border-border/50'
               : 'bg-secondary focus:ring-2 focus:ring-primary border-border hover:border-primary/30 focus:border-primary/50 shadow-sm'
           )}
           rows={1}
-          disabled={disabled || isLoading}
+          disabled={disabled}
         />
         
         <button
           onClick={handleCancelOrSend}
-          disabled={disabled || (!isStreaming && (!message.trim() && attachments.length === 0) || isLoading)}
+          disabled={disabled || (!isStreaming && (!message.trim() && attachments.length === 0)) || isLoading}
           className={clsx(
             'p-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm',
-            disabled || (!isStreaming && (!message.trim() && attachments.length === 0) || isLoading)
+            disabled || (!isStreaming && (!message.trim() && attachments.length === 0)) || isLoading
               ? 'bg-secondary text-muted-foreground cursor-not-allowed'
               : isStreaming
                 ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:shadow-md'
