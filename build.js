@@ -64,8 +64,9 @@ const buildOptions = {
   outdir: 'dist',
   platform: 'browser',
   target: 'es2020',
-  format: 'esm', // Changed to esm to enable code splitting
-  splitting: true, // Enable code splitting
+  format: 'esm',
+  splitting: true,
+  chunkNames: 'chunks/[name]-[hash]',
   sourcemap: isDev,
   minify: !isDev,
   metafile: true,
