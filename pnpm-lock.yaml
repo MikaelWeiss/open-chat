@@ -11,6 +11,9 @@ importers:
       '@anthropic-ai/tokenizer':
         specifier: ^0.0.4
         version: 0.0.4
+      '@telemetrydeck/sdk':
+        specifier: ^2.0.4
+        version: 2.0.4
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
@@ -334,6 +337,10 @@ packages:
   '@szmarczak/http-timer@4.0.6':
     resolution: {integrity: sha512-4BAffykYOgO+5nzBWYwE3W90sBgLJoUPRWWcL8wlyiM8IB8ipJz3UMJ9KXQd1RKQXpKp8Tutn80HZtWsu2u76w==}
     engines: {node: '>=10'}
+
+  '@telemetrydeck/sdk@2.0.4':
+    resolution: {integrity: sha512-x4S83AqSo6wvLJ6nRYdyJEqd9qmblUdBgsTRrjH5z++b9pnf2NMc8NpVAa48KIB1pRuP/GTGzXxVYdNoie/DVg==}
+    engines: {node: '>=18'}
 
   '@tootallnate/once@2.0.0':
     resolution: {integrity: sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==}
@@ -2313,6 +2320,8 @@ snapshots:
   '@szmarczak/http-timer@4.0.6':
     dependencies:
       defer-to-connect: 2.0.1
+
+  '@telemetrydeck/sdk@2.0.4': {}
 
   '@tootallnate/once@2.0.0': {}
 

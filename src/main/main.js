@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, globalShortcut } = require('electron')
 const path = require('path')
 const fs = require('fs').promises
+const crypto = require('crypto')
+const TelemetryDeck = require('@telemetrydeck/sdk')
 const { ConversationManager } = require('./services/conversationManager')
 const { SettingsManager } = require('./services/settingsManager')
 const { LLMManager } = require('./services/llmManager')
@@ -9,6 +11,17 @@ const { LLMManager } = require('./services/llmManager')
 const conversationManager = new ConversationManager()
 const settingsManager = new SettingsManager()
 const llmManager = new LLMManager()
+
+// TelemetryDeck will be initialized after settings are loaded
+let telemetryDeck = null
+
+function initializeTelemetryDeck(userId) {
+  telemetryDeck = new TelemetryDeck({
+    appID: '5E5DB279-2E23-4ADC-83FF-281CDB44D606', // TelemetryDeck App ID
+    clientUser: userId, // Persistent anonymous user ID
+    subtleCrypto: crypto.webcrypto.subtle
+  })
+}
 
 let mainWindow
 let quickChatWindow
@@ -644,14 +657,36 @@ app.whenReady().then(async () => {
     const settings = await settingsManager.getSettings()
     const globalHotkey = settings?.keyboard?.globalHotkey || ''
     registerGlobalShortcut(globalHotkey)
+    
+    // Initialize TelemetryDeck with persistent user ID
+    const userId = settingsManager.getUserId()
+    initializeTelemetryDeck(userId)
   } catch (error) {
     // Fallback to default (no hotkey)
     registerGlobalShortcut('')
   }
 
-  app.on('activate', () => {
+  // Track daily active user
+  try {
+    if (telemetryDeck) {
+      await telemetryDeck.signal('app.launched')
+    }
+  } catch (error) {
+    console.error('TelemetryDeck error:', error)
+  }
+
+  app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
+    }
+    
+    // Track app activation (daily active user event)
+    try {
+      if (telemetryDeck) {
+        await telemetryDeck.signal('app.activated')
+      }
+    } catch (error) {
+      console.error('TelemetryDeck error on activate:', error)
     }
   })
 })

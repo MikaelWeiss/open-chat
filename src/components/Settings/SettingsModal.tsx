@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import clsx from 'clsx'
 import { useSettingsStore, useToastStore } from '../../stores/settingsStore'
 import type { ModelCapabilities } from '../../types/electron'
+import AboutSettings from './AboutSettings'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -167,6 +168,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     { id: 'general', label: 'General' },
     { id: 'models', label: 'Models' },
     { id: 'mcp', label: 'MCP Servers' },
+    { id: 'about', label: 'About' },
   ]
 
   return (
@@ -214,6 +216,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} showPricing={showPricing} setShowPricing={handleShowPricingChange} showConversationSettings={showConversationSettings} setShowConversationSettings={handleShowConversationSettingsChange} globalHotkey={globalHotkey} setGlobalHotkey={handleGlobalHotkeyChange} />}
             {activeTab === 'models' && <ModelsSettings />}
             {activeTab === 'mcp' && <MCPSettings />}
+            {activeTab === 'about' && <AboutSettings />}
           </div>
         </div>
 

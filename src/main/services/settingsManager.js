@@ -1,6 +1,7 @@
 const { app, safeStorage } = require('electron')
 const path = require('path')
 const fs = require('fs').promises
+const crypto = require('crypto')
 
 class SettingsManager {
   constructor() {
@@ -10,6 +11,7 @@ class SettingsManager {
 
   getDefaultSettings() {
     return {
+      userId: this.generateUserId(),
       theme: 'system',
       defaultProvider: 'openai',
       providers: {
@@ -103,8 +105,14 @@ class SettingsManager {
         }
       }
       
-      // Merge with defaults to ensure all fields exist
-      this.settings = { ...this.getDefaultSettings(), ...loaded }
+      // Ensure userId exists (migration for existing users)
+      if (!loaded.userId) {
+        loaded.userId = this.generateUserId()
+      }
+      
+      // Merge with defaults to ensure all fields exist (but preserve existing userId)
+      const defaults = this.getDefaultSettings()
+      this.settings = { ...defaults, ...loaded, userId: loaded.userId }
     } catch (error) {
       if (error.code === 'ENOENT') {
         // File doesn't exist, use defaults (normal first run)
@@ -170,6 +178,14 @@ class SettingsManager {
       error: this.settingsError || null,
       settingsPath: this.settingsPath
     }
+  }
+
+  generateUserId() {
+    return crypto.randomUUID()
+  }
+
+  getUserId() {
+    return this.settings.userId
   }
 
   async resetSettings() {
