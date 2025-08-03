@@ -11,31 +11,31 @@ A: This usually happens when Electron's binary wasn't downloaded properly.
 ```bash
 # Solution 1: Rebuild Electron
 rm -rf node_modules/electron/
-pnpm install
-pnpm rebuild electron
+npm install
+npm rebuild electron
 
 # Solution 2: Clear cache and reinstall
-rm -rf node_modules pnpm-lock.yaml
-pnpm install
-pnpm rebuild electron
+rm -rf node_modules npm-lock.yaml
+npm install
+npm rebuild electron
 
 # Solution 3: Force download
-pnpm install electron --force
+npm install electron --force
 ```
 
 **Q: `EACCES` permission errors during installation**
 
-A: Don't use `sudo` with pnpm. Fix permissions instead:
+A: Don't use `sudo` with npm. Fix permissions instead:
 
 ```bash
-# Check pnpm global directory
-pnpm config get global-dir
+# Check npm global directory
+npm config get global-dir
 
 # Fix permissions (macOS/Linux)
-sudo chown -R $(whoami) ~/.local/share/pnpm
+sudo chown -R $(whoami) ~/.local/share/npm
 
 # Or use different global directory
-pnpm config set global-dir ~/.pnpm-global
+npm config set global-dir ~/.npm-global
 ```
 
 ### Port Conflicts
@@ -49,7 +49,7 @@ A: Kill the conflicting process or use a different port:
 lsof -ti:3000 | xargs kill -9
 
 # Or use different port
-PORT=3001 pnpm dev
+PORT=3001 npm dev
 ```
 
 **Q: Quick Chat global shortcut not working**
@@ -165,7 +165,7 @@ A: Rendering performance issue:
 
 ```bash
 # Enable development mode for better debugging
-NODE_ENV=development pnpm start
+NODE_ENV=development npm start
 
 # Check DevTools Console for errors
 # Look for React warnings about large lists or frequent re-renders
@@ -184,7 +184,7 @@ A: TypeScript compilation issues:
 npx tsc --noEmit
 
 # Fix TypeScript errors first, then rebuild
-pnpm build
+npm build
 ```
 
 **Q: CSS not loading or styles broken**
@@ -194,7 +194,7 @@ A: Tailwind CSS or PostCSS issues:
 ```bash
 # Rebuild CSS specifically
 rm -rf dist/assets/*.css
-pnpm build
+npm build
 
 # Check Tailwind config
 npx tailwindcss -i src/index.css -o dist/test.css
@@ -234,7 +234,7 @@ NODE_ENV=development electron . --enable-devtools
 # In app: View → Toggle Developer Tools (Cmd+Option+I)
 
 # If still blank, try Electron rebuild
-pnpm rebuild electron
+npm rebuild electron
 ```
 
 **Q: Main process debugging not working**
@@ -384,11 +384,11 @@ A: Installation corruption:
 
 ```bash
 # Complete reinstall
-rm -rf node_modules pnpm-lock.yaml
+rm -rf node_modules npm-lock.yaml
 rm -rf ~/Library/Application\ Support/open-chat/
-pnpm install
-pnpm rebuild electron
-pnpm start
+npm install
+npm rebuild electron
+npm start
 ```
 
 ## Prevention Tips
@@ -418,7 +418,7 @@ When reporting issues, include:
 ```bash
 # System information
 node --version
-pnpm --version
+npm --version
 electron --version
 
 # App version (from About dialog)

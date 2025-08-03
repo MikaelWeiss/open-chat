@@ -5,16 +5,16 @@
 ### Daily Development Commands
 ```bash
 # Start development environment (most common)
-pnpm dev
+npm dev
 
 # Quick restart (after making changes to main process)
-pnpm start:quick
+npm start:quick
 
 # Fresh build and start
-pnpm start
+npm start
 
 # Build only (no electron)
-pnpm build
+npm build
 ```
 
 ## Running Tests
@@ -56,8 +56,8 @@ npm run test:providers
 # Verify Node.js version (18+)
 node --version
 
-# Verify pnpm installation
-pnpm --version
+# Verify npm installation
+npm --version
 
 # Check Electron installation
 npx electron --version
@@ -68,8 +68,8 @@ npx electron --version
 # Clone and setup
 git clone <repo-url>
 cd open-chat
-pnpm install
-pnpm rebuild electron
+npm install
+npm rebuild electron
 
 # Set up environment variables (optional)
 cp .env.example .env.local
@@ -102,7 +102,7 @@ Create `.vscode/launch.json`:
         "NODE_ENV": "development"
       },
       "console": "integratedTerminal",
-      "runtimeExecutable": "pnpm",
+      "runtimeExecutable": "npm",
       "runtimeArgs": ["exec", "electron"]
     },
     {
@@ -132,7 +132,7 @@ chrome://inspect
 
 ### React DevTools
 1. Install React Developer Tools extension
-2. Start app in development mode: `pnpm dev`
+2. Start app in development mode: `npm dev`
 3. Open Electron DevTools (`Cmd+Option+I`)
 4. Switch to "React" tab
 
@@ -141,17 +141,17 @@ chrome://inspect
 ### Frontend Hot Reload
 ```bash
 # Automatic React hot reload
-pnpm dev
+npm dev
 
 # Manual restart if hot reload fails
-# Ctrl+C to stop, then pnpm dev again
+# Ctrl+C to stop, then npm dev again
 ```
 
 ### Backend Changes
 ```bash
 # Main process changes require restart
 # 1. Stop current process (Ctrl+C)
-# 2. Restart with: pnpm dev
+# 2. Restart with: npm dev
 
 # Service changes (JavaScript files in src/main/services/)
 # Require full restart
@@ -213,7 +213,7 @@ curl -H "x-api-key: YOUR_API_KEY" \
 ### Bundle Analysis
 ```bash
 # Analyze bundle size
-pnpm build
+npm build
 npx source-map-explorer dist/assets/*.js
 ```
 
@@ -237,32 +237,32 @@ NODE_ENV=development electron --enable-logging .
 lsof -ti:3000 | xargs kill -9
 
 # Use different port
-PORT=3001 pnpm dev
+PORT=3001 npm dev
 ```
 
 ### Node Module Issues
 ```bash
 # Clean install
-rm -rf node_modules pnpm-lock.yaml
-pnpm install
-pnpm rebuild electron
+rm -rf node_modules npm-lock.yaml
+npm install
+npm rebuild electron
 ```
 
 ### Build Cache Issues
 ```bash
 # Clear build cache
 rm -rf dist/
-pnpm build
+npm build
 ```
 
 ### Electron Binary Issues
 ```bash
 # Rebuild Electron
-pnpm rebuild electron
+npm rebuild electron
 
 # Download fresh Electron
 rm -rf node_modules/electron/
-pnpm install electron
+npm install electron
 ```
 
 ---

@@ -12,15 +12,15 @@ Custom esbuild-based build system for React frontend compilation and asset manag
 ## Build Commands
 ```bash
 # Development build with watch mode
-pnpm dev:build
+npm dev:build
 # Equivalent to: node build.js --watch
 
 # Production build
-pnpm build
+npm build
 # Equivalent to: node build.js
 
 # Combined development mode
-pnpm dev
+npm dev
 # Runs build with watch + electron
 ```
 
@@ -98,12 +98,12 @@ dist/
 ### Build Failures
 ```bash
 # Clear node_modules and rebuild
-rm -rf node_modules pnpm-lock.yaml
-pnpm install
+rm -rf node_modules npm-lock.yaml
+npm install
 
 # Clear build cache
 rm -rf dist/
-pnpm build
+npm build
 ```
 
 ### TypeScript Errors

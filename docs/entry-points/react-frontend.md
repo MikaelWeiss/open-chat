@@ -59,16 +59,16 @@ Lightweight React application for the quick chat overlay window.
 ### Development
 ```bash
 # Start with hot reload
-pnpm dev
+npm dev
 
 # Build only
-pnpm dev:build
+npm dev:build
 ```
 
 ### Production
 ```bash
 # Build for production
-pnpm build
+npm build
 ```
 
 ### Build Configuration
@@ -147,7 +147,7 @@ window.electronAPI.on('conversation:updated', (data) => {
 
 ### React DevTools
 1. Install React Developer Tools browser extension
-2. Start in development mode: `pnpm dev`
+2. Start in development mode: `npm dev`
 3. Open DevTools in Electron window
 4. Switch to React tab
 

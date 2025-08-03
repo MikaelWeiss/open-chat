@@ -10,11 +10,11 @@ Open Chat is a modern, feature-rich chat application for AI providers (Anthropic
 
 ### Prerequisites
 - Node.js 18 or higher
-- pnpm (recommended) or npm
+- npm (recommended) or npm
 
 ### One-Line Setup
 ```bash
-git clone https://github.com/yourusername/open-chat.git && cd open-chat && pnpm install && pnpm rebuild electron && pnpm start
+git clone https://github.com/yourusername/open-chat.git && cd open-chat && npm install && npm rebuild electron && npm start
 ```
 
 ### Step-by-Step Setup
@@ -24,32 +24,32 @@ git clone https://github.com/yourusername/open-chat.git
 cd open-chat
 
 # Install dependencies
-pnpm install
+npm install
 
 # Rebuild Electron (if needed)
-pnpm rebuild electron
+npm rebuild electron
 
 # Start the application
-pnpm start
+npm start
 ```
 
 ### Development Commands
 ```bash
 # Development mode with hot reload
-pnpm dev
+npm dev
 
 # Build for production
-pnpm build
+npm build
 
 # Package the app
-pnpm build:app
+npm build:app
 
 # Quick start (assumes already built)
-pnpm start:quick
+npm start:quick
 ```
 
 ### Opening the Debugger
-1. Start in development mode: `pnpm dev`
+1. Start in development mode: `npm dev`
 2. Open DevTools:
    - **Main Window**: `Cmd+Option+I` (macOS) or `Ctrl+Shift+I` (Windows/Linux)
    - **Quick Chat Window**: Same shortcuts when focused

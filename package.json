@@ -1,16 +1,16 @@
 {
   "name": "open-chat",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "A minimal, modern chat application for multiple LLM providers",
   "main": "src/main/main.js",
   "scripts": {
-    "dev": "concurrently -k \"pnpm:dev:build\" \"pnpm:dev:electron\"",
+    "dev": "concurrently -k \"npm run dev:build\" \"npm run dev:electron\"",
     "dev:build": "node build.js --watch",
     "dev:electron": "wait-on dist/index.html && NODE_ENV=development electron .",
     "build": "node build.js",
     "build:analyze": "node build.js && node -e \"console.log('\\n📊 Build analysis saved to dist/metafile.json\\nView chunks at: https://esbuild.github.io/analyze/')\"",
     "build:app": "node build.js && electron-builder",
-    "start": "pnpm build && electron .",
+    "start": "npm run build && electron .",
     "start:quick": "electron .",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -22,7 +22,7 @@
   ],
   "author": "",
   "license": "Apache-2.0",
-  "packageManager": "pnpm@10.14.0",
+  "packageManager": "npm@10.14.0",
   "devDependencies": {
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
@@ -50,10 +50,5 @@
     "remark-gfm": "^4.0.0",
     "tiktoken": "^1.0.21",
     "zustand": "^4.5.4"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "electron"
-    ]
   }
 }

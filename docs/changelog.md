@@ -40,7 +40,7 @@
 - **Security**: Context isolation, sandbox mode, controlled IPC
 
 #### Dependencies
-- **Runtime**: Node.js 18+, pnpm package manager
+- **Runtime**: Node.js 18+, npm package manager
 - **Frontend**: React, TypeScript, Tailwind CSS, Lucide React
 - **Backend**: Electron APIs, file system integration
 - **AI Integration**: Provider-specific REST APIs
@@ -52,9 +52,9 @@
 # Initial installation
 git clone <repository-url>
 cd open-chat
-pnpm install
-pnpm rebuild electron
-pnpm start
+npm install
+npm rebuild electron
+npm start
 ```
 
 #### Configuration Requirements
@@ -139,11 +139,11 @@ cp -r ~/Library/Application\ Support/open-chat/ ./backup-$(date +%Y%m%d)/
 
 # Update code
 git pull origin main
-pnpm install
-pnpm rebuild electron
+npm install
+npm rebuild electron
 
 # Start updated version
-pnpm start
+npm start
 ```
 
 #### Version Compatibility Check

@@ -100,7 +100,7 @@ This documentation follows these principles:
 ### Development Tools
 - [esbuild Documentation](https://esbuild.github.io/) - Build system
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/) - Type system
-- [pnpm Documentation](https://pnpm.io/) - Package manager
+- [npm Documentation](https://npm.io/) - Package manager
 
 ## 🤝 Support & Community
 

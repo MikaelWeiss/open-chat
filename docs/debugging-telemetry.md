@@ -8,7 +8,7 @@
 # Filter by "open-chat" process
 
 # Terminal output (development)
-pnpm dev
+npm dev
 # Logs appear in terminal
 
 # Electron main process logs
@@ -153,10 +153,10 @@ window.electronAPI.on('*', (channel, data) => {
 ### Network Request Monitoring
 ```bash
 # Enable verbose HTTP logging
-DEBUG=* pnpm dev
+DEBUG=* npm dev
 
 # Or specifically for HTTP requests
-DEBUG=axios:* pnpm dev
+DEBUG=axios:* npm dev
 ```
 
 ### File System Debugging
@@ -176,7 +176,7 @@ fs.access(filePath, fs.constants.R_OK | fs.constants.W_OK, (err) => {
 ### Bundle Size Analysis
 ```bash
 # Generate bundle analysis
-pnpm build
+npm build
 npx source-map-explorer dist/assets/*.js
 
 # Look for:

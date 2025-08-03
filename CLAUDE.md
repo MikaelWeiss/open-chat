@@ -15,21 +15,21 @@ This is "Open Chat" - an Electron-based chat application in early development st
 
 ### Technology Stack
 - **Electron 37.2.4**: Desktop app framework
-- **pnpm**: Package manager (configured with workspace support)
+- **npm**: Package manager (configured with workspace support)
 - **HTML/CSS/JavaScript**: Frontend implementation with modern styling including dark mode support
 
 ## Development Commands
 
 ### Running the Application
 ```bash
-pnpm start
+npm start
 ```
 This starts the Electron application using `electron .`
 
 ### Package Management
 ```bash
-pnpm install    # Install dependencies
-pnpm rebuild electron    # Run if Electron fails to start (enables install scripts)
+npm install    # Install dependencies
+npm rebuild electron    # Run if Electron fails to start (enables install scripts)
 ```
 
 ### Project Structure
@@ -37,8 +37,8 @@ pnpm rebuild electron    # Run if Electron fails to start (enables install scrip
 ├── main.js           # Electron main process
 ├── index.html        # Application UI (currently landing page)
 ├── package.json      # Project configuration
-├── pnpm-lock.yaml    # Dependency lock file
-└── pnpm-workspace.yaml # Workspace configuration
+├── npm-lock.yaml    # Dependency lock file
+└── npm-workspace.yaml # Workspace configuration
 ```
 
 ## Development Notes
