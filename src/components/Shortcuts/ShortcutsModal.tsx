@@ -82,7 +82,8 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
         { keys: [modKey, 'T'], description: 'Start new chat' },
         { keys: [modKey, 'S'], description: 'Toggle sidebar' },
         { keys: [modKey, ','], description: 'Open settings' },
-        { keys: [modKey, '/'], description: 'Show keyboard shortcuts' },
+        { keys: [modKey, '/'], description: 'Toggle keyboard shortcuts' },
+        { keys: [modKey, 'Shift', 'F'], description: 'Send feedback' },
         { keys: [modKey, 'L'], description: 'Focus message input' },
       ]
     },
@@ -119,7 +120,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex-1 p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent">
           <div className="space-y-6">
             {shortcutCategories.map((category) => (
               <div key={category.name}>

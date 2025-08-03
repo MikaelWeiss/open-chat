@@ -173,16 +173,22 @@ function App() {
         setSettingsOpen(!settingsOpen)
       }
       
-      // Cmd/Ctrl + / - Keyboard shortcuts
+      // Cmd/Ctrl + / - Toggle keyboard shortcuts
       if (isCtrlOrCmd && e.key === '/') {
         e.preventDefault()
-        setShortcutsOpen(true)
+        setShortcutsOpen(!shortcutsOpen)
       }
       
       // Cmd/Ctrl + L - Focus input field
       if (isCtrlOrCmd && e.key === 'l') {
         e.preventDefault()
         chatViewRef.current?.focusInput()
+      }
+      
+      // Cmd/Ctrl + Shift + F - Send feedback
+      if (isCtrlOrCmd && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        handleOpenFeedback()
       }
       
       // Cmd/Ctrl + S - Toggle sidebar
