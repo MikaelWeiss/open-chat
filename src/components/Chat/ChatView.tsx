@@ -1,5 +1,5 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
-import { ChevronDown, Settings, Eye, Volume2, FileText } from 'lucide-react'
+import { ChevronDown, Settings, Eye, Volume2, FileText, Copy, Check } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
 import ConversationSettingsModal from '../Settings/ConversationSettingsModal'
@@ -76,6 +76,7 @@ export interface ChatViewHandle {
 const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   ({ conversation, onOpenSettings }, ref) => {
   const [showConversationSettings, setShowConversationSettings] = useState(false)
+  const [copySuccess, setCopySuccess] = useState(false)
   const { getConversationSettings, updateConversationSettings } = useConversationStore()
   const { settings } = useSettingsStore()
   const messageInputRef = useRef<MessageInputHandle>(null)
@@ -137,6 +138,25 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
     }
   }, [conversation?.id])
 
+  const copyConversationText = async () => {
+    if (!conversation || !conversation.messages || conversation.messages.length === 0) return
+    
+    // Format conversation text
+    const conversationText = conversation.messages
+      .map(message => {
+        const role = message.role === 'user' ? 'You' : 'Assistant'
+        return `${role}:\n${message.content}`
+      })
+      .join('\n\n')
+    
+    try {
+      await navigator.clipboard.writeText(conversationText)
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
+    } catch (error) {
+      console.error('Failed to copy conversation:', error)
+    }
+  }
 
   const handleSend = async (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => {
     if (!selectedModel) return
@@ -205,8 +225,23 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
             )}
           </div>
           
-          {/* Show Add Provider button if no providers, otherwise show model selector */}
-          <div className="flex-shrink-0">
+          {/* Show Add Provider button if no providers, otherwise show model selector and copy button */}
+          <div className="flex-shrink-0 flex items-center gap-2">
+          {/* Copy conversation button - only show if conversation has messages */}
+          {conversation.messages && conversation.messages.length > 0 && (
+            <button
+              onClick={copyConversationText}
+              className="no-drag p-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
+              title="Copy conversation"
+            >
+              {copySuccess ? (
+                <Check className="h-4 w-4 text-green-500" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+            </button>
+          )}
+          
           {availableModels.length === 0 ? (
             <button
               onClick={onOpenSettings}
