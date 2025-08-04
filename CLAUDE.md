@@ -62,3 +62,4 @@ When developing this further:
 - Add backend services for actual messaging
 - Consider security implications for real chat implementation
 - Split CSS and JavaScript into separate files as the app grows
+
