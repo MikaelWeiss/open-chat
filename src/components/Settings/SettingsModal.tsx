@@ -1,4 +1,4 @@
-import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText } from 'lucide-react'
+import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import clsx from 'clsx'
 import { useSettingsStore, useToastStore } from '../../stores/settingsStore'
@@ -516,95 +516,97 @@ function ModelsSettings() {
   const [showAddProvider, setShowAddProvider] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
   const [customProvider, setCustomProvider] = useState({ name: '', endpoint: '', apiKey: '' })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchHovered, setIsSearchHovered] = useState(false)
 
   const providerPresets = [
-    { 
-      id: 'openai', 
-      name: 'OpenAI', 
+    {
+      id: 'openai',
+      name: 'OpenAI',
       endpoint: 'https://api.openai.com/v1',
       description: 'GPT-4, GPT-3.5, and other OpenAI models',
       apiKeyUrl: 'https://platform.openai.com/api-keys'
     },
-    { 
-      id: 'anthropic', 
-      name: 'Anthropic', 
+    {
+      id: 'anthropic',
+      name: 'Anthropic',
       endpoint: 'https://api.anthropic.com/v1',
       description: 'Claude 3.5 Sonnet, Claude 3 Opus, and other Claude models',
       apiKeyUrl: 'https://console.anthropic.com/settings/keys'
     },
-    { 
-      id: 'openrouter', 
-      name: 'OpenRouter', 
+    {
+      id: 'openrouter',
+      name: 'OpenRouter',
       endpoint: 'https://openrouter.ai/api/v1',
       description: 'Access to 400+ models with rich metadata',
       apiKeyUrl: 'https://openrouter.ai/keys'
     },
-    { 
-      id: 'groq', 
-      name: 'Groq', 
+    {
+      id: 'groq',
+      name: 'Groq',
       endpoint: 'https://api.groq.com/openai/v1',
       description: 'Fast inference for Llama, Mixtral models',
       apiKeyUrl: 'https://console.groq.com/keys'
     },
-    { 
-      id: 'xai', 
-      name: 'xAI (Grok)', 
+    {
+      id: 'xai',
+      name: 'xAI (Grok)',
       endpoint: 'https://api.x.ai/v1',
       description: 'Fully OpenAI/Anthropic compatible',
       apiKeyUrl: 'https://console.x.ai/team/api-keys'
     },
-    { 
-      id: 'google-gemini', 
-      name: 'Google Gemini', 
+    {
+      id: 'google-gemini',
+      name: 'Google Gemini',
       endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
       description: 'Native multimodal capabilities',
       apiKeyUrl: 'https://aistudio.google.com/app/apikey'
     },
-    { 
-      id: 'deepinfra', 
-      name: 'DeepInfra', 
+    {
+      id: 'deepinfra',
+      name: 'DeepInfra',
       endpoint: 'https://api.deepinfra.com/v1/openai',
       description: 'Model hosting platform',
       apiKeyUrl: 'https://deepinfra.com/dash/api_keys'
     },
-    { 
-      id: 'fireworks', 
-      name: 'Fireworks AI', 
+    {
+      id: 'fireworks',
+      name: 'Fireworks AI',
       endpoint: 'https://api.fireworks.ai/inference/v1',
       description: 'Optimized inference',
       apiKeyUrl: 'https://app.fireworks.ai/settings/users/api-keys'
     },
-    { 
-      id: 'together', 
-      name: 'Together AI', 
+    {
+      id: 'together',
+      name: 'Together AI',
       endpoint: 'https://api.together.xyz/v1',
       description: 'Open source model focus',
       apiKeyUrl: 'https://api.together.xyz/settings/api-keys'
     },
-    { 
-      id: 'inceptionlabs', 
-      name: 'Inception Labs', 
+    {
+      id: 'inceptionlabs',
+      name: 'Inception Labs',
       endpoint: 'https://api.inceptionlabs.ai/v1',
       description: 'High-performance AI models',
       apiKeyUrl: 'https://platform.inceptionlabs.ai/dashboard/api-keys'
     },
-    { 
-      id: 'ollama', 
-      name: 'Ollama', 
+    {
+      id: 'ollama',
+      name: 'Ollama',
       endpoint: 'http://localhost:11434/v1',
       description: 'User-friendly local LLM runner',
       isLocal: true
     },
-    { 
-      id: 'vllm', 
-      name: 'vLLM', 
+    {
+      id: 'vllm',
+      name: 'vLLM',
       endpoint: 'http://localhost:8000/v1',
       description: 'High-performance inference server',
       isLocal: true
     },
-    { 
-      id: 'llamacpp', 
-      name: 'llama.cpp', 
+    {
+      id: 'llamacpp',
+      name: 'llama.cpp',
       endpoint: 'http://localhost:8080/v1',
       description: 'C++ implementation, very efficient',
       isLocal: true
@@ -630,7 +632,11 @@ function ModelsSettings() {
     })
   }
 
-  const modelsByProvider = configuredModels.reduce((acc, model) => {
+  const filteredModels = configuredModels.filter(model =>
+    model.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const modelsByProvider = filteredModels.reduce((acc, model) => {
     if (!acc[model.provider]) {
       acc[model.provider] = []
     }
@@ -676,18 +682,18 @@ function ModelsSettings() {
       }
 
       await updateSettings({ providers: newProviders })
-      
+
       // Auto-fetch models for the newly added provider
       const providerId = selectedPreset || customProvider.name.toLowerCase().replace(/\s+/g, '-')
       if (customProvider.apiKey || isLocalProvider) {
         try {
           await handleTestProvider(providerId)
           await window.electronAPI.llm.fetchModels(providerId)
-          
+
           // After fetching models, automatically enable the first 3
           const updatedSettings = await window.electronAPI.settings.get()
           const provider = updatedSettings?.providers[providerId]
-          
+
           if (provider && provider.models && provider.models.length > 0) {
             const autoEnabledModels = provider.models.slice(0, 3)
             const providersWithEnabledModels = {
@@ -703,7 +709,7 @@ function ModelsSettings() {
           console.error('Failed to auto-test and fetch models for provider:', error)
         }
       }
-      
+
       setShowAddProvider(false)
       setSelectedPreset(null)
       setCustomProvider({ name: '', endpoint: '', apiKey: '' })
@@ -743,7 +749,7 @@ function ModelsSettings() {
     try {
       await window.electronAPI.llm.fetchModels(providerId)
       const updatedSettings = await window.electronAPI.settings.get()
-      
+
       // Set default enabled models if not already set
       const provider = updatedSettings?.providers[providerId]
       if (provider && provider.models && !provider.enabledModels) {
@@ -766,7 +772,8 @@ function ModelsSettings() {
         message: `Could not fetch models and capabilities: ${error instanceof Error ? error.message : 'Unknown error'}`,
         duration: 5000
       })
-    } finally {
+    }
+    finally {
       setRefreshingProvider(null)
     }
   }
@@ -867,7 +874,7 @@ function ModelsSettings() {
         {!selectedPreset ? (
           <div className="space-y-6">
             <h4 className="font-medium">Choose a preset or add custom</h4>
-            
+
             <div className="space-y-3">
               <h5 className="text-sm font-medium text-muted-foreground">Cloud Providers (API Key Required)</h5>
               <div className="grid gap-3">
@@ -927,7 +934,7 @@ function ModelsSettings() {
             <h4 className="font-medium">
               Configure {selectedPreset === 'custom' ? 'Custom Provider' : customProvider.name}
             </h4>
-            
+
             {selectedPreset === 'custom' && (
               <div>
                 <label className="text-sm font-medium">Provider Name</label>
@@ -940,7 +947,7 @@ function ModelsSettings() {
                 />
               </div>
             )}
-            
+
             <div>
               <label className="text-sm font-medium">Endpoint URL</label>
               <input
@@ -949,8 +956,8 @@ function ModelsSettings() {
                 onChange={(e) => setCustomProvider({ ...customProvider, endpoint: e.target.value })}
                 placeholder="https://api.example.com/v1"
                 className={`w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                  customProvider.endpoint && !customProvider.endpoint.startsWith('http') 
-                    ? 'border border-red-500' 
+                  customProvider.endpoint && !customProvider.endpoint.startsWith('http')
+                    ? 'border border-red-500'
                     : ''
                 }`}
               />
@@ -958,7 +965,7 @@ function ModelsSettings() {
                 <p className="text-xs text-red-500 mt-1">URL must start with http:// or https://</p>
               )}
             </div>
-            
+
             <div>
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">
@@ -986,12 +993,12 @@ function ModelsSettings() {
                 className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
-            
+
             <button
               onClick={handleSaveProvider}
               disabled={
-                !customProvider.name || 
-                !customProvider.endpoint || 
+                !customProvider.name ||
+                !customProvider.endpoint ||
                 !customProvider.endpoint.startsWith('http') ||
                 (!customProvider.apiKey && !providerPresets.find(p => p.id === selectedPreset)?.isLocal)
               }
@@ -1009,8 +1016,20 @@ function ModelsSettings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium">Models</h3>
-          <p className="text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-medium">Models</h3>
+            <div className="flex items-center gap-2 w-48 bg-secondary rounded-lg px-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search models..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent text-sm focus:outline-none w-full py-1"
+              />
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
             Manage your AI models and providers
           </p>
         </div>
@@ -1023,7 +1042,7 @@ function ModelsSettings() {
         </button>
       </div>
 
-      {providers.length === 0 ? (
+      {providers.length === 0 && !searchQuery ? (
         <div className="text-center py-12">
           <div className="text-muted-foreground mb-4">
             <svg className="mx-auto h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1082,7 +1101,7 @@ function ModelsSettings() {
                           <ChevronDown className="h-4 w-4" />
                         )}
                       </button>
-                      
+
                       <div>
                         <h4 className="font-medium capitalize flex items-center gap-2">
                           {providerId.replace(/-/g, ' ')}
@@ -1103,7 +1122,7 @@ function ModelsSettings() {
                       >
                         <RefreshCw className={clsx("h-4 w-4", refreshingProvider === providerId && "animate-spin")} />
                       </button>
-                      
+
                       <button
                         onClick={() => {
                           setShowApiKeyModal(providerId)
@@ -1131,8 +1150,8 @@ function ModelsSettings() {
                                 className="rounded"
                               />
                               <span className="text-sm flex-1">{model.name}</span>
-                              <ModelCapabilityIcons 
-                                capabilities={capabilities} 
+                              <ModelCapabilityIcons
+                                capabilities={capabilities}
                                 modelId={model.name}
                                 providerId={providerId}
                                 onCapabilityToggle={handleCapabilityToggle}
@@ -1156,6 +1175,15 @@ function ModelsSettings() {
               </div>
             )
           })}
+          {providers.length === 0 && searchQuery && (
+            <div className="text-center py-12">
+              <div className="text-muted-foreground mb-4">
+                <Search className="mx-auto h-12 w-12 mb-4" />
+                <p className="text-lg">No models found for "{searchQuery}"</p>
+                <p className="text-sm">Try a different search term.</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1177,7 +1205,7 @@ function ModelsSettings() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            
+
             {(() => {
               const preset = providerPresets.find(p => p.id === showApiKeyModal)
               return preset && preset.apiKeyUrl && !preset.isLocal && (
@@ -1185,7 +1213,7 @@ function ModelsSettings() {
                   <p className="text-sm text-muted-foreground mb-2">
                     Need an API key? Get one from the provider:
                   </p>
-                  <button 
+                  <button
                     onClick={() => window.electronAPI.shell.openExternal(preset.apiKeyUrl)}
                     className="text-sm text-primary hover:underline focus:outline-none flex items-center gap-1">
                     Visit {preset.name} API Keys <ExternalLink className="h-3 w-3" />
@@ -1193,7 +1221,7 @@ function ModelsSettings() {
                 </div>
               )
             })()}
-            
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium">API Key</label>
@@ -1202,8 +1230,8 @@ function ModelsSettings() {
                   value={newApiKey}
                   onChange={(e) => setNewApiKey(e.target.value)}
                   placeholder={
-                    providerPresets.find(p => p.id === showApiKeyModal)?.isLocal 
-                      ? 'Optional for local providers' 
+                    providerPresets.find(p => p.id === showApiKeyModal)?.isLocal
+                      ? 'Optional for local providers'
                       : 'Enter your API key'
                   }
                   className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -1214,7 +1242,7 @@ function ModelsSettings() {
                   </p>
                 )}
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <button
                   onClick={() => setConfirmRemoveProvider(showApiKeyModal)}
@@ -1232,7 +1260,7 @@ function ModelsSettings() {
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     onClick={async () => {
                       await handleUpdateApiKey(showApiKeyModal, newApiKey)
                       await handleRefreshModels(showApiKeyModal)
@@ -1266,12 +1294,12 @@ function ModelsSettings() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Are you sure you want to remove <span className="font-medium text-foreground capitalize">{confirmRemoveProvider.replace(/-/g, ' ')}</span>?
               </p>
-              
+
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => setConfirmRemoveProvider(null)}
@@ -1279,7 +1307,7 @@ function ModelsSettings() {
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={() => handleRemoveProvider(confirmRemoveProvider)}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
                   Remove Provider
