@@ -34,6 +34,9 @@ cd open-chat
 # Install dependencies
 npm install
 
+# Build
+npm run build
+
 # Start development mode
 npm dev
 ```
