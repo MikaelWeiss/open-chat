@@ -3,6 +3,7 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
 module.exports = {
   packagerConfig: {
+    name: 'Open Chat',
     asar: true,
     ignore: [
       /\.claude/,
@@ -17,7 +18,8 @@ module.exports = {
       appleId: process.env.APPLE_ID,
       appleIdPassword: process.env.APPLE_PASSWORD,
       teamId: process.env.APPLE_TEAM_ID
-    }
+    },
+    icon: '/src/assets/icon'
   },
   rebuildConfig: {},
   makers: [
