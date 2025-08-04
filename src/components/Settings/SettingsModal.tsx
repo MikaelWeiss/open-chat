@@ -1,5 +1,5 @@
 import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import clsx from 'clsx'
 import { useSettingsStore, useToastStore } from '../../stores/settingsStore'
 import type { ModelCapabilities } from '../../types/electron'
@@ -518,6 +518,15 @@ function ModelsSettings() {
   const [customProvider, setCustomProvider] = useState({ name: '', endpoint: '', apiKey: '' })
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchHovered, setIsSearchHovered] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isSearchHovered) {
+      setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 150) // Short delay to allow for transition
+    }
+  }, [isSearchHovered])
 
   const providerPresets = [
     {
@@ -1016,25 +1025,25 @@ function ModelsSettings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <div
-            className="flex items-center gap-2"
-            onMouseEnter={() => setIsSearchHovered(true)}
-            onMouseLeave={() => setIsSearchHovered(false)}
-          >
+          <div className="flex items-center gap-2">
             <h3 className="text-lg font-medium">Models</h3>
-            <div className={clsx(
-              "flex items-center gap-2 transition-all duration-300",
-              isSearchHovered || searchQuery ? "w-48" : "w-8"
-            )}>
-              <Search className="h-4 w-4 text-muted-foreground" />
+            <div
+              className="relative flex items-center"
+              onMouseEnter={() => setIsSearchHovered(true)}
+              onMouseLeave={() => setIsSearchHovered(false)}
+            >
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
+                ref={searchInputRef}
                 type="text"
-                placeholder="Search models..."
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={clsx(
-                  "bg-transparent text-sm focus:outline-none w-full transition-all duration-300",
-                  isSearchHovered || searchQuery ? "opacity-100" : "opacity-0"
+                  'rounded-lg bg-secondary py-1 pl-9 pr-2 text-sm transition-all duration-300 focus:outline-none',
+                  isSearchHovered || searchQuery
+                    ? 'w-40 opacity-100'
+                    : 'w-10 opacity-0',
                 )}
               />
             </div>
