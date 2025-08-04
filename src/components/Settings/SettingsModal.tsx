@@ -1016,16 +1016,26 @@ function ModelsSettings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2"
+            onMouseEnter={() => setIsSearchHovered(true)}
+            onMouseLeave={() => setIsSearchHovered(false)}
+          >
             <h3 className="text-lg font-medium">Models</h3>
-            <div className="flex items-center gap-2 w-48 bg-secondary rounded-lg px-2">
+            <div className={clsx(
+              "flex items-center gap-2 transition-all duration-300",
+              isSearchHovered || searchQuery ? "w-48" : "w-8"
+            )}>
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search models..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent text-sm focus:outline-none w-full py-1"
+                className={clsx(
+                  "bg-transparent text-sm focus:outline-none w-full transition-all duration-300",
+                  isSearchHovered || searchQuery ? "opacity-100" : "opacity-0"
+                )}
               />
             </div>
           </div>
