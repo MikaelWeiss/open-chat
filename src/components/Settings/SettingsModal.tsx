@@ -1028,11 +1028,11 @@ function ModelsSettings() {
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-medium">Models</h3>
             <div
-              className="relative flex items-center"
+              className="flex items-center gap-1"
               onMouseEnter={() => setIsSearchHovered(true)}
               onMouseLeave={() => setIsSearchHovered(false)}
             >
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -1040,10 +1040,10 @@ function ModelsSettings() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={clsx(
-                  'rounded-lg bg-secondary py-1 pl-9 pr-2 text-sm transition-all duration-300 focus:outline-none',
+                  'rounded-lg bg-secondary py-1 px-2 text-sm transition-all duration-300 focus:outline-none',
                   isSearchHovered || searchQuery
-                    ? 'w-40 opacity-100'
-                    : 'w-10 opacity-0',
+                    ? 'w-32 opacity-100'
+                    : 'w-0 opacity-0',
                 )}
               />
             </div>
