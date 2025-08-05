@@ -332,7 +332,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
                 {showModelSelector && (
                   <div className="absolute right-0 top-full mt-1 w-80 bg-background border border-border rounded-lg shadow-lg z-10 max-h-80 overflow-y-auto">
                     {/* Search bar - frozen at top */}
-                    <div className="sticky top-0 bg-background border-b border-border p-3">
+                    <div className="sticky top-0 bg-background border-b border-border p-2">
                       <div className="flex items-center gap-2 px-2 py-1 bg-secondary rounded-lg">
                         <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <input
