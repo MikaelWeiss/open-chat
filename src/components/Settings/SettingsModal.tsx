@@ -517,6 +517,7 @@ function ModelsSettings() {
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
   const [customProvider, setCustomProvider] = useState({ name: '', endpoint: '', apiKey: '' })
   const [searchQuery, setSearchQuery] = useState('')
+  const [hideDatedModels, setHideDatedModels] = useState(false)
   const [isSearchHovered, setIsSearchHovered] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -641,9 +642,15 @@ function ModelsSettings() {
     })
   }
 
-  const filteredModels = configuredModels.filter(model =>
-    model.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredModels = configuredModels.filter(model => {
+    const matchesSearch = model.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const isDated = hideDatedModels && (
+      /\d+-\d+/.test(model.name) || // matches patterns like "gpt-4-0613"
+      /\d{4}/.test(model.name) || // matches 4 consecutive digits like "1206"
+      /00\d/.test(model.name) // matches patterns like "001", "002", etc.
+    )
+    return matchesSearch && !isDated
+  })
 
   const modelsByProvider = filteredModels.reduce((acc, model) => {
     if (!acc[model.provider]) {
@@ -1027,25 +1034,39 @@ function ModelsSettings() {
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-medium">Models</h3>
-            <div
-              className="flex items-center gap-1"
-              onMouseEnter={() => setIsSearchHovered(true)}
-              onMouseLeave={() => setIsSearchHovered(false)}
-            >
-              <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={clsx(
-                  'rounded-lg bg-secondary py-1 px-2 text-sm transition-all duration-300 focus:outline-none',
-                  isSearchHovered || searchQuery
-                    ? 'w-32 opacity-100'
-                    : 'w-0 opacity-0',
-                )}
-              />
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="hide-dated-models"
+                  checked={hideDatedModels}
+                  onChange={(e) => setHideDatedModels(e.target.checked)}
+                  className="rounded"
+                />
+                <label htmlFor="hide-dated-models" className="text-sm text-muted-foreground">
+                  Hide dated models
+                </label>
+              </div>
+              <div
+                className="flex items-center gap-1"
+                onMouseEnter={() => setIsSearchHovered(true)}
+                onMouseLeave={() => setIsSearchHovered(false)}
+              >
+                <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={clsx(
+                    'rounded-lg bg-secondary py-1 px-2 text-sm transition-all duration-300 focus:outline-none',
+                    isSearchHovered || searchQuery
+                      ? 'w-32 opacity-100'
+                      : 'w-0 opacity-0',
+                  )}
+                />
+              </div>
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
