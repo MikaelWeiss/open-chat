@@ -642,15 +642,9 @@ function ModelsSettings() {
     })
   }
 
-  const filteredModels = configuredModels.filter(model => {
-    const matchesSearch = model.name.toLowerCase().includes(searchQuery.toLowerCase())
-    const isDated = hideDatedModels && (
-      /\d+-\d+/.test(model.name) || // matches patterns like "gpt-4-0613"
-      /\d{4}/.test(model.name) || // matches 4 consecutive digits like "1206"
-      /00\d/.test(model.name) // matches patterns like "001", "002", etc.
-    )
-    return matchesSearch && !isDated
-  })
+  const filteredModels = configuredModels.filter(model =>
+    model.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   const modelsByProvider = filteredModels.reduce((acc, model) => {
     if (!acc[model.provider]) {
@@ -1044,7 +1038,7 @@ function ModelsSettings() {
                   className="rounded"
                 />
                 <label htmlFor="hide-dated-models" className="text-sm text-muted-foreground">
-                  Hide dated models
+                  Only latest releases
                 </label>
               </div>
               <div
@@ -1121,7 +1115,48 @@ function ModelsSettings() {
           </div>
 
           {providers.map(providerId => {
-            const providerModels = modelsByProvider[providerId] || []
+            const allProviderModels = modelsByProvider[providerId] || []
+            
+            // Apply date filtering within this provider only
+            const providerModels = hideDatedModels ? allProviderModels.filter(model => {
+              // Extract base model name (remove date suffix and "latest")
+              const baseModelName = model.name.replace(/[-_]\d{4}|\d{4}|[-_]00\d|[-_]\d+-\d+|[-_]latest/g, '').trim()
+              
+              // Find all models with the same base name from this provider
+              const sameBaseModels = allProviderModels.filter(m => {
+                const mBaseName = m.name.replace(/[-_]\d{4}|\d{4}|[-_]00\d|[-_]\d+-\d+|[-_]latest/g, '').trim()
+                return mBaseName === baseModelName
+              })
+              
+              // If there's only one model with this base name, keep it
+              if (sameBaseModels.length === 1) {
+                return true
+              }
+              
+              // Find the best version (prioritize "latest", then no date pattern, then most recent date)
+              const bestModel = sameBaseModels.reduce((best, current) => {
+                const currentHasLatest = current.name.toLowerCase().includes('latest')
+                const bestHasLatest = best.name.toLowerCase().includes('latest')
+                
+                // "latest" versions are always best
+                if (currentHasLatest && !bestHasLatest) return current
+                if (!currentHasLatest && bestHasLatest) return best
+                
+                const currentHasDate = /\d+-\d+|\d{4}|00\d/.test(current.name)
+                const bestHasDate = /\d+-\d+|\d{4}|00\d/.test(best.name)
+                
+                // No date pattern is better than having a date pattern
+                if (!currentHasDate && bestHasDate) return current
+                if (currentHasDate && !bestHasDate) return best
+                
+                // If both have dates, keep the current one (they're equivalent)
+                return current
+              })
+              
+              // Only keep this model if it's the best version
+              return model.name === bestModel.name
+            }) : allProviderModels
+            
             const isExpanded = expandedProviders.has(providerId)
             const provider = settings?.providers[providerId]
             const hasModels = provider?.models && provider.models.length > 0
