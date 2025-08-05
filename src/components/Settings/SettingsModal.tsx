@@ -529,6 +529,35 @@ function ModelsSettings() {
     }
   }, [isSearchHovered])
 
+  // Keyboard shortcut to focus search bar and handle click outside
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if Cmd+F (Mac) or Ctrl+F (Windows/Linux) is pressed
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault() // Prevent default browser find behavior
+        searchInputRef.current?.focus()
+        // Expand the search input if it's collapsed
+        setIsSearchHovered(true)
+      }
+    }
+
+    const handleClickOutside = (e: MouseEvent) => {
+      // Check if click is outside the search area and search is empty
+      const searchArea = document.querySelector('[data-search-area]')
+      if (searchArea && !searchArea.contains(e.target as Node) && !searchQuery) {
+        setIsSearchHovered(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('click', handleClickOutside)
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [searchQuery])
+
   const providerPresets = [
     {
       id: 'openai',
@@ -864,6 +893,34 @@ function ModelsSettings() {
     setShowApiKeyModal(null)
   }
 
+  const handleSelectAllModels = async (providerId: string, modelNames: string[]) => {
+    const provider = settings?.providers[providerId]
+    if (!provider) return
+
+    const newProviders = {
+      ...settings?.providers,
+      [providerId]: {
+        ...provider,
+        enabledModels: modelNames
+      }
+    }
+    await updateSettings({ providers: newProviders })
+  }
+
+  const handleDeselectAllModels = async (providerId: string) => {
+    const provider = settings?.providers[providerId]
+    if (!provider) return
+
+    const newProviders = {
+      ...settings?.providers,
+      [providerId]: {
+        ...provider,
+        enabledModels: []
+      }
+    }
+    await updateSettings({ providers: newProviders })
+  }
+
   if (showAddProvider) {
     return (
       <div className="space-y-6">
@@ -1042,6 +1099,7 @@ function ModelsSettings() {
                 </label>
               </div>
               <div
+                data-search-area
                 className="flex items-center gap-1"
                 onMouseEnter={() => setIsSearchHovered(true)}
                 onMouseLeave={() => setIsSearchHovered(false)}
@@ -1213,6 +1271,22 @@ function ModelsSettings() {
 
                   {isExpanded && (
                     <div className="mt-4 pl-8 space-y-2">
+                      {hasModels && (
+                        <div className="flex items-center gap-2 mb-3">
+                          <button
+                            onClick={() => handleSelectAllModels(providerId, providerModels.map(m => m.name))}
+                            className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                          >
+                            Select All
+                          </button>
+                          <button
+                            onClick={() => handleDeselectAllModels(providerId)}
+                            className="text-xs px-2 py-1 bg-secondary text-secondary-foreground rounded hover:bg-secondary/80 transition-colors"
+                          >
+                            Deselect All
+                          </button>
+                        </div>
+                      )}
                       {hasModels ? (
                         providerModels.map(model => {
                           const capabilities = provider?.modelCapabilities?.[model.name]
