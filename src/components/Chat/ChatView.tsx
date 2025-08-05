@@ -1,5 +1,5 @@
-import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
-import { ChevronDown, Settings, Eye, Volume2, FileText, Copy, Check } from 'lucide-react'
+import { useRef, useEffect, forwardRef, useImperativeHandle, useState, useMemo } from 'react'
+import { ChevronDown, Settings, Eye, Volume2, FileText, Copy, Check, Search } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
 import ConversationSettingsModal from '../Settings/ConversationSettingsModal'
@@ -77,9 +77,11 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   ({ conversation, onOpenSettings }, ref) => {
   const [showConversationSettings, setShowConversationSettings] = useState(false)
   const [copySuccess, setCopySuccess] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const { getConversationSettings, updateConversationSettings } = useConversationStore()
   const { settings } = useSettingsStore()
   const messageInputRef = useRef<MessageInputHandle>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   
   // Use custom hooks
   const {
@@ -92,6 +94,23 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   } = useModelSelection(conversation)
   
   const { isLoading, streamingMessage, sendMessage } = useStreamingChat()
+
+  // Filter models based on search query
+  const filteredModelsByProvider = useMemo(() => {
+    if (!searchQuery.trim()) return modelsByProvider
+    
+    const filtered: Record<string, any[]> = {}
+    Object.entries(modelsByProvider).forEach(([providerName, models]) => {
+      const filteredModels = models.filter(model => 
+        model.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        providerName.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      if (filteredModels.length > 0) {
+        filtered[providerName] = filteredModels
+      }
+    })
+    return filtered
+  }, [modelsByProvider, searchQuery])
 
   // Get current attachments from MessageInput to determine required capabilities
   const [requiredCapabilities, setRequiredCapabilities] = useState<{
@@ -171,6 +190,18 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
       }, 100)
     }
   }, [conversation?.id])
+
+  // Focus search input when model selector opens and clear search when it closes
+  useEffect(() => {
+    if (showModelSelector) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 100)
+    } else {
+      setSearchQuery('')
+    }
+  }, [showModelSelector])
 
   const copyConversationText = async () => {
     if (!conversation || !conversation.messages || conversation.messages.length === 0) return
@@ -300,12 +331,27 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
                 
                 {showModelSelector && (
                   <div className="absolute right-0 top-full mt-1 w-80 bg-background border border-border rounded-lg shadow-lg z-10 max-h-80 overflow-y-auto">
-                    {Object.entries(modelsByProvider).length === 0 ? (
+                    {/* Search bar - frozen at top */}
+                    <div className="sticky top-0 bg-background border-b border-border p-3">
+                      <div className="flex items-center gap-2 px-2 py-1 bg-secondary rounded-lg">
+                        <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <input
+                          ref={searchInputRef}
+                          type="text"
+                          placeholder="Search models..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
+                        />
+                      </div>
+                    </div>
+                    
+                    {Object.entries(filteredModelsByProvider).length === 0 ? (
                       <div className="px-3 py-2 text-sm text-muted-foreground">
-                        No models available. Check your provider settings.
+                        {searchQuery ? `No models found for "${searchQuery}"` : 'No models available. Check your provider settings.'}
                       </div>
                     ) : (
-                      Object.entries(modelsByProvider).map(([providerName, models]) => (
+                      Object.entries(filteredModelsByProvider).map(([providerName, models]) => (
                         <div key={providerName}>
                           <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-secondary/50 border-b border-border">
                             {providerName}
