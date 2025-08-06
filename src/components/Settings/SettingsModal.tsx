@@ -1,4 +1,4 @@
-import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search } from 'lucide-react'
+import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search, Brain, Hammer, ImageIcon, Headphones, Globe } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import clsx from 'clsx'
 import AboutSettings from './AboutSettings'
@@ -27,7 +27,7 @@ interface ModelCapabilityIconsProps {
   className?: string
   modelId?: string
   providerId?: string
-  onCapabilityToggle?: (modelId: string, providerId: string, capability: 'vision' | 'audio' | 'files', enabled: boolean) => void
+  onCapabilityToggle?: (modelId: string, providerId: string, capability: 'vision' | 'audio' | 'files' | 'image' | 'thinking' | 'tools' | 'webSearch', enabled: boolean) => void
 }
 
 function ModelCapabilityIcons({ 
@@ -41,7 +41,7 @@ function ModelCapabilityIcons({
   
   if (!capabilities) return null
 
-  const handleCapabilityClick = (capability: 'vision' | 'audio' | 'files') => {
+  const handleCapabilityClick = (capability: 'vision' | 'audio' | 'files' | 'image' | 'thinking' | 'tools' | 'webSearch') => {
     if (modelId && providerId && onCapabilityToggle) {
       const currentValue = capabilities[capability]
       onCapabilityToggle(modelId, providerId, capability, !currentValue)
@@ -55,7 +55,7 @@ function ModelCapabilityIcons({
       enabled: capabilities.vision,
       color: 'text-blue-500 dark:text-blue-400',
       grayColor: 'text-gray-400 dark:text-gray-600',
-      title: 'Vision/Images'
+      title: 'Vision/Images Input'
     },
     {
       key: 'audio' as const,
@@ -72,6 +72,38 @@ function ModelCapabilityIcons({
       color: 'text-orange-500 dark:text-orange-400',
       grayColor: 'text-gray-400 dark:text-gray-600',
       title: 'File Input'
+    },
+    {
+      key: 'image' as const,
+      icon: ImageIcon,
+      enabled: capabilities.image,
+      color: 'text-purple-500 dark:text-purple-400',
+      grayColor: 'text-gray-400 dark:text-gray-600',
+      title: 'Image Output'
+    },
+    {
+      key: 'thinking' as const,
+      icon: Brain,
+      enabled: capabilities.thinking,
+      color: 'text-pink-500 dark:text-pink-400',
+      grayColor: 'text-gray-400 dark:text-gray-600',
+      title: 'Reasoning/Thinking'
+    },
+    {
+      key: 'tools' as const,
+      icon: Hammer,
+      enabled: capabilities.tools,
+      color: 'text-yellow-500 dark:text-yellow-400',
+      grayColor: 'text-gray-400 dark:text-gray-600',
+      title: 'Function Calling/Tools'
+    },
+    {
+      key: 'webSearch' as const,
+      icon: Globe,
+      enabled: capabilities.webSearch,
+      color: 'text-cyan-500 dark:text-cyan-400',
+      grayColor: 'text-gray-400 dark:text-gray-600',
+      title: 'Web Search'
     }
   ]
 
@@ -133,6 +165,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     addProvider,
     updateProvider,
     removeProvider,
+    refreshProviderModels,
   } = useSettings()
   
   if (!isOpen) return null
@@ -186,7 +219,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           {/* Tab Content */}
           <div className="flex-1 p-6 overflow-y-auto min-h-0">
             {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} showPricing={showPricing} setShowPricing={handleShowPricingChange} showConversationSettings={showConversationSettings} setShowConversationSettings={handleShowConversationSettingsChange} globalHotkey={globalHotkey} setGlobalHotkey={handleGlobalHotkeyChange} />}
-            {activeTab === 'models' && <ModelsSettings providers={providers} onToggleModel={handleToggleModel} onCapabilityToggle={handleCapabilityToggle} onAddProvider={async (name, endpoint, apiKey, isLocal) => await addProvider({ name, endpoint, apiKey, isLocal })} onUpdateProvider={async (providerId, updates) => await updateProvider(providerId, updates)} onRemoveProvider={removeProvider} />}
+            {activeTab === 'models' && <ModelsSettings providers={providers} onToggleModel={handleToggleModel} onCapabilityToggle={handleCapabilityToggle} onAddProvider={async (name, endpoint, apiKey, isLocal) => await addProvider({ name, endpoint, apiKey, isLocal })} onUpdateProvider={async (providerId, updates) => await updateProvider(providerId, updates)} onRemoveProvider={removeProvider} onRefreshModels={refreshProviderModels} />}
             {activeTab === 'about' && <AboutSettings />}
           </div>
         </div>
@@ -467,13 +500,14 @@ interface ConfiguredModel {
 interface ModelsSettingsProps {
   providers: Record<string, Provider>
   onToggleModel: (providerId: string, modelName: string, enabled: boolean) => void
-  onCapabilityToggle: (modelId: string, providerId: string, capability: 'vision' | 'audio' | 'files', enabled: boolean) => void
+  onCapabilityToggle: (modelId: string, providerId: string, capability: 'vision' | 'audio' | 'files' | 'image' | 'thinking' | 'tools' | 'webSearch', enabled: boolean) => void
   onAddProvider: (name: string, endpoint: string, apiKey?: string, isLocal?: boolean) => Promise<void>
   onUpdateProvider: (providerId: string, updates: { apiKey?: string }) => Promise<void>
   onRemoveProvider: (providerId: string) => Promise<void>
+  onRefreshModels: (providerId: string) => Promise<void>
 }
 
-function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityToggle, onAddProvider, onUpdateProvider, onRemoveProvider }: ModelsSettingsProps) {
+function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityToggle, onAddProvider, onUpdateProvider, onRemoveProvider, onRefreshModels }: ModelsSettingsProps) {
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set())
   const [showApiKeyModal, setShowApiKeyModal] = useState<string | null>(null)
   const [newApiKey, setNewApiKey] = useState('')
@@ -641,10 +675,36 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
     }
   }
 
-  const handleRefreshModels = (providerId: string) => {
+  const handleRefreshModels = async (providerId: string) => {
     setRefreshingProvider(providerId)
-    console.log('Refresh models for:', providerId)
-    setTimeout(() => setRefreshingProvider(null), 2000) // Mock delay
+    try {
+      await onRefreshModels(providerId)
+      
+      // @ts-ignore
+      if (window.showToast) {
+        // @ts-ignore
+        window.showToast({
+          type: 'success',
+          title: 'Models Refreshed',
+          message: `Successfully updated models for ${providersData[providerId]?.name || providerId}.`,
+          duration: 3000
+        })
+      }
+    } catch (error) {
+      console.error('Failed to refresh models:', error)
+      // @ts-ignore
+      if (window.showToast) {
+        // @ts-ignore
+        window.showToast({
+          type: 'error',
+          title: 'Failed to Refresh Models',
+          message: error instanceof Error ? error.message : 'An unknown error occurred',
+          duration: 5000
+        })
+      }
+    } finally {
+      setRefreshingProvider(null)
+    }
   }
 
   const handleUpdateApiKey = async (providerId: string, apiKey: string) => {
@@ -893,18 +953,34 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
         {/* Capability Legend */}
         <div className="p-3 bg-secondary/30 rounded-lg border border-border">
           <h4 className="text-sm font-medium mb-2">Model Capabilities</h4>
-          <div className="flex flex-wrap gap-4 text-xs">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
             <div className="flex items-center gap-1">
               <Eye className="w-3 h-3 text-blue-500" />
-              <span>Vision</span>
+              <span>Vision Input</span>
             </div>
             <div className="flex items-center gap-1">
               <Volume2 className="w-3 h-3 text-green-500" />
-              <span>Audio</span>
+              <span>Audio Input</span>
             </div>
             <div className="flex items-center gap-1">
               <FileText className="w-3 h-3 text-orange-500" />
-              <span>Files</span>
+              <span>File Input</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <ImageIcon className="w-3 h-3 text-purple-500" />
+              <span>Image Output</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Brain className="w-3 h-3 text-pink-500" />
+              <span>Reasoning</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Hammer className="w-3 h-3 text-yellow-500" />
+              <span>Tools</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Globe className="w-3 h-3 text-cyan-500" />
+              <span>Web Search</span>
             </div>
           </div>
         </div>
@@ -945,11 +1021,12 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => console.log('Refresh models for', providerId)}
-                      className="p-2 hover:bg-accent rounded transition-colors"
+                      onClick={() => handleRefreshModels(providerId)}
+                      disabled={refreshingProvider === providerId}
+                      className="p-2 hover:bg-accent rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Refresh models and capabilities"
                     >
-                      <RefreshCw className="h-4 w-4" />
+                      <RefreshCw className={`h-4 w-4 ${refreshingProvider === providerId ? 'animate-spin' : ''}`} />
                     </button>
 
                     <button

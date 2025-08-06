@@ -1,12 +1,26 @@
 export interface ModelCapabilities {
+  // Input capabilities
   vision: boolean
   audio: boolean
   files: boolean
   multimodal: boolean
+  
+  // Output capabilities
+  image: boolean
+  thinking: boolean
+  
+  // Other capabilities
+  tools: boolean
+  webSearch: boolean
+  
   manualOverrides?: {
     vision?: boolean
     audio?: boolean
     files?: boolean
+    image?: boolean
+    thinking?: boolean
+    tools?: boolean
+    webSearch?: boolean
   }
 }
 

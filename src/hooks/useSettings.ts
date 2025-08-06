@@ -3,6 +3,7 @@ import { settings, SETTINGS_KEYS } from '../shared/settingsStore'
 import { saveApiKey, getApiKey, deleteApiKey, hasApiKey } from '../utils/secureStorage'
 import { Provider, AddProviderRequest, UpdateProviderRequest } from '../types/provider'
 import { applyTheme, setupSystemThemeListener } from '../shared/theme'
+import { modelsService } from '../services/modelsService'
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system'
@@ -149,7 +150,7 @@ export function useSettings() {
   const handleCapabilityToggle = async (
     modelId: string,
     providerId: string,
-    capability: 'vision' | 'audio' | 'files',
+    capability: 'vision' | 'audio' | 'files' | 'image' | 'thinking' | 'tools' | 'webSearch',
     enabled: boolean
   ) => {
     const provider = settings_state.providers[providerId]
@@ -193,6 +194,14 @@ export function useSettings() {
 
       // Save provider to settings
       await updateProviderSetting(providerId, provider)
+
+      // Automatically fetch models for the new provider
+      try {
+        await refreshProviderModels(providerId)
+      } catch (error) {
+        // Don't fail the provider creation if model fetching fails
+        console.warn(`Failed to fetch models for new provider ${providerId}:`, error)
+      }
     } catch (error) {
       console.error('Failed to add provider:', error)
       throw error
@@ -312,6 +321,52 @@ export function useSettings() {
     }
   }
 
+  const refreshProviderModels = async (providerId: string): Promise<void> => {
+    try {
+      const provider = settings_state.providers[providerId]
+      if (!provider) throw new Error('Provider not found')
+
+      // Get API key if needed
+      const apiKey = provider.isLocal ? undefined : await getApiKey(providerId)
+      
+      // Fetch and enrich models
+      const enrichedModels = await modelsService.fetchModelsForProvider(
+        providerId,
+        provider.endpoint,
+        apiKey || undefined,
+        provider.isLocal
+      )
+
+      // Update provider with new models and capabilities
+      const modelNames = enrichedModels.map(model => model.id)
+      const modelCapabilities = enrichedModels.reduce((acc, model) => {
+        acc[model.id] = model.capabilities
+        return acc
+      }, {} as Record<string, any>)
+
+      await updateProviderSetting(providerId, {
+        ...provider,
+        models: modelNames,
+        modelCapabilities,
+        connected: true
+      })
+
+    } catch (error) {
+      console.error(`Failed to refresh models for provider ${providerId}:`, error)
+      
+      // Mark provider as disconnected
+      const provider = settings_state.providers[providerId]
+      if (provider) {
+        await updateProviderSetting(providerId, {
+          ...provider,
+          connected: false
+        })
+      }
+      
+      throw error
+    }
+  }
+
   return {
     // Settings data (for direct access)
     settings: settings_state,
@@ -350,5 +405,6 @@ export function useSettings() {
     updateProviderApiKey,
     getProviderApiKey,
     checkProviderApiKeys,
+    refreshProviderModels,
   }
 }
