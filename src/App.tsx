@@ -46,6 +46,35 @@ function App() {
     initializeApp()
   }, [conversations, selectedConversationId, createConversation])
 
+  // Handle when a conversation is deleted
+  const handleConversationDeleted = async (deletedId: number) => {
+    // If the deleted conversation was the currently selected one, create a new chat
+    if (selectedConversationId === deletedId) {
+      try {
+        // Get the last conversation's model to inherit it (if any)
+        let provider = ''
+        let model = ''
+        
+        if (conversations.length > 0) {
+          const lastConversation = conversations.find(conv => conv.id !== deletedId) || conversations[0]
+          provider = lastConversation.provider || ''
+          model = lastConversation.model || ''
+        }
+        
+        // Create a new conversation
+        const id = await createConversation('New Conversation', provider, model)
+        setSelectedConversationId(id || null)
+        
+        // Focus the message input after creating new conversation
+        setTimeout(() => {
+          messageInputRef.current?.focus()
+        }, 100)
+      } catch (err) {
+        console.error('Failed to create new conversation after deletion:', err)
+      }
+    }
+  }
+
   // Keyboard shortcut handlers
   const handleNewChat = async () => {
     // Check database directly for message count to avoid stale React state
@@ -140,6 +169,7 @@ function App() {
         onOpenShortcuts={() => setShortcutsOpen(true)}
         selectedConversationId={selectedConversationId}
         onSelectConversation={setSelectedConversationId}
+        onDeleteConversation={handleConversationDeleted}
       />
       
       <div className="flex-1 pr-2 pb-2 min-w-0 flex">

@@ -14,6 +14,7 @@ interface SidebarProps {
   onOpenShortcuts: () => void
   selectedConversationId?: number | null
   onSelectConversation?: (conversationId: number | null) => void
+  onDeleteConversation?: (deletedId: number) => void
 }
 
 export default function Sidebar({
@@ -25,6 +26,7 @@ export default function Sidebar({
   onOpenShortcuts,
   selectedConversationId,
   onSelectConversation,
+  onDeleteConversation,
 }: SidebarProps) {
   const { conversations, loading, error, deleteConversation } = useConversations()
   
@@ -35,6 +37,8 @@ export default function Sidebar({
   const handleDeleteConversation = async (id: number) => {
     try {
       await deleteConversation(id)
+      // Notify parent component that a conversation was deleted
+      onDeleteConversation?.(id)
     } catch (err) {
       console.error('Failed to delete conversation:', err)
     }
