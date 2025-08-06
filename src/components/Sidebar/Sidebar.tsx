@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus, Settings, Trash2, MessageSquare, Command } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Settings, Trash2, MessageSquare, Command } from 'lucide-react'
 import { format } from 'date-fns'
 import clsx from 'clsx'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -26,7 +26,7 @@ export default function Sidebar({
   selectedConversationId,
   onSelectConversation,
 }: SidebarProps) {
-  const { conversations, loading, error, deleteConversation, createConversation } = useConversations()
+  const { conversations, loading, error, deleteConversation } = useConversations()
   
   const handleSelectConversation = (conversation: Conversation) => {
     onSelectConversation?.(conversation.id)
@@ -40,14 +40,6 @@ export default function Sidebar({
     }
   }
   
-  const handleNewConversation = async () => {
-    try {
-      const id = await createConversation('New Conversation', '', '')
-      onSelectConversation?.(id || null)
-    } catch (err) {
-      console.error('Failed to create conversation:', err)
-    }
-  }
 
   const handleStartDrag = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -152,13 +144,6 @@ export default function Sidebar({
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold">Open Chat</h1>
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleNewConversation}
-                className="p-2 hover:bg-accent rounded-lg transition-colors"
-                title="New conversation"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
               <button
                 onClick={() => console.log('Send feedback')}
                 className="p-2 hover:bg-accent rounded-lg transition-colors"

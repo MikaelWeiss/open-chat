@@ -11,6 +11,7 @@ export function useConversations() {
       setLoading(true)
       setError(null)
       const convs = await conversationStore.getConversations()
+      console.log('Loaded conversations:', convs.length, convs)
       setConversations(convs)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversations')
@@ -89,9 +90,17 @@ export function useConversations() {
     }
   }, [loadConversations])
 
-  // Load conversations on mount
+  // Load conversations on mount and subscribe to changes
   useEffect(() => {
     loadConversations()
+    
+    // Subscribe to conversation changes
+    const unsubscribe = conversationStore.subscribe(() => {
+      console.log('Conversation store changed, reloading...')
+      loadConversations()
+    })
+    
+    return unsubscribe
   }, [loadConversations])
 
   return {

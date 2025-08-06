@@ -44,8 +44,23 @@ function App() {
   // Keyboard shortcut handlers
   const handleNewChat = async () => {
     try {
-      const id = await createConversation('New Conversation', '', '')
+      // Get the last conversation to use its model
+      let provider = ''
+      let model = ''
+      
+      if (conversations.length > 0) {
+        const lastConversation = conversations[0] // conversations are sorted by most recent
+        provider = lastConversation.provider || ''
+        model = lastConversation.model || ''
+      }
+      
+      const id = await createConversation('New Conversation', provider, model)
       setSelectedConversationId(id || null)
+      
+      // Focus the message input after a short delay to ensure the conversation loads
+      setTimeout(() => {
+        messageInputRef.current?.focus()
+      }, 100)
     } catch (err) {
       console.error('Failed to create conversation via keyboard shortcut:', err)
     }
@@ -112,6 +127,7 @@ function App() {
             conversationId={selectedConversationId}
             onOpenSettings={() => setSettingsOpen(true)} 
             messageInputRef={messageInputRef}
+            onSelectConversation={setSelectedConversationId}
           />
         </div>
       </div>

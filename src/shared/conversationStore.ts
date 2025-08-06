@@ -3,6 +3,7 @@ import Database from '@tauri-apps/plugin-sql'
 // Conversation Database
 class ConversationDatabase {
   private db: Database | null = null
+  private listeners = new Set<() => void>()
 
   async init() {
     if (!this.db) {
@@ -28,12 +29,23 @@ class ConversationDatabase {
     `)
   }
 
+  // Listener management
+  subscribe(listener: () => void) {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener())
+  }
+
   async createConversation(title: string, provider: string, model: string, systemPrompt?: string) {
     const db = await this.init()
     const result = await db.execute(
       'INSERT INTO conversations (title, provider, model, system_prompt) VALUES ($1, $2, $3, $4)',
       [title, provider, model, systemPrompt || null]
     )
+    this.notifyListeners()
     return result.lastInsertId
   }
 
@@ -78,23 +90,29 @@ class ConversationDatabase {
     fields.push('updated_at = CURRENT_TIMESTAMP')
     values.push(id)
 
-    return await db.execute(
+    const result = await db.execute(
       `UPDATE conversations SET ${fields.join(', ')} WHERE id = $${values.length}`,
       values
     )
+    this.notifyListeners()
+    return result
   }
 
   async deleteConversation(id: number) {
     const db = await this.init()
-    return await db.execute('DELETE FROM conversations WHERE id = $1', [id])
+    const result = await db.execute('DELETE FROM conversations WHERE id = $1', [id])
+    this.notifyListeners()
+    return result
   }
 
   async touchConversation(id: number) {
     const db = await this.init()
-    return await db.execute(
+    const result = await db.execute(
       'UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [id]
     )
+    this.notifyListeners()
+    return result
   }
 }
 

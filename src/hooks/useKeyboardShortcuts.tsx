@@ -36,8 +36,8 @@ export const useKeyboardShortcuts = ({
         return
       }
       
-      // Don't handle other shortcuts if we're in an input field (except Escape above)
-      if (isInputField && event.key !== 'Escape') {
+      // Don't handle shortcuts if we're in an input field, except for specific ones
+      if (isInputField && !['Escape', 'n', 't'].includes(event.key.toLowerCase())) {
         return
       }
       

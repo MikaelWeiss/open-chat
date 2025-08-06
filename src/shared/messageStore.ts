@@ -16,7 +16,9 @@ class MessageDatabase {
   private async createTable() {
     const db = await this.init()
     
-    await db.execute(`
+    console.log('Creating messages table...')
+    try {
+      await db.execute(`
       CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         conversation_id INTEGER NOT NULL,
@@ -45,11 +47,17 @@ class MessageDatabase {
         FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE
       )
     `)
+      console.log('Messages table created successfully')
+    } catch (error) {
+      console.error('Failed to create messages table:', error)
+      throw error
+    }
   }
 
   async addMessage(conversationId: number, message: CreateMessageInput) {
     const db = await this.init()
     
+    console.log('Adding message to DB:', { conversationId, message })
     const result = await db.execute(`
       INSERT INTO messages (
         conversation_id, role, text, thinking, images, audio, files, [references],
@@ -79,6 +87,7 @@ class MessageDatabase {
     ])
     
     // Update conversation timestamp
+    console.log('Touching conversation:', conversationId)
     await conversationStore.touchConversation(conversationId)
     
     return result.lastInsertId

@@ -1,4 +1,4 @@
-import { ChevronDown, Copy, Eye, Volume2, FileText, Search } from 'lucide-react'
+import { ChevronDown, Copy, Eye, Volume2, FileText, Search, Plus } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
 import { useRef, RefObject, useState, useEffect, useMemo } from 'react'
@@ -15,6 +15,7 @@ interface ChatViewProps {
   conversationId?: number | null
   onOpenSettings?: () => void
   messageInputRef?: RefObject<MessageInputHandle>
+  onSelectConversation?: (conversationId: number | null) => void
 }
 
 interface ModelCapabilityIconsProps {
@@ -75,7 +76,7 @@ function ModelCapabilityIcons({ capabilities, className = '' }: ModelCapabilityI
   )
 }
 
-export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef }: ChatViewProps) {
+export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef, onSelectConversation }: ChatViewProps) {
   const internalMessageInputRef = useRef<MessageInputHandle>(null)
   const messageInputRef = externalMessageInputRef || internalMessageInputRef
   const [isLoading, setIsLoading] = useState(false)
@@ -91,7 +92,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const dropdownRef = useRef<HTMLDivElement>(null)
   
   const { messages, addMessage } = useMessages(conversationId ?? null)
-  const { getConversation, updateConversation } = useConversations()
+  const { getConversation, updateConversation, createConversation } = useConversations()
   const { settings, getProviderApiKey } = useSettings()
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
   
@@ -353,6 +354,25 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     }, 100)
   }
   
+  // Handle new conversation creation
+  const handleNewConversation = async () => {
+    try {
+      // Use current conversation's model if available, otherwise empty
+      const provider = currentConversation?.provider || ''
+      const model = currentConversation?.model || ''
+      
+      const id = await createConversation('New Conversation', provider, model)
+      onSelectConversation?.(id || null)
+      
+      // Focus the message input after a short delay
+      setTimeout(() => {
+        messageInputRef.current?.focus()
+      }, 100)
+    } catch (err) {
+      console.error('Failed to create new conversation:', err)
+    }
+  }
+  
   const handleSend = async (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => {
     if (!conversationId || !message.trim() || !currentConversation) return
     
@@ -584,6 +604,17 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                 </div>
               )}
             </div>
+            )}
+            
+            {/* New conversation button - only show if there's more than one message */}
+            {messages.length > 1 && (
+              <button
+                onClick={handleNewConversation}
+                className="p-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
+                title="New conversation"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             )}
           </div>
         </div>
