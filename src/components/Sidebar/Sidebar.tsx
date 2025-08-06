@@ -1,10 +1,11 @@
-import { ChevronLeft, ChevronRight, Settings, Trash2, MessageSquare, Command } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Settings, Trash2, MessageSquare, Star } from 'lucide-react'
 import { format } from 'date-fns'
 import clsx from 'clsx'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useConversations } from '../../hooks/useConversations'
 import { type Conversation } from '../../shared/conversationStore'
 import { useState } from 'react'
+import ContextMenu from '../ContextMenu/ContextMenu'
 
 interface SidebarProps {
   isOpen: boolean
@@ -29,8 +30,13 @@ export default function Sidebar({
   onSelectConversation,
   onDeleteConversation,
 }: SidebarProps) {
-  const { conversations, loading, error, deleteConversation } = useConversations()
+  const { conversations, loading, error, deleteConversation, toggleConversationFavorite } = useConversations()
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; title: string } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    conversation: Conversation
+  } | null>(null)
   
   const handleSelectConversation = (conversation: Conversation) => {
     onSelectConversation?.(conversation.id)
@@ -58,6 +64,25 @@ export default function Sidebar({
       setConfirmDelete({ id: conversation.id, title: conversation.title })
     }
   }
+
+  const handleContextMenu = (e: React.MouseEvent, conversation: Conversation) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      conversation,
+    })
+  }
+
+  const handleToggleFavorite = async (conversationId: number) => {
+    try {
+      await toggleConversationFavorite(conversationId)
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err)
+    }
+  }
   
 
   const handleStartDrag = async (e: React.MouseEvent) => {
@@ -70,13 +95,14 @@ export default function Sidebar({
     }
   }
   
-  // Group conversations by date
+  // Group conversations by date and favorites
   const getConversationsByDate = () => {
-    // For now, treat all conversations as regular (no starred functionality yet)
-    const regular = conversations
+    // Separate conversations by favorite status
+    const favorites = conversations.filter(conv => conv.is_favorite)
+    const regular = conversations.filter(conv => !conv.is_favorite)
     
-    // Group conversations by date
-    const groupedByDate = regular.reduce((acc, conv) => {
+    // Group regular conversations by date
+    const regularByDate = regular.reduce((acc, conv) => {
       const date = new Date(conv.updated_at)
       const today = new Date()
       const yesterday = new Date(today)
@@ -96,7 +122,10 @@ export default function Sidebar({
       return acc
     }, {} as Record<string, Conversation[]>)
     
-    return Object.entries(groupedByDate)
+    return {
+      favorites,
+      regularByDate: Object.entries(regularByDate)
+    }
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -118,7 +147,41 @@ export default function Sidebar({
     document.addEventListener('mouseup', handleMouseUp)
   }
 
-  const regularByDate = getConversationsByDate()
+  const { favorites, regularByDate } = getConversationsByDate()
+  
+  // Helper function to render a conversation item
+  const renderConversation = (conversation: Conversation) => (
+    <div
+      key={conversation.id}
+      className={clsx(
+        'group relative flex items-center w-full hover:bg-accent transition-colors',
+        selectedConversationId === conversation.id && 'bg-accent'
+      )}
+    >
+      <button
+        onClick={() => handleSelectConversation(conversation)}
+        onContextMenu={(e) => handleContextMenu(e, conversation)}
+        className="flex-1 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
+      >
+        <div className="flex items-center gap-2 font-medium text-sm truncate pr-8">
+          {conversation.is_favorite && (
+            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+          )}
+          {conversation.title}
+        </div>
+        <div className="text-xs text-muted-foreground mt-1">
+          {conversation.model || 'No model'} • {format(new Date(conversation.updated_at), 'h:mm a')}
+        </div>
+      </button>
+      <button
+        onClick={(e) => handleDeleteClick(e, conversation)}
+        className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
+        title="Delete conversation (hold ⌘ to skip confirmation)"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
+  )
   
   if (loading) {
     return (
@@ -172,10 +235,10 @@ export default function Sidebar({
               </button>
               <button
                 onClick={onOpenShortcuts}
-                className="p-2 hover:bg-accent rounded-lg transition-colors"
+                className="p-2 hover:bg-accent rounded-lg transition-colors text-sm font-mono"
                 title="Keyboard Shortcuts"
               >
-                <Command className="h-4 w-4" />
+                /
               </button>
               <button
                 onClick={onOpenSettings}
@@ -200,7 +263,16 @@ export default function Sidebar({
               </p>
             </div>
           )}
-          {/* TODO: Starred Conversations Section - disabled for now */}
+          {/* Favorites Section */}
+          {favorites.length > 0 && (
+            <div>
+              <div className="px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 bg-secondary/80 backdrop-blur-sm border-b border-border/50 flex items-center gap-2">
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                Favorites
+              </div>
+              {favorites.map(renderConversation)}
+            </div>
+          )}
 
           {/* Regular Conversations by Date */}
           {regularByDate.map(([dateKey, convs]) => (
@@ -208,34 +280,7 @@ export default function Sidebar({
               <div className="px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 bg-secondary/80 backdrop-blur-sm border-b border-border/50">
                 {dateKey}
               </div>
-              {convs.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  className={clsx(
-                    'group relative flex items-center w-full hover:bg-accent transition-colors',
-                    selectedConversationId === conversation.id && 'bg-accent'
-                  )}
-                >
-                  <button
-                    onClick={() => handleSelectConversation(conversation)}
-                    className="flex-1 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
-                  >
-                    <div className="font-medium text-sm truncate pr-8">
-                      {conversation.title}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {conversation.model || 'No model'} • {format(new Date(conversation.updated_at), 'h:mm a')}
-                    </div>
-                  </button>
-                  <button
-                    onClick={(e) => handleDeleteClick(e, conversation)}
-                    className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
-                    title="Delete conversation (hold ⌘ to skip confirmation)"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+              {convs.map(renderConversation)}
             </div>
           ))}
         </div>
@@ -286,6 +331,28 @@ export default function Sidebar({
           </div>
         </div>
       )}
+
+      {/* Context Menu */}
+      <ContextMenu
+        x={contextMenu?.x || 0}
+        y={contextMenu?.y || 0}
+        isVisible={!!contextMenu}
+        onClose={() => setContextMenu(null)}
+        isFavorite={contextMenu?.conversation.is_favorite || false}
+        onToggleFavorite={() => {
+          if (contextMenu) {
+            handleToggleFavorite(contextMenu.conversation.id)
+          }
+        }}
+        onDelete={() => {
+          if (contextMenu) {
+            setConfirmDelete({ 
+              id: contextMenu.conversation.id, 
+              title: contextMenu.conversation.title 
+            })
+          }
+        }}
+      />
     </div>
   )
 }

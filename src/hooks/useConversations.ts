@@ -41,7 +41,7 @@ export function useConversations() {
 
   const updateConversation = useCallback(async (
     id: number, 
-    updates: Partial<Pick<Conversation, 'title' | 'provider' | 'model' | 'system_prompt'>>
+    updates: Partial<Pick<Conversation, 'title' | 'provider' | 'model' | 'system_prompt' | 'is_favorite'>>
   ) => {
     try {
       setError(null)
@@ -89,6 +89,19 @@ export function useConversations() {
     }
   }, [loadConversations])
 
+  const toggleConversationFavorite = useCallback(async (id: number) => {
+    try {
+      setError(null)
+      await conversationStore.toggleConversationFavorite(id)
+      await loadConversations() // Refresh the list
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to toggle favorite'
+      setError(message)
+      console.error('Failed to toggle favorite:', err)
+      throw new Error(message)
+    }
+  }, [loadConversations])
+
   // Load conversations on mount and subscribe to changes
   useEffect(() => {
     loadConversations()
@@ -110,6 +123,7 @@ export function useConversations() {
     deleteConversation,
     getConversation,
     touchConversation,
+    toggleConversationFavorite,
     refresh: loadConversations,
   }
 }

@@ -23,6 +23,7 @@ class ConversationDatabase {
         provider TEXT NOT NULL,
         model TEXT NOT NULL,
         system_prompt TEXT,
+        is_favorite BOOLEAN DEFAULT FALSE,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
@@ -51,9 +52,15 @@ class ConversationDatabase {
 
   async getConversations() {
     const db = await this.init()
-    return await db.select(
+    const conversations = await db.select(
       'SELECT * FROM conversations ORDER BY updated_at DESC'
-    ) as Conversation[]
+    ) as any[]
+    
+    // Convert SQLite integers to booleans for is_favorite
+    return conversations.map(conv => ({
+      ...conv,
+      is_favorite: Boolean(conv.is_favorite)
+    })) as Conversation[]
   }
 
   async getConversation(id: number) {
@@ -61,11 +68,18 @@ class ConversationDatabase {
     const result = await db.select(
       'SELECT * FROM conversations WHERE id = $1',
       [id]
-    ) as Conversation[]
-    return result[0] || null
+    ) as any[]
+    
+    if (result[0]) {
+      return {
+        ...result[0],
+        is_favorite: Boolean(result[0].is_favorite)
+      } as Conversation
+    }
+    return null
   }
 
-  async updateConversation(id: number, updates: Partial<Pick<Conversation, 'title' | 'provider' | 'model' | 'system_prompt'>>) {
+  async updateConversation(id: number, updates: Partial<Pick<Conversation, 'title' | 'provider' | 'model' | 'system_prompt' | 'is_favorite'>>) {
     const db = await this.init()
     const fields = []
     const values = []
@@ -85,6 +99,10 @@ class ConversationDatabase {
     if (updates.system_prompt !== undefined) {
       fields.push('system_prompt = $' + (values.length + 1))
       values.push(updates.system_prompt)
+    }
+    if (updates.is_favorite !== undefined) {
+      fields.push('is_favorite = $' + (values.length + 1))
+      values.push(updates.is_favorite)
     }
 
     fields.push('updated_at = CURRENT_TIMESTAMP')
@@ -124,6 +142,16 @@ class ConversationDatabase {
     this.notifyListeners()
     return result
   }
+
+  async toggleConversationFavorite(id: number) {
+    const db = await this.init()
+    const result = await db.execute(
+      'UPDATE conversations SET is_favorite = NOT is_favorite, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [id]
+    )
+    this.notifyListeners()
+    return result
+  }
 }
 
 // Export singleton instance
@@ -136,6 +164,7 @@ export interface Conversation {
   provider: string
   model: string
   system_prompt: string | null
+  is_favorite: boolean
   created_at: string
   updated_at: string
 }
