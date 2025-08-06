@@ -81,3 +81,6 @@ The SQLite database auto-creates tables for:
 - Window dragging implemented for custom title bar
 - iOS/Android mobile builds supported
 - Uses Tauri v2 with plugin architecture
+
+## Development Workflow Notes
+- Most of the time I have the app running already, so if you try running it, it'll fail. There's already hot-reload, so you can just tell me to look at the app and see if things are fixed instead of running it yourself.
