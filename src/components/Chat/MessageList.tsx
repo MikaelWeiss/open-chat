@@ -6,22 +6,10 @@ import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/pris
 import { User, Bot, Copy, Check, FileText, Image, Volume2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
-
-// Mock types for frontend
-interface MockMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: string
-  attachments?: {
-    type: 'image' | 'audio' | 'file'
-    path: string
-    mimeType: string
-  }[]
-}
+import { type Message } from '../../shared/messageStore'
 
 interface MessageListProps {
-  messages?: MockMessage[]
+  messages?: Message[]
   isLoading?: boolean
   streamingMessage?: string
 }
@@ -83,7 +71,7 @@ function CodeBlock({ children, className, isDark }: CodeBlockProps) {
   )
 }
 
-function AttachmentDisplay({ attachments }: { attachments: MockMessage['attachments'] }) {
+function AttachmentDisplay({ attachments }: { attachments: { type: string; path: string; mimeType: string }[] | null }) {
   if (!attachments || attachments.length === 0) return null
 
   const getAttachmentIcon = (type: string) => {
@@ -119,107 +107,8 @@ function AttachmentDisplay({ attachments }: { attachments: MockMessage['attachme
   )
 }
 
-// Mock messages for display
-const defaultMessages: MockMessage[] = [
-  {
-    id: '1',
-    role: 'user',
-    content: 'Can you help me understand how to create reusable React components with TypeScript?',
-    timestamp: '2024-01-15T10:30:00Z'
-  },
-  {
-    id: '2',
-    role: 'assistant',
-    content: `I'd be happy to help you create reusable React components with TypeScript! Here are some key principles:
 
-## Key Principles
-
-**1. Keep components focused:** Each component should have a single responsibility.
-
-**2. Use props for customization:** Accept props to make components flexible.
-
-**3. Consider composition:** Use children prop and composition patterns.
-
-Here's a practical example:
-
-\`\`\`typescript
-interface ButtonProps {
-  variant?: 'primary' | 'secondary'
-  size?: 'sm' | 'md' | 'lg'
-  onClick?: () => void
-  children: React.ReactNode
-  disabled?: boolean
-}
-
-export function Button({ 
-  variant = 'primary', 
-  size = 'md', 
-  onClick, 
-  children,
-  disabled = false
-}: ButtonProps) {
-  const baseClasses = 'rounded font-medium transition-colors focus:outline-none focus:ring-2'
-  
-  const variantClasses = {
-    primary: 'bg-blue-500 text-white hover:bg-blue-600 focus:ring-blue-500',
-    secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500'
-  }
-  
-  const sizeClasses = {
-    sm: 'px-2 py-1 text-sm',
-    md: 'px-4 py-2',
-    lg: 'px-6 py-3 text-lg'
-  }
-  
-  return (
-    <button 
-      className={\`\${baseClasses} \${variantClasses[variant]} \${sizeClasses[size]}\`}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {children}
-    </button>
-  )
-}
-\`\`\`
-
-## Usage Examples
-
-\`\`\`jsx
-// Basic usage
-<Button onClick={() => console.log('clicked')}>
-  Click me
-</Button>
-
-// With different variants and sizes
-<Button variant="secondary" size="lg">
-  Large Secondary Button
-</Button>
-
-// Disabled state
-<Button disabled>
-  Disabled Button
-</Button>
-\`\`\`
-
-This approach gives you:
-- **Type safety** with TypeScript interfaces
-- **Flexibility** through props
-- **Consistency** with predefined variants
-- **Reusability** across your application
-
-Would you like me to show you more advanced patterns like compound components or render props?`,
-    timestamp: '2024-01-15T10:31:00Z'
-  },
-  {
-    id: '3',
-    role: 'user',
-    content: 'This is great! Can you show me an example with compound components?',
-    timestamp: '2024-01-15T10:32:00Z'
-  }
-]
-
-export default function MessageList({ messages = defaultMessages, isLoading = false, streamingMessage = '' }: MessageListProps) {
+export default function MessageList({ messages = [], isLoading = false, streamingMessage = '' }: MessageListProps) {
   const [loadingMessage, setLoadingMessage] = useState('Thinking')
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   
@@ -341,24 +230,29 @@ export default function MessageList({ messages = defaultMessages, isLoading = fa
                 {message.role === 'user' ? 'You' : 'Assistant'}
               </span>
               <span className="text-xs text-muted-foreground">
-                {format(new Date(message.timestamp), 'h:mm a')}
+                {format(new Date(message.created_at), 'h:mm a')}
               </span>
             </div>
             
             {/* Show file attachments */}
-            <AttachmentDisplay attachments={message.attachments} />
+            <AttachmentDisplay attachments={
+              message.images?.map(img => ({ type: 'image', path: img.file_path || img.url || '', mimeType: img.mime_type || 'image/*' })) ||
+              message.audio?.map(audio => ({ type: 'audio', path: audio.file_path || audio.url || '', mimeType: audio.mime_type || 'audio/*' })) ||
+              message.files?.map(file => ({ type: 'file', path: file.path, mimeType: file.type })) ||
+              null
+            } />
             
             <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={markdownComponents}
               >
-                {message.content}
+                {message.text || ''}
               </ReactMarkdown>
             </div>
             
             <button
-              onClick={() => copyToClipboard(message.content, message.id)}
+              onClick={() => copyToClipboard(message.text || '', message.id.toString())}
               className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-secondary/50 group"
             >
               {copiedMessageId === message.id ? (

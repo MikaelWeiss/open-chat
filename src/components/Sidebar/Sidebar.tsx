@@ -211,11 +211,11 @@ export default function Sidebar({
                   key={conversation.id}
                   className={clsx(
                     'group relative flex items-center w-full hover:bg-accent transition-colors',
-                    selectedConversation?.id === conversation.id && 'bg-accent'
+                    selectedConversationId === conversation.id && 'bg-accent'
                   )}
                 >
                   <button
-                    onClick={() => setSelectedConversation(conversation)}
+                    onClick={() => onSelectConversation(conversation)}
                     className="flex-1 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
                   >
                     <div className="font-medium text-sm truncate pr-8 flex items-center gap-2">
@@ -223,13 +223,13 @@ export default function Sidebar({
                       {conversation.title}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1 ml-5">
-                      {conversation.model} • {format(new Date(conversation.updatedAt), 'h:mm a')}
+                      {conversation.model} • {format(new Date(conversation.updated_at), 'h:mm a')}
                     </div>
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      console.log('Delete conversation', conversation.id)
+                      handleDeleteConversation(conversation.id)
                     }}
                     className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
                     title="Delete conversation"
@@ -252,24 +252,24 @@ export default function Sidebar({
                   key={conversation.id}
                   className={clsx(
                     'group relative flex items-center w-full hover:bg-accent transition-colors',
-                    selectedConversation?.id === conversation.id && 'bg-accent'
+                    selectedConversationId === conversation.id && 'bg-accent'
                   )}
                 >
                   <button
-                    onClick={() => setSelectedConversation(conversation)}
+                    onClick={() => onSelectConversation(conversation)}
                     className="flex-1 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
                   >
                     <div className="font-medium text-sm truncate pr-8">
                       {conversation.title}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {conversation.model} • {format(new Date(conversation.updatedAt), 'h:mm a')}
+                      {conversation.model} • {format(new Date(conversation.updated_at), 'h:mm a')}
                     </div>
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      console.log('Delete conversation', conversation.id)
+                      handleDeleteConversation(conversation.id)
                     }}
                     className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
                     title="Delete conversation"

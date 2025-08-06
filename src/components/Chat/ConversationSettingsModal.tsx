@@ -104,8 +104,8 @@ export default function ConversationSettingsModal({
                 min="0"
                 max="2"
                 step="0.1"
-                value={settings.temperature ?? 0.7}
-                onChange={(e) => updateSetting('temperature', parseFloat(e.target.value))}
+                value={localSettings.temperature ?? 0.7}
+                onChange={async (e) => await updateSetting('temperature', parseFloat(e.target.value))}
                 className="flex-1"
               />
               <input
@@ -113,8 +113,8 @@ export default function ConversationSettingsModal({
                 min="0"
                 max="2"
                 step="0.1"
-                value={settings.temperature ?? 0.7}
-                onChange={(e) => updateSetting('temperature', parseFloat(e.target.value) || 0.7)}
+                value={localSettings.temperature ?? 0.7}
+                onChange={async (e) => await updateSetting('temperature', parseFloat(e.target.value) || 0.7)}
                 className="w-16 px-2 py-1 text-sm bg-secondary rounded border border-border focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -137,8 +137,8 @@ export default function ConversationSettingsModal({
                 min="0"
                 max="1"
                 step="0.05"
-                value={settings.topP ?? 0.95}
-                onChange={(e) => updateSetting('topP', parseFloat(e.target.value))}
+                value={localSettings.topP ?? 0.95}
+                onChange={async (e) => await updateSetting('topP', parseFloat(e.target.value))}
                 className="flex-1"
               />
               <input
@@ -146,8 +146,8 @@ export default function ConversationSettingsModal({
                 min="0"
                 max="1"
                 step="0.05"
-                value={settings.topP ?? 0.95}
-                onChange={(e) => updateSetting('topP', parseFloat(e.target.value) || 0.95)}
+                value={localSettings.topP ?? 0.95}
+                onChange={async (e) => await updateSetting('topP', parseFloat(e.target.value) || 0.95)}
                 className="w-16 px-2 py-1 text-sm bg-secondary rounded border border-border focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -168,8 +168,8 @@ export default function ConversationSettingsModal({
               type="number"
               min="1"
               max="100"
-              value={settings.topK ?? ''}
-              onChange={(e) => updateSetting('topK', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={localSettings.topK ?? ''}
+              onChange={async (e) => await updateSetting('topK', e.target.value ? parseInt(e.target.value) : undefined)}
               placeholder="Disabled"
               className="w-full px-3 py-2 bg-secondary rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -190,8 +190,8 @@ export default function ConversationSettingsModal({
               type="number"
               min="1"
               max="8192"
-              value={settings.maxTokens ?? ''}
-              onChange={(e) => updateSetting('maxTokens', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={localSettings.maxTokens ?? ''}
+              onChange={async (e) => await updateSetting('maxTokens', e.target.value ? parseInt(e.target.value) : undefined)}
               placeholder="Model default"
               className="w-full px-3 py-2 bg-secondary rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -209,8 +209,8 @@ export default function ConversationSettingsModal({
               </div>
             </div>
             <textarea
-              value={settings.systemPrompt ?? ''}
-              onChange={(e) => updateSetting('systemPrompt', e.target.value)}
+              value={localSettings.systemPrompt ?? ''}
+              onChange={async (e) => await updateSetting('systemPrompt', e.target.value)}
               placeholder="Enter system prompt..."
               rows={3}
               className="w-full px-3 py-2 bg-secondary rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary resize-none"
@@ -231,7 +231,7 @@ export default function ConversationSettingsModal({
             <input
               type="text"
               value={stopSequenceInput}
-              onChange={(e) => handleStopSequenceChange(e.target.value)}
+              onChange={async (e) => await handleStopSequenceChange(e.target.value)}
               placeholder="\\n, END, ..."
               className="w-full px-3 py-2 bg-secondary rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary"
             />

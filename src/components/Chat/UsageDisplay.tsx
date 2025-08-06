@@ -1,32 +1,28 @@
 import { DollarSign, Zap } from 'lucide-react'
+import { type Message } from '../../shared/messageStore'
 
-interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: string
+interface UsageStats {
+  totalTokens: number
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalReasoningTokens: number
+  totalCachedTokens: number
+  totalCost: number
+  messageCount: number
 }
 
 interface UsageDisplayProps {
-  messages: Message[]
+  usage?: UsageStats
+  showPricing?: boolean
   className?: string
 }
 
-export default function UsageDisplay({ messages, className = '' }: UsageDisplayProps) {
-  // Mock settings for frontend display
-  const settings = {
-    showPricing: true
-  }
-
-  // Mock usage calculation for frontend display
-  const totalTokens = messages.length * 150 // Mock token calculation
-  const totalPromptTokens = Math.floor(totalTokens * 0.6)
-  const totalCompletionTokens = Math.floor(totalTokens * 0.4)
-  const totalCost = totalTokens * 0.0001 // Mock cost calculation
-
-  if (totalTokens === 0 && (totalCost === 0 || !settings?.showPricing)) {
+export default function UsageDisplay({ usage, showPricing = true, className = '' }: UsageDisplayProps) {
+  if (!usage || (usage.totalTokens === 0 && (usage.totalCost === 0 || !showPricing))) {
     return null
   }
+
+  const { totalTokens, totalInputTokens, totalOutputTokens, totalCost } = usage
 
   return (
     <div className={`p-3 bg-secondary/50 rounded-lg border ${className}`}>
@@ -38,7 +34,7 @@ export default function UsageDisplay({ messages, className = '' }: UsageDisplayP
             <span className="text-muted-foreground">tokens</span>
           </div>
           
-          {totalCost > 0 && settings?.showPricing && (
+          {totalCost > 0 && showPricing && (
             <div className="flex items-center gap-1">
               <DollarSign className="h-4 w-4 text-green-500" />
               <span className="font-medium">${totalCost.toFixed(4)}</span>
@@ -47,9 +43,9 @@ export default function UsageDisplay({ messages, className = '' }: UsageDisplayP
         </div>
         
         <div className="text-xs text-muted-foreground">
-          {totalPromptTokens > 0 && totalCompletionTokens > 0 && (
+          {totalInputTokens > 0 && totalOutputTokens > 0 && (
             <span>
-              {totalPromptTokens.toLocaleString()} in • {totalCompletionTokens.toLocaleString()} out
+              {totalInputTokens.toLocaleString()} in • {totalOutputTokens.toLocaleString()} out
             </span>
           )}
         </div>

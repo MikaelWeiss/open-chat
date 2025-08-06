@@ -1,20 +1,64 @@
 import { ChevronDown, Copy } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
-import { useRef, RefObject } from 'react'
+import { useRef, RefObject, useState, useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { useMessages } from '../../hooks/useMessages'
+import { useConversations } from '../../hooks/useConversations'
+import { type Conversation } from '../../shared/conversationStore'
 
 interface ChatViewProps {
+  conversationId?: number | null
   onOpenSettings?: () => void
   messageInputRef?: RefObject<MessageInputHandle>
 }
 
-export default function ChatView({ messageInputRef: externalMessageInputRef }: ChatViewProps) {
+export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef }: ChatViewProps) {
   const internalMessageInputRef = useRef<MessageInputHandle>(null)
   const messageInputRef = externalMessageInputRef || internalMessageInputRef
+  const [isLoading, setIsLoading] = useState(false)
   
-  const handleSend = (message: string, attachments?: any[]) => {
-    console.log('Send message:', message, attachments)
+  const { messages, addMessage, usage } = useMessages(conversationId)
+  const { getConversation } = useConversations()
+  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
+  
+  // Load current conversation details
+  useEffect(() => {
+    const loadConversation = async () => {
+      if (conversationId) {
+        try {
+          const conv = await getConversation(conversationId)
+          setCurrentConversation(conv)
+        } catch (err) {
+          console.error('Failed to load conversation:', err)
+        }
+      } else {
+        setCurrentConversation(null)
+      }
+    }
+    loadConversation()
+  }, [conversationId, getConversation])
+  
+  const handleSend = async (message: string, attachments?: any[]) => {
+    if (!conversationId || !message.trim()) return
+    
+    try {
+      setIsLoading(true)
+      
+      // Add user message
+      await addMessage({
+        role: 'user',
+        text: message,
+        // TODO: Handle attachments properly
+      })
+      
+      // TODO: Send to AI provider and add assistant response
+      
+    } catch (err) {
+      console.error('Failed to send message:', err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleStartDrag = async (e: React.MouseEvent) => {
@@ -42,9 +86,11 @@ export default function ChatView({ messageInputRef: externalMessageInputRef }: C
             className="min-w-0 flex-1 select-none" 
             onMouseDown={handleStartDrag}
           >
-            <h2 className="text-lg font-semibold truncate">Help with React Components</h2>
+            <h2 className="text-lg font-semibold truncate">
+              {currentConversation?.title || 'New Conversation'}
+            </h2>
             <p className="text-sm text-muted-foreground truncate">
-              Anthropic • claude-3-sonnet
+              {currentConversation?.provider || 'No Provider'} • {currentConversation?.model || 'No Model'}
             </p>
           </div>
           
@@ -64,7 +110,7 @@ export default function ChatView({ messageInputRef: externalMessageInputRef }: C
                 onClick={() => console.log('Show model selector')}
                 className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 text-sm shadow-sm border border-border hover:border-primary/30"
               >
-                <span>claude-3-sonnet</span>
+                <span>{currentConversation?.model || 'No Model'}</span>
                 <ChevronDown className="h-4 w-4" />
               </button>
             </div>
@@ -75,7 +121,10 @@ export default function ChatView({ messageInputRef: externalMessageInputRef }: C
       <div className="flex-1 flex flex-col min-h-0 bg-background/80">
         {/* Messages - this should be the scrollable area */}
       <div className="flex-1 min-h-0">
-        <MessageList />
+        <MessageList 
+          messages={messages}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Input - fixed at bottom */}
@@ -86,14 +135,14 @@ export default function ChatView({ messageInputRef: externalMessageInputRef }: C
           onCancel={() => {
             // Additional cancel logic if needed
           }}
-          disabled={false}
-          isLoading={false}
-          noProvider={false}
-          messages={[]} // Mock empty messages array
+          disabled={!conversationId || isLoading}
+          isLoading={isLoading}
+          noProvider={!currentConversation?.provider}
+          messages={messages}
           modelCapabilities={{
-            vision: true,
-            audio: true,
-            files: true
+            vision: true, // TODO: Get from provider config
+            audio: true,  // TODO: Get from provider config
+            files: true   // TODO: Get from provider config
           }}
           onOpenConversationSettings={() => console.log('Open conversation settings')}
           onAttachmentsChange={() => {}}
