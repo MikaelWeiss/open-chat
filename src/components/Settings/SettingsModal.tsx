@@ -888,7 +888,14 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
               <div className="grid gap-3">
                 {providerPresets
                   .filter(preset => !preset.isLocal)
-                  .filter(preset => !Object.keys(providersData).includes(preset.id))
+                  .filter(preset => {
+                    // Check if this preset is already added by comparing both:
+                    // 1. preset.id with provider keys (direct match)
+                    // 2. preset.name (converted to provider ID format) with provider keys  
+                    const presetAsProviderId = preset.name.toLowerCase().replace(/\s+/g, '-')
+                    return !Object.keys(providersData).includes(preset.id) && 
+                           !Object.keys(providersData).includes(presetAsProviderId)
+                  })
                   .map((preset) => (
                   <button
                     key={preset.id}
@@ -901,7 +908,11 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
                 ))}
                 {providerPresets
                   .filter(preset => !preset.isLocal)
-                  .filter(preset => !Object.keys(providersData).includes(preset.id))
+                  .filter(preset => {
+                    const presetAsProviderId = preset.name.toLowerCase().replace(/\s+/g, '-')
+                    return !Object.keys(providersData).includes(preset.id) && 
+                           !Object.keys(providersData).includes(presetAsProviderId)
+                  })
                   .length === 0 && (
                   <div className="p-4 text-center text-sm text-muted-foreground">
                     All cloud providers have been added
@@ -915,7 +926,14 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
               <div className="grid gap-3">
                 {providerPresets
                   .filter(preset => preset.isLocal)
-                  .filter(preset => !Object.keys(providersData).includes(preset.id))
+                  .filter(preset => {
+                    // Check if this preset is already added by comparing both:
+                    // 1. preset.id with provider keys (direct match)
+                    // 2. preset.name (converted to provider ID format) with provider keys  
+                    const presetAsProviderId = preset.name.toLowerCase().replace(/\s+/g, '-')
+                    return !Object.keys(providersData).includes(preset.id) && 
+                           !Object.keys(providersData).includes(presetAsProviderId)
+                  })
                   .map((preset) => (
                   <button
                     key={preset.id}
@@ -928,7 +946,11 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
                 ))}
                 {providerPresets
                   .filter(preset => preset.isLocal)
-                  .filter(preset => !Object.keys(providersData).includes(preset.id))
+                  .filter(preset => {
+                    const presetAsProviderId = preset.name.toLowerCase().replace(/\s+/g, '-')
+                    return !Object.keys(providersData).includes(preset.id) && 
+                           !Object.keys(providersData).includes(presetAsProviderId)
+                  })
                   .length === 0 && (
                   <div className="p-4 text-center text-sm text-muted-foreground">
                     All local providers have been added
