@@ -1,5 +1,4 @@
 import { DollarSign, Zap } from 'lucide-react'
-import { type Message } from '../../shared/messageStore'
 
 interface UsageStats {
   totalTokens: number

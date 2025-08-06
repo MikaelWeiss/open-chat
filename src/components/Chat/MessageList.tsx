@@ -255,7 +255,7 @@ export default function MessageList({ messages = [], isLoading = false, streamin
               onClick={() => copyToClipboard(message.text || '', message.id.toString())}
               className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-secondary/50 group"
             >
-              {copiedMessageId === message.id ? (
+              {copiedMessageId === message.id.toString() ? (
                 <>
                   <Check className="h-3 w-3" />
                   Copied

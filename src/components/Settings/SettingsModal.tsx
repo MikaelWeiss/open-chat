@@ -1,26 +1,14 @@
-import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search, Brain, Hammer, ImageIcon, Headphones, Globe } from 'lucide-react'
+import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search, Brain, Hammer, ImageIcon, Globe } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { open } from '@tauri-apps/plugin-shell'
 import clsx from 'clsx'
 import AboutSettings from './AboutSettings'
 import { useSettings } from '../../hooks/useSettings'
-import { Provider, ProviderPreset } from '../../types/provider'
+import { Provider, ProviderPreset, ModelCapabilities } from '../../types/provider'
 
 interface SettingsModalProps {
   isOpen: boolean
   onClose: () => void
-}
-
-interface ModelCapabilities {
-  vision: boolean
-  audio: boolean
-  files: boolean
-  multimodal: boolean
-  manualOverrides?: {
-    vision?: boolean
-    audio?: boolean
-    files?: boolean
-  }
 }
 
 interface ModelCapabilityIconsProps {
@@ -44,7 +32,7 @@ function ModelCapabilityIcons({
 
   const handleCapabilityClick = (capability: 'vision' | 'audio' | 'files' | 'image' | 'thinking' | 'tools' | 'webSearch') => {
     if (modelId && providerId && onCapabilityToggle) {
-      const currentValue = capabilities[capability]
+      const currentValue = capabilities[capability as keyof ModelCapabilities]
       onCapabilityToggle(modelId, providerId, capability, !currentValue)
     }
   }
@@ -77,7 +65,7 @@ function ModelCapabilityIcons({
     {
       key: 'image' as const,
       icon: ImageIcon,
-      enabled: capabilities.image,
+      enabled: capabilities?.image || false,
       color: 'text-pink-500 dark:text-pink-400',
       grayColor: 'text-gray-400 dark:text-gray-600',
       title: 'Image Output'
@@ -85,7 +73,7 @@ function ModelCapabilityIcons({
     {
       key: 'thinking' as const,
       icon: Brain,
-      enabled: capabilities.thinking,
+      enabled: capabilities?.thinking || false,
       color: 'text-purple-500 dark:text-purple-400',
       grayColor: 'text-gray-400 dark:text-gray-600',
       title: 'Reasoning/Thinking'
@@ -93,7 +81,7 @@ function ModelCapabilityIcons({
     {
       key: 'tools' as const,
       icon: Hammer,
-      enabled: capabilities.tools,
+      enabled: capabilities?.tools || false,
       color: 'text-yellow-500 dark:text-yellow-400',
       grayColor: 'text-gray-400 dark:text-gray-600',
       title: 'Function Calling/Tools'
@@ -101,7 +89,7 @@ function ModelCapabilityIcons({
     {
       key: 'webSearch' as const,
       icon: Globe,
-      enabled: capabilities.webSearch,
+      enabled: capabilities?.webSearch || false,
       color: 'text-cyan-500 dark:text-cyan-400',
       grayColor: 'text-gray-400 dark:text-gray-600',
       title: 'Web Search'
@@ -124,7 +112,7 @@ function ModelCapabilityIcons({
     >
       {capabilityItems.map(({ key, icon: Icon, enabled, color, grayColor, title }) => {
         const shouldShow = enabled || isHovered
-        const isManualOverride = capabilities.manualOverrides?.[key] !== undefined
+        const isManualOverride = capabilities.manualOverrides?.[key as keyof ModelCapabilities['manualOverrides']] !== undefined
         
         if (!shouldShow) return null
         
@@ -562,8 +550,22 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
       apiKeyUrl: 'https://console.anthropic.com/settings/keys'
     },
     {
+      id: 'inception-labs',
+      name: 'Inception Labs',
+      endpoint: 'https://api.inceptionlabs.ai/v1/chat/completions',
+      description: 'Advanced AI models from Inception Labs',
+      apiKeyUrl: 'https://api.inceptionlabs.ai'
+    },
+    {
+      id: 'deep-infra',
+      name: 'Deep Infra',
+      endpoint: 'https://api.deepinfra.com/v1/openai/chat/completions',
+      description: 'GPU-accelerated inference for open-source models',
+      apiKeyUrl: 'https://deepinfra.com/dash/api_keys'
+    },
+    {
       id: 'openrouter',
-      name: 'OpenRouter',
+      name: 'Open Router',
       endpoint: 'https://openrouter.ai/api/v1',
       description: 'Access to 400+ models with rich metadata',
       apiKeyUrl: 'https://openrouter.ai/keys'
@@ -577,17 +579,52 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
     },
     {
       id: 'xai',
-      name: 'xAI (Grok)',
+      name: 'xAI',
       endpoint: 'https://api.x.ai/v1',
-      description: 'Fully OpenAI/Anthropic compatible',
+      description: 'Grok models from xAI',
       apiKeyUrl: 'https://console.x.ai/team/api-keys'
     },
     {
-      id: 'google-gemini',
-      name: 'Google Gemini',
-      endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
-      description: 'Native multimodal capabilities',
+      id: 'google-ai',
+      name: 'Google AI',
+      endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      description: 'Gemini models with native multimodal capabilities',
       apiKeyUrl: 'https://aistudio.google.com/app/apikey'
+    },
+    {
+      id: 'fireworks-ai',
+      name: 'Fireworks AI',
+      endpoint: 'https://api.fireworks.ai/inference/v1',
+      description: 'Fast inference platform for open-source models',
+      apiKeyUrl: 'https://fireworks.ai/api-keys'
+    },
+    {
+      id: 'together-ai',
+      name: 'Together AI',
+      endpoint: 'https://api.together.xyz/v1',
+      description: 'Collaborative AI platform with diverse models',
+      apiKeyUrl: 'https://api.together.xyz/settings/api-keys'
+    },
+    {
+      id: 'cerebras-cloud',
+      name: 'Cerebras Cloud',
+      endpoint: 'https://api.cerebras.ai/v1',
+      description: 'Ultra-fast inference on Cerebras hardware',
+      apiKeyUrl: 'https://cloud.cerebras.ai/platform'
+    },
+    {
+      id: 'z-ai',
+      name: 'Z AI',
+      endpoint: 'https://api.z.ai/api/paas/v4/',
+      description: 'Advanced AI models from Z AI',
+      apiKeyUrl: 'https://z.ai'
+    },
+    {
+      id: 'cohere',
+      name: 'Cohere',
+      endpoint: 'https://api.cohere.ai/compatibility/v1',
+      description: 'Command and embedding models from Cohere',
+      apiKeyUrl: 'https://dashboard.cohere.ai/api-keys'
     },
     {
       id: 'ollama',
@@ -851,7 +888,7 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
               <div className="grid gap-3">
                 {providerPresets
                   .filter(preset => !preset.isLocal)
-                  .filter(preset => !providersData[preset.id])
+                  .filter(preset => !Object.keys(providersData).includes(preset.id))
                   .map((preset) => (
                   <button
                     key={preset.id}
@@ -862,6 +899,14 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
                     <div className="text-sm text-muted-foreground">{preset.description}</div>
                   </button>
                 ))}
+                {providerPresets
+                  .filter(preset => !preset.isLocal)
+                  .filter(preset => !Object.keys(providersData).includes(preset.id))
+                  .length === 0 && (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    All cloud providers have been added
+                  </div>
+                )}
               </div>
             </div>
 
@@ -870,7 +915,7 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
               <div className="grid gap-3">
                 {providerPresets
                   .filter(preset => preset.isLocal)
-                  .filter(preset => !providersData[preset.id])
+                  .filter(preset => !Object.keys(providersData).includes(preset.id))
                   .map((preset) => (
                   <button
                     key={preset.id}
@@ -881,6 +926,14 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
                     <div className="text-sm text-muted-foreground">{preset.description}</div>
                   </button>
                 ))}
+                {providerPresets
+                  .filter(preset => preset.isLocal)
+                  .filter(preset => !Object.keys(providersData).includes(preset.id))
+                  .length === 0 && (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    All local providers have been added
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1118,7 +1171,6 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
                       </h4>
                       <div className="text-sm text-muted-foreground">
                         {providerModels.length} model{providerModels.length !== 1 ? 's' : ''}
-                        {providerData?.hasApiKey && <span className="ml-2">• API Key Stored</span>}
                         {providerData?.isLocal && <span className="ml-2">• Local</span>}
                       </div>
                     </div>

@@ -64,7 +64,7 @@ class ModelsService {
       this.openRouterCache = data.data || []
       this.cacheExpiry = now + this.CACHE_DURATION
       
-      return this.openRouterCache
+      return this.openRouterCache || []
     } catch (error) {
       console.error('Failed to fetch OpenRouter models:', error)
       // Return cached data if available, or empty array
@@ -77,18 +77,51 @@ class ModelsService {
    */
   private async fetchProviderModels(endpoint: string, apiKey?: string, isLocal = false): Promise<ProviderModel[]> {
     try {
-      // Handle Ollama's different endpoint
-      const modelsEndpoint = endpoint.includes('ollama') || endpoint.includes('11434') 
-        ? endpoint.replace('/v1', '') + '/api/tags'
-        : endpoint + '/models'
-
+      // Handle different provider endpoints and auth methods
+      let modelsEndpoint: string
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
       }
 
-      // Add auth header if API key provided and not local
-      if (apiKey && !isLocal) {
-        headers['Authorization'] = `Bearer ${apiKey}`
+      // Anthropic specific handling (using native authentication)  
+      if (endpoint.includes('anthropic.com')) {
+        modelsEndpoint = endpoint + '/models'
+        if (apiKey && !isLocal) {
+          headers['x-api-key'] = apiKey
+          headers['anthropic-version'] = '2023-06-01'
+          headers['anthropic-dangerous-direct-browser-access'] = 'true'
+        }
+        delete headers['Content-Type'] // Remove Content-Type for GET request to Anthropic
+      }
+      // Google AI specific handling  
+      else if (endpoint.includes('generativelanguage.googleapis.com')) {
+        modelsEndpoint = `https://generativelanguage.googleapis.com/v1beta/models${apiKey ? `?key=${apiKey}` : ''}`
+        // Don't add Authorization header for Google AI - it uses query param
+      }
+      // Cohere specific handling
+      else if (endpoint.includes('cohere.ai') || endpoint.includes('cohere.com')) {
+        modelsEndpoint = 'https://api.cohere.ai/v2/models'
+        if (apiKey && !isLocal) {
+          headers['Authorization'] = `Bearer ${apiKey}`
+        }
+      }
+      // Deep Infra specific handling
+      else if (endpoint.includes('deepinfra.com')) {
+        modelsEndpoint = 'https://api.deepinfra.com/v1/openai/models'
+        if (apiKey && !isLocal) {
+          headers['Authorization'] = `Bearer ${apiKey}`
+        }
+      }
+      // Ollama specific handling
+      else if (endpoint.includes('ollama') || endpoint.includes('11434')) {
+        modelsEndpoint = endpoint.replace('/v1', '') + '/api/tags'
+      }
+      // Standard OpenAI-compatible endpoints
+      else {
+        modelsEndpoint = endpoint + '/models'
+        if (apiKey && !isLocal) {
+          headers['Authorization'] = `Bearer ${apiKey}`
+        }
       }
 
       const response = await fetch(modelsEndpoint, { headers })
@@ -99,13 +132,50 @@ class ModelsService {
 
       const data = await response.json()
 
-      // Handle Ollama's different response format
+
+      // Handle different response formats
       if (endpoint.includes('ollama') || endpoint.includes('11434')) {
         return (data.models || []).map((model: any) => ({
           id: model.name || model.model,
           object: 'model',
           owned_by: 'ollama'
         }))
+      }
+      
+      // Google AI response format
+      if (endpoint.includes('generativelanguage.googleapis.com')) {
+        return (data.models || [])
+          .filter((model: any) => model.name && !model.name.includes('embedding'))
+          .map((model: any) => ({
+            id: model.name.replace('models/', ''),
+            object: 'model',
+            owned_by: 'google'
+          }))
+      }
+
+      // Cohere response format
+      if (endpoint.includes('cohere.ai') || endpoint.includes('cohere.com')) {
+        return (data.models || [])
+          .filter((model: any) => model.name && !model.name.includes('embed') && !model.name.includes('rerank'))
+          .map((model: any) => ({
+            id: model.name,
+            object: 'model',
+            owned_by: 'cohere'
+          }))
+      }
+
+      // Anthropic response format
+      if (endpoint.includes('anthropic.com')) {
+        return (data.data || []).map((model: any) => ({
+          id: model.id,
+          object: 'model',
+          owned_by: 'anthropic'
+        }))
+      }
+
+      // Together AI response format (returns direct array)
+      if (endpoint.includes('together.xyz')) {
+        return Array.isArray(data) ? data : []
       }
 
       // Standard OpenAI-compatible format
@@ -115,6 +185,7 @@ class ModelsService {
       throw error
     }
   }
+
 
   /**
    * Fuzzy match provider model with OpenRouter model

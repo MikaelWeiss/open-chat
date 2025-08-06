@@ -197,7 +197,34 @@ export function useSettings() {
 
       // Automatically fetch models for the new provider
       try {
-        await refreshProviderModels(providerId)
+        // Get API key if needed
+        const apiKey = provider.isLocal ? undefined : await getApiKey(providerId)
+        
+        // Fetch and enrich models
+        const enrichedModels = await modelsService.fetchModelsForProvider(
+          providerId,
+          provider.endpoint,
+          apiKey || undefined,
+          provider.isLocal
+        )
+
+        // Update provider with new models and capabilities
+        const modelNames = enrichedModels.map(model => model.id)
+        const modelCapabilities = enrichedModels.reduce((acc, model) => {
+          acc[model.id] = model.capabilities
+          return acc
+        }, {} as Record<string, any>)
+
+        // Auto-select first three models for new providers
+        const enabledModels = modelNames.slice(0, 3)
+
+        await updateProviderSetting(providerId, {
+          ...provider,
+          models: modelNames,
+          enabledModels,
+          modelCapabilities,
+          connected: true
+        })
       } catch (error) {
         // Don't fail the provider creation if model fetching fails
         console.warn(`Failed to fetch models for new provider ${providerId}:`, error)

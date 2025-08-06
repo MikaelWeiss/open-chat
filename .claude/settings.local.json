@@ -3,7 +3,8 @@
     "allow": [
       "Bash(mkdir:*)",
       "WebFetch(domain:v2.tauri.app)",
-      "Bash(pnpm tauri:*)"
+      "Bash(pnpm tauri:*)",
+      "WebFetch(domain:docs.anthropic.com)"
     ],
     "deny": []
   }

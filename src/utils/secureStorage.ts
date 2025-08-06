@@ -1,5 +1,5 @@
 import { getPassword, setPassword, deletePassword } from "tauri-plugin-keyring-api"
-import { BaseDirectory, readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs'
+import { BaseDirectory, readTextFile, writeTextFile, exists } from '@tauri-apps/plugin-fs'
 
 const SERVICE_NAME = "open-chat"
 const KEYS_FILE = "keys.enc"

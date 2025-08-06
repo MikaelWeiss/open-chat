@@ -18,7 +18,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const messageInputRef = externalMessageInputRef || internalMessageInputRef
   const [isLoading, setIsLoading] = useState(false)
   
-  const { messages, addMessage, usage } = useMessages(conversationId)
+  const { messages, addMessage } = useMessages(conversationId ?? null)
   const { getConversation } = useConversations()
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
   
@@ -39,7 +39,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     loadConversation()
   }, [conversationId, getConversation])
   
-  const handleSend = async (message: string, attachments?: any[]) => {
+  const handleSend = async (message: string) => {
     if (!conversationId || !message.trim()) return
     
     try {
