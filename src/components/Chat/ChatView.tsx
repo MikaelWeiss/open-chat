@@ -50,25 +50,27 @@ function ModelCapabilityIcons({ capabilities, className = '' }: ModelCapabilityI
   ]
 
   return (
-    <div className={`flex items-center gap-1 ${className}`}>
-      {capabilityItems.map(({ key, icon: Icon, enabled, color, grayColor, title }) => (
-        <div
-          key={key}
-          className={clsx(
-            "w-3 h-3 transition-colors",
-            enabled ? color : grayColor
-          )}
-          title={title}
-        >
-          <Icon className="w-3 h-3" />
-        </div>
-      ))}
+    <div className={clsx("flex items-center gap-1", className)}>
+      {capabilityItems.map(({ key, icon: Icon, enabled, color, grayColor, title }) => {
+        if (!enabled) return null
+        
+        return (
+          <div
+            key={key}
+            className={clsx("w-4 h-4", enabled ? color : grayColor)}
+            title={title}
+          >
+            <Icon className="w-4 h-4" />
+          </div>
+        )
+      })}
     </div>
   )
 }
 
 export interface ChatViewHandle {
   focusInput: () => void
+  toggleModelSelector: () => void
   saveQuickChatState?: (baseState: { selectedConversationId: string | null; isNewConversation: boolean }) => void
   restoreQuickChatState?: (state: any) => void
 }
@@ -78,10 +80,12 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   const [showConversationSettings, setShowConversationSettings] = useState(false)
   const [copySuccess, setCopySuccess] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [highlightedModelIndex, setHighlightedModelIndex] = useState(0)
   const { getConversationSettings, updateConversationSettings } = useConversationStore()
   const { settings } = useSettingsStore()
   const messageInputRef = useRef<MessageInputHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   
   // Use custom hooks
   const {
@@ -112,12 +116,213 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
     return filtered
   }, [modelsByProvider, searchQuery])
 
+  // Get all models as a flat array for keyboard navigation
+  const allFilteredModels = useMemo(() => {
+    const models: any[] = []
+    Object.entries(filteredModelsByProvider).forEach(([providerName, providerModels]) => {
+      providerModels.forEach(model => {
+        models.push({ ...model, providerName })
+      })
+    })
+    return models
+  }, [filteredModelsByProvider])
+
   // Get current attachments from MessageInput to determine required capabilities
   const [requiredCapabilities, setRequiredCapabilities] = useState<{
     vision: boolean
     audio: boolean
     files: boolean
   }>({ vision: false, audio: false, files: false })
+
+  // Reset highlighted index when search query changes or model selector opens/closes
+  useEffect(() => {
+    setHighlightedModelIndex(-1) // No model highlighted initially
+  }, [searchQuery, showModelSelector])
+
+  // Function to scroll to a model element
+  const scrollToModel = (modelElement: HTMLElement) => {
+    if (!dropdownRef.current) return
+    
+    const container = dropdownRef.current
+    const containerRect = container.getBoundingClientRect()
+    const elementRect = modelElement.getBoundingClientRect()
+    
+    // Check if element is outside the visible area
+    if (elementRect.top < containerRect.top) {
+      // Element is above the visible area, scroll up
+      container.scrollTop -= (containerRect.top - elementRect.top) + 10
+    } else if (elementRect.bottom > containerRect.bottom) {
+      // Element is below the visible area, scroll down
+      container.scrollTop += (elementRect.bottom - containerRect.bottom) + 10
+    }
+  }
+
+  // Function to get the currently highlighted model
+  const getHighlightedModel = () => {
+    const compatibleModels = allFilteredModels.filter(model => isModelCompatible(model))
+    if (highlightedModelIndex < 0 || highlightedModelIndex >= compatibleModels.length) return null
+    return compatibleModels[highlightedModelIndex]
+  }
+
+  // Scroll to highlighted model when it changes
+  useEffect(() => {
+    const highlightedModel = getHighlightedModel()
+    if (highlightedModel && dropdownRef.current) {
+      const modelElement = dropdownRef.current.querySelector(
+        `[data-model-id="${highlightedModel.provider}-${highlightedModel.model}"]`
+      ) as HTMLElement
+      if (modelElement) {
+        scrollToModel(modelElement)
+      }
+    }
+  }, [highlightedModelIndex, allFilteredModels])
+
+  // Function to find the next non-selected model index
+  const findNextNonSelectedIndex = (currentIndex: number, direction: 1 | -1) => {
+    const compatibleModels = allFilteredModels.filter(model => isModelCompatible(model))
+    if (compatibleModels.length === 0) return -1
+    
+    // If starting from -1 (no current highlight), start from beginning or end
+    if (currentIndex < 0) {
+      if (direction === 1) {
+        // Start from first model
+        for (let i = 0; i < compatibleModels.length; i++) {
+          const model = compatibleModels[i]
+          if (!selectedModel || 
+              model.provider !== selectedModel.provider || 
+              model.model !== selectedModel.model) {
+            return i
+          }
+        }
+      } else {
+        // Start from last model
+        for (let i = compatibleModels.length - 1; i >= 0; i--) {
+          const model = compatibleModels[i]
+          if (!selectedModel || 
+              model.provider !== selectedModel.provider || 
+              model.model !== selectedModel.model) {
+            return i
+          }
+        }
+      }
+      return -1 // No non-selected models found
+    }
+    
+    let index = currentIndex
+    const startIndex = index
+    
+    do {
+      index = direction === 1 
+        ? (index + 1) % compatibleModels.length
+        : (index - 1 + compatibleModels.length) % compatibleModels.length
+      
+      // Check if this model is not the currently selected one
+      const model = compatibleModels[index]
+      if (!selectedModel || 
+          model.provider !== selectedModel.provider || 
+          model.model !== selectedModel.model) {
+        return index
+      }
+      
+      // If we've gone through all models and come back to start, break to avoid infinite loop
+      if (index === startIndex) break
+    } while (index !== startIndex)
+    
+    // If all models are selected (unlikely), return the original index
+    return currentIndex
+  }
+
+  // Keyboard navigation handler
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (!showModelSelector || !searchInputRef.current || searchInputRef.current !== document.activeElement) {
+      return
+    }
+
+    const compatibleModels = allFilteredModels.filter(model => {
+      if (!model.capabilities) return true
+      if (requiredCapabilities.vision && !model.capabilities.vision) return false
+      if (requiredCapabilities.audio && !model.capabilities.audio) return false
+      if (requiredCapabilities.files && !model.capabilities.files) return false
+      return true
+    })
+
+    if (compatibleModels.length === 0) return
+
+    let newIndex = highlightedModelIndex
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        if (highlightedModelIndex < 0) {
+          // Start from first non-selected model
+          newIndex = findNextNonSelectedIndex(-1, 1)
+        } else {
+          newIndex = findNextNonSelectedIndex(highlightedModelIndex, 1)
+        }
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        if (highlightedModelIndex < 0) {
+          // Start from last non-selected model
+          newIndex = findNextNonSelectedIndex(-1, -1)
+        } else {
+          newIndex = findNextNonSelectedIndex(highlightedModelIndex, -1)
+        }
+        break
+      case 'j':
+        if (e.ctrlKey) {
+          e.preventDefault()
+          if (highlightedModelIndex < 0) {
+            newIndex = findNextNonSelectedIndex(-1, 1)
+          } else {
+            newIndex = findNextNonSelectedIndex(highlightedModelIndex, 1)
+          }
+        }
+        break
+      case 'k':
+        if (e.ctrlKey) {
+          e.preventDefault()
+          if (highlightedModelIndex < 0) {
+            newIndex = findNextNonSelectedIndex(-1, -1)
+          } else {
+            newIndex = findNextNonSelectedIndex(highlightedModelIndex, -1)
+          }
+        }
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (highlightedModelIndex >= 0) {
+          const selectedModel = compatibleModels[highlightedModelIndex]
+          if (selectedModel) {
+            setSelectedModel({ provider: selectedModel.provider, model: selectedModel.model })
+            setShowModelSelector(false)
+            // Focus the input field after model selection
+            setTimeout(() => {
+              messageInputRef.current?.focus()
+            }, 100)
+          }
+        }
+        return
+      case 'Escape':
+        e.preventDefault()
+        setShowModelSelector(false)
+        return
+      default:
+        return
+    }
+
+    setHighlightedModelIndex(newIndex)
+  }
+
+  // Add keyboard event listener when model selector is open
+  useEffect(() => {
+    if (showModelSelector) {
+      document.addEventListener('keydown', handleKeyDown)
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown)
+      }
+    }
+  }, [showModelSelector, highlightedModelIndex, allFilteredModels])
 
   // Function to check if a model is compatible with current attachments
   const isModelCompatible = (model: any) => {
@@ -146,9 +351,36 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
     return `Remove ${attachmentTypes} attachment${missing.length > 1 ? 's' : ''} to switch to this model`
   }
 
+  // Function to get the index of a model in the compatible models list
+  const getModelIndex = (model: any) => {
+    const compatibleModels = allFilteredModels.filter(m => isModelCompatible(m))
+    return compatibleModels.findIndex(m => 
+      m.provider === model.provider && m.model === model.model
+    )
+  }
+
+  // Function to check if a model is currently highlighted (unified hover and keyboard)
+  const isModelHighlighted = (model: any) => {
+    const compatibleModels = allFilteredModels.filter(m => isModelCompatible(m))
+    if (highlightedModelIndex < 0 || highlightedModelIndex >= compatibleModels.length) return false
+    const highlightedModel = compatibleModels[highlightedModelIndex]
+    return highlightedModel.provider === model.provider && highlightedModel.model === model.model
+  }
+
+  // Function to handle mouse enter on a model
+  const handleModelMouseEnter = (model: any) => {
+    const modelIndex = getModelIndex(model)
+    if (modelIndex !== -1) {
+      setHighlightedModelIndex(modelIndex)
+    }
+  }
+
   useImperativeHandle(ref, () => ({
     focusInput: () => {
       messageInputRef.current?.focus()
+    },
+    toggleModelSelector: () => {
+      setShowModelSelector(!showModelSelector)
     },
     saveQuickChatState: (baseState) => {
       // Get state from MessageInput component and combine with base state
@@ -282,11 +514,17 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
         <div className="flex items-center justify-between min-w-0 gap-4">
           <div className="no-drag min-w-0 flex-1">
             <h2 className="text-lg font-semibold truncate">{conversation.title}</h2>
-            {/* Only show provider/model info if there are configured providers and conversation has provider/model */}
-            {availableModels.length > 0 && conversation.provider && conversation.model && (
-              <p className="text-sm text-muted-foreground truncate">
-                {conversation.provider.charAt(0).toUpperCase() + conversation.provider.slice(1).replace(/-/g, ' ')} • {conversation.model}
-              </p>
+            {/* Show selected model info if available, otherwise fall back to conversation's model */}
+            {availableModels.length > 0 && (
+              selectedModel && selectedModel.provider && selectedModel.model ? (
+                <p className="text-sm text-muted-foreground truncate">
+                  {selectedModel.provider.charAt(0).toUpperCase() + selectedModel.provider.slice(1).replace(/-/g, ' ')} • {selectedModel.model}
+                </p>
+              ) : conversation.provider && conversation.model ? (
+                <p className="text-sm text-muted-foreground truncate">
+                  {conversation.provider.charAt(0).toUpperCase() + conversation.provider.slice(1).replace(/-/g, ' ')} • {conversation.model}
+                </p>
+              ) : null
             )}
           </div>
           
@@ -318,7 +556,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
           ) : (
             /* Model selector - show if conversation hasn't started (no messages) or if temporary */
             ((!conversation.messages || conversation.messages.length === 0) || conversation.isTemporary) && (
-              <div className="relative no-drag">
+              <div className="relative no-drag" ref={dropdownRef}>
                 <button
                   onClick={() => setShowModelSelector(!showModelSelector)}
                   className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 text-sm shadow-sm border border-border hover:border-primary/30"
@@ -330,7 +568,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
                 </button>
                 
                 {showModelSelector && (
-                  <div className="absolute right-0 top-full mt-1 w-80 bg-background border border-border rounded-lg shadow-lg z-10 max-h-80 overflow-y-auto">
+                  <div ref={dropdownRef} className="absolute right-0 top-full mt-1 w-80 bg-background border border-border rounded-lg shadow-lg z-10 max-h-80 overflow-y-auto">
                     {/* Search bar - frozen at top */}
                     <div className="sticky top-0 bg-background border-b border-border p-2">
                       <div className="flex items-center gap-2 px-2 py-1 bg-secondary rounded-lg">
@@ -372,17 +610,21 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
                                     messageInputRef.current?.focus()
                                   }, 100)
                                 }}
+                                onMouseEnter={() => handleModelMouseEnter(model)}
                                 className={clsx(
                                   'w-full text-left px-4 py-2 transition-colors border-b border-border/30 last:border-b-0',
                                   !compatible 
                                     ? 'cursor-not-allowed opacity-50' 
-                                    : 'hover:bg-accent cursor-pointer',
+                                    : 'hover:bg-accent/50 cursor-pointer',
                                   selectedModel?.provider === model.provider && selectedModel?.model === model.model
                                     ? 'bg-accent'
+                                    : isModelHighlighted(model)
+                                    ? 'bg-accent/50'
                                     : ''
                                 )}
                                 disabled={!compatible}
                                 title={incompatibilityReason || undefined}
+                                data-model-id={`${model.provider}-${model.model}`}
                               >
                                 <div className="flex items-center justify-between">
                                   <div className={clsx(

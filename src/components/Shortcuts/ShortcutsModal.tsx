@@ -85,6 +85,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
         { keys: [modKey, '/'], description: 'Toggle keyboard shortcuts' },
         { keys: [modKey, 'Shift', 'F'], description: 'Send feedback' },
         { keys: [modKey, 'L'], description: 'Focus message input' },
+        { keys: [modKey, '.'], description: 'Open model selector' },
       ]
     },
     {
@@ -129,23 +130,30 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
                 </h3>
                 <div className="space-y-2">
                   {category.shortcuts.map((shortcut, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between py-2"
-                    >
-                      <span className="text-sm">{shortcut.description}</span>
-                      <div className="flex items-center gap-1">
-                        {shortcut.keys.map((key, keyIndex) => (
-                          <span key={keyIndex}>
-                            <kbd className="px-2 py-1 text-xs font-semibold text-foreground bg-secondary border border-border rounded">
-                              {key}
-                            </kbd>
-                            {keyIndex < shortcut.keys.length - 1 && (
-                              <span className="mx-1 text-xs text-muted-foreground">+</span>
-                            )}
-                          </span>
-                        ))}
+                    <div key={index}>
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm">{shortcut.description}</span>
+                        <div className="flex items-center gap-1">
+                          {shortcut.keys.map((key, keyIndex) => (
+                            <span key={keyIndex}>
+                              <kbd className="px-2 py-1 text-xs font-semibold text-foreground bg-secondary border border-border rounded">
+                                {key}
+                              </kbd>
+                              {keyIndex < shortcut.keys.length - 1 && (
+                                <span className="mx-1 text-xs text-muted-foreground">+</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
                       </div>
+                      {/* Add navigation note for model selector shortcut */}
+                      {shortcut.description === 'Open model selector' && (
+                        <div className="ml-4 mb-2 p-2 bg-secondary/30 rounded border-l-2 border-primary/50">
+                          <p className="text-xs text-muted-foreground">
+                            Use arrow keys or Ctrl+J/K to navigate through models when the selector is open.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

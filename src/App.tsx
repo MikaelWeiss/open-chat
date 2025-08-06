@@ -197,6 +197,12 @@ function App() {
         setSidebarOpen(!sidebarOpen)
       }
       
+      // Cmd/Ctrl + . - Toggle model selector
+      if (isCtrlOrCmd && e.key === '.') {
+        e.preventDefault()
+        chatViewRef.current?.toggleModelSelector()
+      }
+      
       // ESC - Close modals
       if (e.key === 'Escape') {
         if (settingsOpen) {

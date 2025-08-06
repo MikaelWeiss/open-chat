@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { X, Info } from 'lucide-react'
-import clsx from 'clsx'
 
 interface ConversationSettings {
   temperature?: number
