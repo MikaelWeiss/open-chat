@@ -112,15 +112,31 @@ class ChatService {
         content: userContent
       })
 
-      // Build request payload
-      const requestPayload: OpenAIChatCompletionRequest = {
-        model,
-        messages,
-        stream: !!onStreamChunk,
-        ...(temperature !== undefined && { temperature }),
-        ...(maxTokens !== undefined && { max_tokens: maxTokens }),
-        ...(topP !== undefined && { top_p: topP }),
-        ...(topK !== undefined && { top_k: topK }),
+      // Build request payload based on provider
+      let requestPayload: any
+      
+      if (endpoint.includes('anthropic.com')) {
+        // Anthropic API format
+        requestPayload = {
+          model,
+          messages,
+          stream: !!onStreamChunk,
+          max_tokens: maxTokens || 1024,
+          ...(temperature !== undefined && { temperature }),
+          ...(topP !== undefined && { top_p: topP }),
+          ...(topK !== undefined && { top_k: topK }),
+        }
+      } else {
+        // OpenAI API format
+        requestPayload = {
+          model,
+          messages,
+          stream: !!onStreamChunk,
+          ...(temperature !== undefined && { temperature }),
+          ...(maxTokens !== undefined && { max_tokens: maxTokens }),
+          ...(topP !== undefined && { top_p: topP }),
+          ...(topK !== undefined && { top_k: topK }),
+        }
       }
 
       // Build headers
@@ -164,7 +180,15 @@ class ChatService {
       })
 
       if (!response.ok) {
-        throw new Error(`API call failed: ${response.status} ${response.statusText}`)
+        let errorText = response.statusText
+        try {
+          const errorBody = await response.text()
+          console.error('API Error Response:', errorBody)
+          errorText = errorBody || response.statusText
+        } catch (e) {
+          // Ignore errors reading response body
+        }
+        throw new Error(`API call failed: ${response.status} ${errorText}`)
       }
 
       const processingTime = Date.now() - startTime
@@ -174,7 +198,8 @@ class ChatService {
           model,
           processingTime,
           onStreamChunk,
-          onStreamComplete
+          onStreamComplete,
+          isAnthropic: endpoint.includes('anthropic.com')
         })
       } else {
         return this.handleNonStreamResponse(response, {
@@ -234,6 +259,7 @@ class ChatService {
       processingTime: number
       onStreamChunk?: (content: string) => void
       onStreamComplete?: (message: CreateMessageInput) => void
+      isAnthropic?: boolean
     }
   ): Promise<CreateMessageInput> {
     const reader = response.body?.getReader()
@@ -264,8 +290,18 @@ class ChatService {
             if (data === '[DONE]') continue
 
             try {
-              const chunk: StreamChunk = JSON.parse(data)
-              const deltaContent = chunk.choices[0]?.delta?.content
+              const chunk = JSON.parse(data)
+              let deltaContent = ''
+              
+              if (options.isAnthropic) {
+                // Anthropic streaming format
+                if (chunk.type === 'content_block_delta') {
+                  deltaContent = chunk.delta?.text || ''
+                }
+              } else {
+                // OpenAI streaming format
+                deltaContent = chunk.choices?.[0]?.delta?.content || ''
+              }
               
               if (deltaContent) {
                 fullContent += deltaContent

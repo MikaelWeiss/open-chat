@@ -335,6 +335,13 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           provider: model.provider,
           model: model.model
         })
+        
+        // Update local state immediately to reflect the change
+        setCurrentConversation(prev => prev ? {
+          ...prev,
+          provider: model.provider,
+          model: model.model
+        } : null)
       } catch (err) {
         console.error('Failed to update conversation model:', err)
       }
@@ -420,10 +427,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         }
       })
       
-      // If not streaming, add the message directly
-      if (!streamingMessage && assistantMessage) {
-        await addMessage(assistantMessage)
-      }
+      // Note: For streaming, the message is already saved in onStreamComplete
+      // For non-streaming, we would need to save assistantMessage here, but currently we're always streaming
       
     } catch (err) {
       if (err instanceof Error && err.message === 'Request was cancelled') {
@@ -491,17 +496,18 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
               <Copy className="h-4 w-4" />
             </button>
             
-            {/* Model selector */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setShowModelSelector(!showModelSelector)}
-                className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 text-sm shadow-sm border border-border hover:border-primary/30"
-              >
-                <span className={!selectedModel || !selectedModel.model ? 'text-muted-foreground' : ''}>
-                  {selectedModel && selectedModel.model ? selectedModel.model : 'Select Model'}
-                </span>
-                <ChevronDown className="h-4 w-4" />
-              </button>
+            {/* Model selector - only show if conversation has no messages or only 1 message (user message) */}
+            {messages.length <= 1 && (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowModelSelector(!showModelSelector)}
+                  className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 text-sm shadow-sm border border-border hover:border-primary/30"
+                >
+                  <span className={!selectedModel || !selectedModel.model ? 'text-muted-foreground' : ''}>
+                    {selectedModel && selectedModel.model ? selectedModel.model : 'Select Model'}
+                  </span>
+                  <ChevronDown className="h-4 w-4" />
+                </button>
               
               {showModelSelector && (
                 <div ref={dropdownRef} className="absolute right-0 top-full mt-1 w-80 bg-background border border-border rounded-lg shadow-lg z-10 max-h-80 overflow-y-auto">
@@ -578,6 +584,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
       </div>
@@ -600,7 +607,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           onCancel={handleCancel}
           disabled={!conversationId || !currentConversation?.provider || !currentConversation?.model}
           isLoading={isLoading}
-          noProvider={!currentConversation?.provider || !settings?.providers?.[currentConversation.provider]?.connected}
+          noProvider={!currentConversation?.model}
           messages={messages}
           modelCapabilities={
             currentConversation?.model && settings?.providers?.[currentConversation.provider]?.modelCapabilities?.[currentConversation.model] || {

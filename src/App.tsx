@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Sidebar from './components/Sidebar/Sidebar'
 import ChatView from './components/Chat/ChatView'
 import SettingsModal from './components/Settings/SettingsModal'
@@ -8,6 +8,7 @@ import { DEFAULT_SIDEBAR_WIDTH } from './shared/constants'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { MessageInputHandle } from './components/Chat/MessageInput'
 import { useSettings } from './hooks/useSettings'
+import { useConversations } from './hooks/useConversations'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -19,11 +20,35 @@ function App() {
   
   // Initialize settings (theme will be applied in useSettings hook)
   useSettings()
+  
+  // Initialize conversations
+  const { conversations, createConversation } = useConversations()
+  
+  // Create initial conversation when app starts and no conversation is selected
+  useEffect(() => {
+    const initializeApp = async () => {
+      // Only create a new conversation if there's no selected conversation and no existing conversations
+      if (!selectedConversationId && conversations.length === 0) {
+        try {
+          const id = await createConversation('New Conversation', '', '')
+          setSelectedConversationId(id || null)
+        } catch (err) {
+          console.error('Failed to create initial conversation:', err)
+        }
+      }
+    }
+    
+    initializeApp()
+  }, [conversations, selectedConversationId, createConversation])
 
   // Keyboard shortcut handlers
-  const handleNewChat = () => {
-    console.log('New chat triggered via keyboard shortcut')
-    // Implementation would create a new conversation
+  const handleNewChat = async () => {
+    try {
+      const id = await createConversation('New Conversation', '', '')
+      setSelectedConversationId(id || null)
+    } catch (err) {
+      console.error('Failed to create conversation via keyboard shortcut:', err)
+    }
   }
 
   const handleToggleSidebar = () => {

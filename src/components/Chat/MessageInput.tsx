@@ -292,7 +292,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             onPaste={handlePaste}
             placeholder={
               noProvider
-                ? "Add an AI provider to start chatting..." 
+                ? "Add an AI provider or select a model to start chatting..." 
                 : isLoading 
                   ? "Waiting for response..." 
                   : "Type a message..."

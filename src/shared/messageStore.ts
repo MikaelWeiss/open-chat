@@ -27,7 +27,7 @@ class MessageDatabase {
         images JSON,
         audio JSON,
         files JSON,
-        references JSON,
+        [references] JSON,
         
         input_tokens INTEGER,
         output_tokens INTEGER,
@@ -52,7 +52,7 @@ class MessageDatabase {
     
     const result = await db.execute(`
       INSERT INTO messages (
-        conversation_id, role, text, thinking, images, audio, files, references,
+        conversation_id, role, text, thinking, images, audio, files, [references],
         input_tokens, output_tokens, reasoning_tokens, cached_tokens, cost,
         temperature, max_tokens, top_p, top_k, processing_time_ms, metadata
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
@@ -131,7 +131,7 @@ class MessageDatabase {
       values.push(updates.files ? JSON.stringify(updates.files) : null)
     }
     if (updates.references !== undefined) {
-      fields.push('references = $' + (values.length + 1))
+      fields.push('[references] = $' + (values.length + 1))
       values.push(updates.references ? JSON.stringify(updates.references) : null)
     }
     if (updates.metadata !== undefined) {
