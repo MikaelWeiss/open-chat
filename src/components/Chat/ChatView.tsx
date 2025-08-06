@@ -1,5 +1,5 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle, useState, useMemo } from 'react'
-import { ChevronDown, Settings, Eye, Volume2, FileText, Copy, Check, Search } from 'lucide-react'
+import { ChevronDown, Settings, Eye, Volume2, FileText, Copy, Check, Search, Plus } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
 import ConversationSettingsModal from '../Settings/ConversationSettingsModal'
@@ -81,7 +81,7 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
   const [copySuccess, setCopySuccess] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [highlightedModelIndex, setHighlightedModelIndex] = useState(0)
-  const { getConversationSettings, updateConversationSettings } = useConversationStore()
+  const { getConversationSettings, updateConversationSettings, createConversation } = useConversationStore()
   const { settings } = useSettingsStore()
   const messageInputRef = useRef<MessageInputHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -517,33 +517,61 @@ const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(
             {/* Show selected model info if available, otherwise fall back to conversation's model */}
             {availableModels.length > 0 && (
               selectedModel && selectedModel.provider && selectedModel.model ? (
-                <p className="text-sm text-muted-foreground truncate">
-                  {selectedModel.provider.charAt(0).toUpperCase() + selectedModel.provider.slice(1).replace(/-/g, ' ')} • {selectedModel.model}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground truncate">
+                    {selectedModel.provider.charAt(0).toUpperCase() + selectedModel.provider.slice(1).replace(/-/g, ' ')} • {selectedModel.model}
+                  </p>
+                  {/* Copy conversation button - only show if conversation has messages */}
+                  {conversation.messages && conversation.messages.length > 0 && (
+                    <button
+                      onClick={copyConversationText}
+                      className="p-1.5 bg-secondary hover:bg-accent rounded transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
+                      title="Copy md version of entire conversation"
+                    >
+                      {copySuccess ? (
+                        <Check className="h-3 w-3 text-green-500" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </button>
+                  )}
+                </div>
               ) : conversation.provider && conversation.model ? (
-                <p className="text-sm text-muted-foreground truncate">
-                  {conversation.provider.charAt(0).toUpperCase() + conversation.provider.slice(1).replace(/-/g, ' ')} • {conversation.model}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground truncate">
+                    {conversation.provider.charAt(0).toUpperCase() + conversation.provider.slice(1).replace(/-/g, ' ')} • {conversation.model}
+                  </p>
+                  {/* Copy conversation button - only show if conversation has messages */}
+                  {conversation.messages && conversation.messages.length > 0 && (
+                    <button
+                      onClick={copyConversationText}
+                      className="p-1.5 bg-secondary hover:bg-accent rounded transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
+                      title="Copy md version of entire conversation"
+                    >
+                      {copySuccess ? (
+                        <Check className="h-3 w-3 text-green-500" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </button>
+                  )}
+                </div>
               ) : null
             )}
           </div>
           
-          {/* Show Add Provider button if no providers, otherwise show model selector and copy button */}
+          {/* Show Add Provider button if no providers, otherwise show model selector and new chat button */}
           <div className="flex-shrink-0 flex items-center gap-2">
-          {/* Copy conversation button - only show if conversation has messages */}
-          {conversation.messages && conversation.messages.length > 0 && (
-            <button
-              onClick={copyConversationText}
-              className="no-drag p-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
-              title="Copy conversation"
-            >
-              {copySuccess ? (
-                <Check className="h-4 w-4 text-green-500" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-            </button>
-          )}
+            {/* New Chat Button - only show for existing conversations (not temporary/new ones) */}
+            {conversation && !conversation.isTemporary && conversation.messages && conversation.messages.length > 0 && (
+              <button
+                onClick={() => createConversation()}
+                className="no-drag p-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
+                title="New Chat"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            )}
           
           {availableModels.length === 0 ? (
             <button
