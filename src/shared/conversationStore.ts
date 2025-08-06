@@ -114,6 +114,16 @@ class ConversationDatabase {
     this.notifyListeners()
     return result
   }
+
+  async updateConversationTitle(id: number, title: string) {
+    const db = await this.init()
+    const result = await db.execute(
+      'UPDATE conversations SET title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [title, id]
+    )
+    this.notifyListeners()
+    return result
+  }
 }
 
 // Export singleton instance

@@ -81,6 +81,20 @@ class MessageDatabase {
     // Update conversation timestamp
     await conversationStore.touchConversation(conversationId)
     
+    // If this is the first user message, update the conversation title
+    if (message.role === 'user' && message.text) {
+      const allMessages = await this.getMessages(conversationId)
+      const userMessages = allMessages.filter(msg => msg.role === 'user')
+      
+      if (userMessages.length === 1) {
+        // This is the first user message, update the conversation title
+        const truncatedTitle = message.text.length > 50 
+          ? message.text.substring(0, 50) + '...' 
+          : message.text
+        await conversationStore.updateConversationTitle(conversationId, truncatedTitle)
+      }
+    }
+    
     return result.lastInsertId
   }
 
