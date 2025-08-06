@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useConversations } from '../../hooks/useConversations'
 import { type Conversation } from '../../shared/conversationStore'
+import { useState } from 'react'
 
 interface SidebarProps {
   isOpen: boolean
@@ -29,6 +30,7 @@ export default function Sidebar({
   onDeleteConversation,
 }: SidebarProps) {
   const { conversations, loading, error, deleteConversation } = useConversations()
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; title: string } | null>(null)
   
   const handleSelectConversation = (conversation: Conversation) => {
     onSelectConversation?.(conversation.id)
@@ -39,8 +41,21 @@ export default function Sidebar({
       await deleteConversation(id)
       // Notify parent component that a conversation was deleted
       onDeleteConversation?.(id)
+      setConfirmDelete(null)
     } catch (err) {
       console.error('Failed to delete conversation:', err)
+    }
+  }
+
+  const handleDeleteClick = (e: React.MouseEvent, conversation: Conversation) => {
+    e.stopPropagation()
+    
+    // If Command key is held, delete immediately without confirmation
+    if (e.metaKey) {
+      handleDeleteConversation(conversation.id)
+    } else {
+      // Show confirmation dialog
+      setConfirmDelete({ id: conversation.id, title: conversation.title })
     }
   }
   
@@ -213,12 +228,9 @@ export default function Sidebar({
                     </div>
                   </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteConversation(conversation.id)
-                    }}
+                    onClick={(e) => handleDeleteClick(e, conversation)}
                     className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
-                    title="Delete conversation"
+                    title="Delete conversation (hold ⌘ to skip confirmation)"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -248,6 +260,32 @@ export default function Sidebar({
           <ChevronRight className="h-4 w-4" />
         )}
       </button>
+
+      {/* Confirmation Dialog */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border rounded-lg p-6 max-w-sm mx-4 shadow-lg">
+            <h3 className="text-lg font-semibold mb-2">Delete Conversation</h3>
+            <p className="text-muted-foreground mb-4">
+              Are you sure you want to delete "{confirmDelete.title}"? This action cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 text-sm bg-secondary hover:bg-accent rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteConversation(confirmDelete.id)}
+                className="px-4 py-2 text-sm bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-md transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
