@@ -344,9 +344,16 @@ export function useSettings() {
         return acc
       }, {} as Record<string, any>)
 
+      // Auto-select first three models for new providers
+      const isNewProvider = provider.models.length === 0
+      const enabledModels = isNewProvider 
+        ? modelNames.slice(0, 3)  // Select first 3 models for new providers
+        : provider.enabledModels   // Keep existing selection for refresh
+
       await updateProviderSetting(providerId, {
         ...provider,
         models: modelNames,
+        enabledModels,
         modelCapabilities,
         connected: true
       })

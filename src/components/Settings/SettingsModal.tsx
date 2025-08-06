@@ -77,7 +77,7 @@ function ModelCapabilityIcons({
       key: 'image' as const,
       icon: ImageIcon,
       enabled: capabilities.image,
-      color: 'text-purple-500 dark:text-purple-400',
+      color: 'text-pink-500 dark:text-pink-400',
       grayColor: 'text-gray-400 dark:text-gray-600',
       title: 'Image Output'
     },
@@ -85,7 +85,7 @@ function ModelCapabilityIcons({
       key: 'thinking' as const,
       icon: Brain,
       enabled: capabilities.thinking,
-      color: 'text-pink-500 dark:text-pink-400',
+      color: 'text-purple-500 dark:text-purple-400',
       grayColor: 'text-gray-400 dark:text-gray-600',
       title: 'Reasoning/Thinking'
     },
@@ -528,6 +528,22 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
     }
   }, [isSearchHovered])
 
+  // Add keyboard shortcut for search (Cmd+F or Ctrl+F)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'f') {
+        event.preventDefault()
+        setIsSearchHovered(true)
+        searchInputRef.current?.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
+
   const providerPresets: ProviderPreset[] = [
     {
       id: 'openai',
@@ -953,34 +969,44 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
         {/* Capability Legend */}
         <div className="p-3 bg-secondary/30 rounded-lg border border-border">
           <h4 className="text-sm font-medium mb-2">Model Capabilities</h4>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-            <div className="flex items-center gap-1">
-              <Eye className="w-3 h-3 text-blue-500" />
-              <span>Vision Input</span>
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <h5 className="text-xs font-medium mb-2 text-muted-foreground">Input</h5>
+              <div className="space-y-1">
+                <div className="flex items-center gap-1">
+                  <Eye className="w-3 h-3 text-blue-500" />
+                  <span>Vision</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Volume2 className="w-3 h-3 text-green-500" />
+                  <span>Audio</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <FileText className="w-3 h-3 text-orange-500" />
+                  <span>Files</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Volume2 className="w-3 h-3 text-green-500" />
-              <span>Audio Input</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <FileText className="w-3 h-3 text-orange-500" />
-              <span>File Input</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <ImageIcon className="w-3 h-3 text-purple-500" />
-              <span>Image Output</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Brain className="w-3 h-3 text-pink-500" />
-              <span>Reasoning</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Hammer className="w-3 h-3 text-yellow-500" />
-              <span>Tools</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Globe className="w-3 h-3 text-cyan-500" />
-              <span>Web Search</span>
+            <div>
+              <h5 className="text-xs font-medium mb-2 text-muted-foreground">Output</h5>
+              <div className="space-y-1">
+                <div className="flex items-center gap-1">
+                  <ImageIcon className="w-3 h-3 text-pink-500" />
+                  <span>Images</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Brain className="w-3 h-3 text-purple-500" />
+                  <span>Reasoning</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Hammer className="w-3 h-3 text-yellow-500" />
+                  <span>Tools</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Globe className="w-3 h-3 text-cyan-500" />
+                  <span>Web Search</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

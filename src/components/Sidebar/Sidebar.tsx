@@ -75,6 +75,14 @@ export default function Sidebar({
 }: SidebarProps) {
   const [starredCollapsed, setStarredCollapsed] = useState(false)
   const [selectedConversation, setSelectedConversation] = useState<MockConversation | null>(mockConversations[0])
+  
+  const handleSelectConversation = (conversation: MockConversation) => {
+    setSelectedConversation(conversation)
+  }
+  
+  const handleDeleteConversation = (id: string) => {
+    console.log('Delete conversation:', id)
+  }
 
   const handleStartDrag = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -211,11 +219,11 @@ export default function Sidebar({
                   key={conversation.id}
                   className={clsx(
                     'group relative flex items-center w-full hover:bg-accent transition-colors',
-                    selectedConversationId === conversation.id && 'bg-accent'
+                    selectedConversation?.id === conversation.id && 'bg-accent'
                   )}
                 >
                   <button
-                    onClick={() => onSelectConversation(conversation)}
+                    onClick={() => handleSelectConversation(conversation)}
                     className="flex-1 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
                   >
                     <div className="font-medium text-sm truncate pr-8 flex items-center gap-2">
@@ -223,7 +231,7 @@ export default function Sidebar({
                       {conversation.title}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1 ml-5">
-                      {conversation.model} • {format(new Date(conversation.updated_at), 'h:mm a')}
+                      {conversation.model} • {format(new Date(conversation.updatedAt), 'h:mm a')}
                     </div>
                   </button>
                   <button
@@ -252,18 +260,18 @@ export default function Sidebar({
                   key={conversation.id}
                   className={clsx(
                     'group relative flex items-center w-full hover:bg-accent transition-colors',
-                    selectedConversationId === conversation.id && 'bg-accent'
+                    selectedConversation?.id === conversation.id && 'bg-accent'
                   )}
                 >
                   <button
-                    onClick={() => onSelectConversation(conversation)}
+                    onClick={() => handleSelectConversation(conversation)}
                     className="flex-1 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
                   >
                     <div className="font-medium text-sm truncate pr-8">
                       {conversation.title}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {conversation.model} • {format(new Date(conversation.updated_at), 'h:mm a')}
+                      {conversation.model} • {format(new Date(conversation.updatedAt), 'h:mm a')}
                     </div>
                   </button>
                   <button
