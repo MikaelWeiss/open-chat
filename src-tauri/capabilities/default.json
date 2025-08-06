@@ -15,9 +15,25 @@
     "store:allow-clear",
     "store:allow-save",
     "store:allow-load",
+    "sql:default",
+    "sql:allow-load",
+    "sql:allow-select",
+    "sql:allow-execute",
     "keyring:default",
     "keyring:allow-get-password",
     "keyring:allow-set-password",
-    "keyring:allow-delete-password"
+    "keyring:allow-delete-password",
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "$APPDATA/keys.enc" }]
+    },
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [{ "path": "$APPDATA/keys.enc" }]
+    },
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "$APPDATA/keys.enc" }]
+    }
   ]
 }
