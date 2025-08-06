@@ -286,6 +286,7 @@ function App() {
           onDeleteConversation={deleteConversation}
           onToggleStarConversation={toggleStarConversation}
           onOpenFeedback={handleOpenFeedback}
+          onOpenShortcuts={() => setShortcutsOpen(true)}
         />
       )}
       

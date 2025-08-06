@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus, Settings, Trash2, MessageSquare, Star } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Settings, Trash2, MessageSquare, Star, Keyboard } from 'lucide-react'
 import { format } from 'date-fns'
 import type { Conversation } from '@/types/electron'
 import clsx from 'clsx'
@@ -19,6 +19,7 @@ interface SidebarProps {
   onDeleteConversation: (conversationId: string) => void
   onToggleStarConversation: (conversationId: string) => void
   onOpenFeedback: () => void
+  onOpenShortcuts: () => void
 }
 
 export default function Sidebar({
@@ -34,6 +35,7 @@ export default function Sidebar({
   onDeleteConversation,
   onToggleStarConversation,
   onOpenFeedback,
+  onOpenShortcuts,
 }: SidebarProps) {
   const { settings } = useSettingsStore()
   const [starredCollapsed, setStarredCollapsed] = useState(false)
@@ -77,6 +79,13 @@ export default function Sidebar({
                 title="New conversation"
               >
                 <Plus className="h-4 w-4" />
+              </button>
+              <button
+                onClick={onOpenShortcuts}
+                className="p-2 hover:bg-accent rounded-lg transition-colors font-mono text-sm font-medium"
+                title="Keyboard Shortcuts"
+              >
+                /
               </button>
               <button
                 onClick={onOpenFeedback}
