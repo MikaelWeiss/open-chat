@@ -544,7 +544,9 @@ function ModelsSettings() {
     const handleClickOutside = (e: MouseEvent) => {
       // Check if click is outside the search area and search is empty
       const searchArea = document.querySelector('[data-search-area]')
-      if (searchArea && !searchArea.contains(e.target as Node) && !searchQuery) {
+      const searchInput = searchInputRef.current
+      
+      if (searchArea && !searchArea.contains(e.target as Node) && !searchQuery && searchInput !== document.activeElement) {
         setIsSearchHovered(false)
       }
     }
@@ -1085,8 +1087,8 @@ function ModelsSettings() {
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-medium">Models</h3>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <input
                   type="checkbox"
                   id="hide-dated-models"
@@ -1095,7 +1097,7 @@ function ModelsSettings() {
                   className="rounded"
                 />
                 <label htmlFor="hide-dated-models" className="text-sm text-muted-foreground">
-                  Only latest releases
+                  Latest only
                 </label>
               </div>
               <div
