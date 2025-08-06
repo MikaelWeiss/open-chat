@@ -9,6 +9,8 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { MessageInputHandle } from './components/Chat/MessageInput'
 import { useSettings } from './hooks/useSettings'
 import { useConversations } from './hooks/useConversations'
+import { useMessages } from './hooks/useMessages'
+import { messageStore } from './shared/messageStore'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -23,6 +25,9 @@ function App() {
   
   // Initialize conversations
   const { conversations, createConversation } = useConversations()
+  
+  // Get messages for current conversation to control keyboard shortcuts
+  const { messages } = useMessages(selectedConversationId)
   
   // Create initial conversation when app starts and no conversation is selected
   useEffect(() => {
@@ -43,6 +48,22 @@ function App() {
 
   // Keyboard shortcut handlers
   const handleNewChat = async () => {
+    // Check database directly for message count to avoid stale React state
+    if (!selectedConversationId) {
+      return
+    }
+    
+    try {
+      const dbMessages = await messageStore.getMessages(selectedConversationId)
+      
+      if (dbMessages.length <= 1) {
+        return
+      }
+    } catch (error) {
+      console.error('Failed to check message count:', error)
+      return
+    }
+    
     try {
       // Get the last conversation to use its model
       let provider = ''
