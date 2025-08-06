@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "WebFetch(domain:v2.tauri.app)",
+      "Bash(pnpm tauri:*)"
+    ],
+    "deny": []
+  }
+}
