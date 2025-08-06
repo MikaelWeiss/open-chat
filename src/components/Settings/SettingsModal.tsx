@@ -1,5 +1,6 @@
 import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search, Brain, Hammer, ImageIcon, Headphones, Globe } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
+import { open } from '@tauri-apps/plugin-shell'
 import clsx from 'clsx'
 import AboutSettings from './AboutSettings'
 import { useSettings } from '../../hooks/useSettings'
@@ -518,6 +519,7 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
   const [customProvider, setCustomProvider] = useState({ name: '', endpoint: '', apiKey: '' })
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchHovered, setIsSearchHovered] = useState(false)
+  const [latestOnly, setLatestOnly] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -614,9 +616,66 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
     }))
   )
 
-  const filteredModels = configuredModels.filter(model =>
+  // Helper function to detect if a model has a date suffix
+  const hasDateSuffix = (modelName: string): boolean => {
+    // More specific date patterns that are actually dates:
+    // -YYYYMMDD (8 digits), -YYYY-MM-DD, -MMYY (like -0613), or -YYYYMM (6 digits)
+    const datePatterns = [
+      /-\d{8}$/, // -20240101 (YYYYMMDD)
+      /-\d{4}-\d{2}-\d{2}$/, // -2024-01-01 (YYYY-MM-DD)
+      /-\d{4}$/, // -0613 (MMYY) or -2024 (YYYY)
+      /-\d{6}$/, // -202401 (YYYYMM)
+    ]
+    return datePatterns.some(pattern => pattern.test(modelName))
+  }
+
+  // Helper function to get base model name (without date suffix)
+  const getBaseModelName = (modelName: string): string => {
+    // Remove the same date patterns
+    return modelName
+      .replace(/-\d{8}$/, '') // -20240101
+      .replace(/-\d{4}-\d{2}-\d{2}$/, '') // -2024-01-01
+      .replace(/-\d{4}$/, '') // -0613 or -2024
+      .replace(/-\d{6}$/, '') // -202401
+  }
+
+  // Filter models based on search query and latest only setting
+  let filteredModels = configuredModels.filter(model =>
     model.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  // Apply "Latest only" filtering
+  if (latestOnly) {
+    const modelsByBase = filteredModels.reduce((acc, model) => {
+      const baseName = getBaseModelName(model.name)
+      if (!acc[baseName]) {
+        acc[baseName] = []
+      }
+      acc[baseName].push(model)
+      return acc
+    }, {} as Record<string, ConfiguredModel[]>)
+
+    filteredModels = filteredModels.filter(model => {
+      const baseName = getBaseModelName(model.name)
+      const modelsWithSameBase = modelsByBase[baseName]
+      
+      // If there's only one model with this base name, keep it
+      if (modelsWithSameBase.length === 1) {
+        return true
+      }
+      
+      // If there are multiple models with the same base name
+      const hasNonDatedVersion = modelsWithSameBase.some(m => !hasDateSuffix(m.name))
+      
+      // If there's a non-dated version, only show that one
+      if (hasNonDatedVersion) {
+        return !hasDateSuffix(model.name)
+      }
+      
+      // If all versions have dates, show all of them
+      return true
+    })
+  }
 
   const modelsByProvider = filteredModels.reduce((acc, model) => {
     if (!acc[model.provider]) {
@@ -885,11 +944,17 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
                 </label>
                 {selectedPreset && selectedPreset !== 'custom' && !providerPresets.find(p => p.id === selectedPreset)?.isLocal && (
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const apiKeyUrl = providerPresets.find(p => p.id === selectedPreset)?.apiKeyUrl
                       if (apiKeyUrl) {
                         console.log('Open external URL:', apiKeyUrl)
-                        window.open(apiKeyUrl, '_blank')
+                        try {
+                          await open(apiKeyUrl)
+                        } catch (error) {
+                          console.error('Failed to open URL with Tauri shell:', error)
+                          // Fallback to window.open for development or if shell plugin fails
+                          window.open(apiKeyUrl, '_blank')
+                        }
                       }
                     }}
                     className="text-xs text-primary hover:underline focus:outline-none"
@@ -929,27 +994,41 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-medium">Models</h3>
-            <div
-              className="flex items-center gap-1"
-              onMouseEnter={() => setIsSearchHovered(true)}
-              onMouseLeave={() => setIsSearchHovered(false)}
-            >
-              <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-medium">Models</h3>
+              <div
+                className="flex items-center gap-1"
+                onMouseEnter={() => setIsSearchHovered(true)}
+                onMouseLeave={() => setIsSearchHovered(false)}
+              >
+                <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={clsx(
+                    'rounded-lg bg-secondary py-1 px-2 text-sm transition-all duration-300 focus:outline-none',
+                    isSearchHovered || searchQuery
+                      ? 'w-32 opacity-100'
+                      : 'w-0 opacity-0',
+                  )}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
               <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={clsx(
-                  'rounded-lg bg-secondary py-1 px-2 text-sm transition-all duration-300 focus:outline-none',
-                  isSearchHovered || searchQuery
-                    ? 'w-32 opacity-100'
-                    : 'w-0 opacity-0',
-                )}
+                type="checkbox"
+                id="latest-only"
+                checked={latestOnly}
+                onChange={(e) => setLatestOnly(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
               />
+              <label htmlFor="latest-only" className="text-sm text-muted-foreground cursor-pointer">
+                Latest only
+              </label>
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
@@ -1136,10 +1215,16 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
                     Need an API key? Get one from the provider:
                   </p>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (preset.apiKeyUrl) {
                         console.log('Open external URL:', preset.apiKeyUrl)
-                        window.open(preset.apiKeyUrl, '_blank')
+                        try {
+                          await open(preset.apiKeyUrl)
+                        } catch (error) {
+                          console.error('Failed to open URL with Tauri shell:', error)
+                          // Fallback to window.open for development or if shell plugin fails
+                          window.open(preset.apiKeyUrl, '_blank')
+                        }
                       }
                     }}
                     className="text-sm text-primary hover:underline focus:outline-none flex items-center gap-1">
