@@ -4,7 +4,8 @@
       "Bash(mkdir:*)",
       "WebFetch(domain:v2.tauri.app)",
       "Bash(pnpm tauri:*)",
-      "WebFetch(domain:docs.anthropic.com)"
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(pnpm build:*)"
     ],
     "deny": []
   }

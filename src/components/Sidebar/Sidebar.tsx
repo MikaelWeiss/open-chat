@@ -1,28 +1,9 @@
-import { ChevronLeft, ChevronRight, Plus, Settings, Trash2, MessageSquare, Star, Command } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Settings, Trash2, MessageSquare, Command } from 'lucide-react'
 import { format } from 'date-fns'
 import clsx from 'clsx'
-import { useState } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-
-// Mock types for frontend display
-interface MockMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: string
-}
-
-interface MockConversation {
-  id: string
-  title: string
-  createdAt: string
-  updatedAt: string
-  provider: string
-  model: string
-  messages: MockMessage[]
-  isTemporary?: boolean
-  starred?: boolean
-}
+import { useConversations } from '../../hooks/useConversations'
+import { type Conversation } from '../../shared/conversationStore'
 
 interface SidebarProps {
   isOpen: boolean
@@ -31,39 +12,9 @@ interface SidebarProps {
   onWidthChange: (width: number) => void
   onOpenSettings: () => void
   onOpenShortcuts: () => void
+  selectedConversationId?: number | null
+  onSelectConversation?: (conversationId: number | null) => void
 }
-
-// Mock data for visual display
-const mockConversations: MockConversation[] = [
-  {
-    id: '1',
-    title: 'Help with React Components',
-    createdAt: '2024-01-15T10:30:00Z',
-    updatedAt: '2024-01-15T14:45:00Z',
-    provider: 'anthropic',
-    model: 'claude-3-sonnet',
-    messages: [{ id: '1', role: 'user', content: 'Help me', timestamp: '2024-01-15T10:30:00Z' }],
-    starred: true
-  },
-  {
-    id: '2',
-    title: 'JavaScript Best Practices',
-    createdAt: '2024-01-14T09:15:00Z',
-    updatedAt: '2024-01-14T16:20:00Z',
-    provider: 'openai',
-    model: 'gpt-4',
-    messages: [{ id: '2', role: 'user', content: 'Question about JS', timestamp: '2024-01-14T09:15:00Z' }]
-  },
-  {
-    id: '3',
-    title: 'CSS Grid Layout',
-    createdAt: '2024-01-13T11:00:00Z',
-    updatedAt: '2024-01-13T12:30:00Z',
-    provider: 'anthropic',
-    model: 'claude-3-haiku',
-    messages: [{ id: '3', role: 'user', content: 'CSS help', timestamp: '2024-01-13T11:00:00Z' }]
-  }
-]
 
 export default function Sidebar({
   isOpen,
@@ -72,16 +23,30 @@ export default function Sidebar({
   onWidthChange,
   onOpenSettings,
   onOpenShortcuts,
+  selectedConversationId,
+  onSelectConversation,
 }: SidebarProps) {
-  const [starredCollapsed, setStarredCollapsed] = useState(false)
-  const [selectedConversation, setSelectedConversation] = useState<MockConversation | null>(mockConversations[0])
+  const { conversations, loading, error, deleteConversation, createConversation } = useConversations()
   
-  const handleSelectConversation = (conversation: MockConversation) => {
-    setSelectedConversation(conversation)
+  const handleSelectConversation = (conversation: Conversation) => {
+    onSelectConversation?.(conversation.id)
   }
   
-  const handleDeleteConversation = (id: string) => {
-    console.log('Delete conversation:', id)
+  const handleDeleteConversation = async (id: number) => {
+    try {
+      await deleteConversation(id)
+    } catch (err) {
+      console.error('Failed to delete conversation:', err)
+    }
+  }
+  
+  const handleNewConversation = async () => {
+    try {
+      const id = await createConversation('New Conversation', '', '')
+      onSelectConversation?.(id || null)
+    } catch (err) {
+      console.error('Failed to create conversation:', err)
+    }
   }
 
   const handleStartDrag = async (e: React.MouseEvent) => {
@@ -96,12 +61,12 @@ export default function Sidebar({
   
   // Group conversations by date
   const getConversationsByDate = () => {
-    const starred = mockConversations.filter(conv => conv.starred)
-    const regular = mockConversations.filter(conv => !conv.starred)
+    // For now, treat all conversations as regular (no starred functionality yet)
+    const regular = conversations
     
-    // Group regular conversations by date
+    // Group conversations by date
     const groupedByDate = regular.reduce((acc, conv) => {
-      const date = new Date(conv.updatedAt)
+      const date = new Date(conv.updated_at)
       const today = new Date()
       const yesterday = new Date(today)
       yesterday.setDate(yesterday.getDate() - 1)
@@ -118,9 +83,9 @@ export default function Sidebar({
       if (!acc[dateKey]) acc[dateKey] = []
       acc[dateKey].push(conv)
       return acc
-    }, {} as Record<string, MockConversation[]>)
+    }, {} as Record<string, Conversation[]>)
     
-    return { starredConversations: starred, regularByDate: Object.entries(groupedByDate) }
+    return Object.entries(groupedByDate)
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -142,7 +107,27 @@ export default function Sidebar({
     document.addEventListener('mouseup', handleMouseUp)
   }
 
-  const { starredConversations, regularByDate } = getConversationsByDate()
+  const regularByDate = getConversationsByDate()
+  
+  if (loading) {
+    return (
+      <div className={clsx('relative flex flex-col bg-secondary', isOpen ? '' : 'w-0')} style={{ width: isOpen ? `${width}px` : '0px' }}>
+        <div className={clsx('flex flex-col h-full justify-center items-center', !isOpen && 'invisible')}>
+          <div className="text-muted-foreground">Loading conversations...</div>
+        </div>
+      </div>
+    )
+  }
+  
+  if (error) {
+    return (
+      <div className={clsx('relative flex flex-col bg-secondary', isOpen ? '' : 'w-0')} style={{ width: isOpen ? `${width}px` : '0px' }}>
+        <div className={clsx('flex flex-col h-full justify-center items-center', !isOpen && 'invisible')}>
+          <div className="text-destructive">Error: {error}</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -168,7 +153,7 @@ export default function Sidebar({
             <h1 className="text-xl font-semibold">Open Chat</h1>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => console.log('New conversation')}
+                onClick={handleNewConversation}
                 className="p-2 hover:bg-accent rounded-lg transition-colors"
                 title="New conversation"
               >
@@ -201,53 +186,17 @@ export default function Sidebar({
 
         {/* Conversations List */}
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent">
-          {/* Starred Conversations Section */}
-          {starredConversations.length > 0 && (
-            <div>
-              <button
-                onClick={() => setStarredCollapsed(!starredCollapsed)}
-                className="w-full px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 bg-secondary/80 backdrop-blur-sm border-b border-border/50 flex items-center justify-between hover:bg-accent/50 transition-colors"
-              >
-                <span className="flex items-center gap-2">
-                  <Star className="h-3 w-3 fill-current" />
-                  Starred ({starredConversations.length})
-                </span>
-                <ChevronRight className={clsx("h-3 w-3 transition-transform", !starredCollapsed && "rotate-90")} />
-              </button>
-              {!starredCollapsed && starredConversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  className={clsx(
-                    'group relative flex items-center w-full hover:bg-accent transition-colors',
-                    selectedConversation?.id === conversation.id && 'bg-accent'
-                  )}
-                >
-                  <button
-                    onClick={() => handleSelectConversation(conversation)}
-                    className="flex-1 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
-                  >
-                    <div className="font-medium text-sm truncate pr-8 flex items-center gap-2">
-                      <Star className="h-3 w-3 fill-current text-yellow-500" />
-                      {conversation.title}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1 ml-5">
-                      {conversation.model} • {format(new Date(conversation.updatedAt), 'h:mm a')}
-                    </div>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteConversation(conversation.id)
-                    }}
-                    className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
-                    title="Delete conversation"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+          {conversations.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
+              <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
+              <p className="text-center text-sm">
+                No conversations yet.
+                <br />
+                Click the + button to start chatting!
+              </p>
             </div>
           )}
+          {/* TODO: Starred Conversations Section - disabled for now */}
 
           {/* Regular Conversations by Date */}
           {regularByDate.map(([dateKey, convs]) => (
@@ -260,7 +209,7 @@ export default function Sidebar({
                   key={conversation.id}
                   className={clsx(
                     'group relative flex items-center w-full hover:bg-accent transition-colors',
-                    selectedConversation?.id === conversation.id && 'bg-accent'
+                    selectedConversationId === conversation.id && 'bg-accent'
                   )}
                 >
                   <button
@@ -271,7 +220,7 @@ export default function Sidebar({
                       {conversation.title}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {conversation.model} • {format(new Date(conversation.updatedAt), 'h:mm a')}
+                      {conversation.model || 'No model'} • {format(new Date(conversation.updated_at), 'h:mm a')}
                     </div>
                   </button>
                   <button

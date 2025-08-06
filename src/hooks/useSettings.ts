@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { settings, SETTINGS_KEYS } from '../shared/settingsStore'
 import { saveApiKey, getApiKey, deleteApiKey, hasApiKey } from '../utils/secureStorage'
 import { Provider, AddProviderRequest, UpdateProviderRequest } from '../types/provider'
@@ -23,35 +23,74 @@ const DEFAULT_SETTINGS: AppSettings = {
   providers: {}
 }
 
-export function useSettings() {
-  const [settings_state, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
-  const [isLoading, setIsLoading] = useState(true)
+// Singleton settings manager to ensure all hook instances share the same state
+class SettingsManager {
+  private _settings: AppSettings = DEFAULT_SETTINGS
+  private _isLoading = true
+  private _listeners = new Set<() => void>()
 
-  // Load settings on mount
+  get settings() { return this._settings }
+  get isLoading() { return this._isLoading }
+
+  updateSettings(newSettings: AppSettings) {
+    this._settings = newSettings
+    this.notifyListeners()
+  }
+
+  setLoading(loading: boolean) {
+    this._isLoading = loading
+    this.notifyListeners()
+  }
+
+  subscribe(listener: () => void) {
+    this._listeners.add(listener)
+    return () => this._listeners.delete(listener)
+  }
+
+  private notifyListeners() {
+    this._listeners.forEach(listener => listener())
+  }
+}
+
+const settingsManager = new SettingsManager()
+
+export function useSettings() {
+  const [, forceUpdate] = useState({})
+  
+  // Subscribe to settings manager updates
   useEffect(() => {
-    loadSettings()
+    return settingsManager.subscribe(() => {
+      forceUpdate({})
+    })
+  }, [])
+
+  // Load settings on mount (only once globally)
+  useEffect(() => {
+    if (settingsManager.isLoading) {
+      loadSettings()
+    }
   }, [])
 
   // Apply theme when settings finish loading and set up system listener
   useEffect(() => {
-    if (!isLoading && settings_state.theme) {
-      applyTheme(settings_state.theme)
+    if (!settingsManager.isLoading && settingsManager.settings.theme) {
+      applyTheme(settingsManager.settings.theme)
       
       // Set up system theme listener for system theme mode
-      const cleanup = setupSystemThemeListener(settings_state.theme)
+      const cleanup = setupSystemThemeListener(settingsManager.settings.theme)
       return cleanup || undefined
     }
-  }, [isLoading, settings_state.theme])
+  }, [settingsManager.isLoading, settingsManager.settings.theme])
 
   // Check API keys on mount and when providers change
   useEffect(() => {
-    if (!isLoading && Object.keys(settings_state.providers).length > 0) {
+    if (!settingsManager.isLoading && Object.keys(settingsManager.settings.providers).length > 0) {
       checkProviderApiKeys()
     }
-  }, [isLoading, Object.keys(settings_state.providers).length])
+  }, [settingsManager.isLoading, Object.keys(settingsManager.settings.providers).length])
 
   const loadSettings = async () => {
-    setIsLoading(true)
+    settingsManager.setLoading(true)
     try {
       const loadedSettings: Partial<AppSettings> = {}
       
@@ -63,11 +102,11 @@ export function useSettings() {
         }
       }
 
-      setSettings(prev => ({ ...prev, ...loadedSettings }))
+      settingsManager.updateSettings({ ...settingsManager.settings, ...loadedSettings })
     } catch (error) {
       console.error('Failed to load settings:', error)
     } finally {
-      setIsLoading(false)
+      settingsManager.setLoading(false)
     }
   }
 
@@ -77,16 +116,26 @@ export function useSettings() {
   ) => {
     try {
       await settings.set(key, value)
-      setSettings(prev => {
-        const newSettings = { ...prev, [key]: value }
-        
-        // Apply theme immediately when it changes
-        if (key === 'theme') {
-          applyTheme(value as string)
+      const newSettings = { ...settingsManager.settings, [key]: value }
+      
+      // Apply theme immediately when it changes
+      if (key === 'theme') {
+        applyTheme(value as string)
+      }
+      
+      // Debug log for providers updates
+      if (key === 'providers') {
+        console.log('updateSetting: Setting new providers state')
+        console.log('updateSetting: Previous providers keys:', Object.keys(settingsManager.settings.providers || {}))
+        console.log('updateSetting: New providers keys:', Object.keys((value as any) || {}))
+        // Log the specific enabled models for anthropic
+        const newProviders = value as any
+        if (newProviders.anthropic) {
+          console.log('updateSetting: New anthropic enabled models:', newProviders.anthropic.enabledModels)
         }
-        
-        return newSettings
-      })
+      }
+      
+      settingsManager.updateSettings(newSettings)
     } catch (error) {
       console.error(`Failed to update setting ${key}:`, error)
       throw error
@@ -96,7 +145,7 @@ export function useSettings() {
   const resetSettings = async () => {
     try {
       await settings.clear()
-      setSettings(DEFAULT_SETTINGS)
+      settingsManager.updateSettings(DEFAULT_SETTINGS)
     } catch (error) {
       console.error('Failed to reset settings:', error)
       throw error
@@ -104,12 +153,17 @@ export function useSettings() {
   }
 
   const getSetting = <K extends keyof AppSettings>(key: K): AppSettings[K] => {
-    return settings_state[key]
+    return settingsManager.settings[key]
   }
 
   const updateProviderSetting = async (providerId: string, providerData: AppSettings['providers'][string]) => {
-    const newProviders = { ...settings_state.providers, [providerId]: providerData }
+    console.log(`Updating provider setting for ${providerId}`)
+    console.log('Provider data being set:', providerData.enabledModels)
+    
+    const newProviders = { ...settingsManager.settings.providers, [providerId]: providerData }
     await updateSetting('providers', newProviders)
+    
+    console.log('updateProviderSetting completed')
   }
 
   // Direct handlers for SettingsModal compatibility
@@ -134,17 +188,23 @@ export function useSettings() {
   }
 
   const handleToggleModel = async (providerId: string, modelName: string, enabled: boolean) => {
-    const provider = settings_state.providers[providerId]
+    const provider = settingsManager.settings.providers[providerId]
     if (!provider) return
 
     const enabledModels = enabled
       ? [...provider.enabledModels, modelName]
       : provider.enabledModels.filter(m => m !== modelName)
 
+    console.log(`Toggling model ${modelName} to ${enabled} for provider ${providerId}`)
+    console.log('Previous enabled models:', provider.enabledModels)
+    console.log('New enabled models:', enabledModels)
+
     await updateProviderSetting(providerId, {
       ...provider,
       enabledModels
     })
+    
+    console.log('Model toggle completed')
   }
 
   const handleCapabilityToggle = async (
@@ -153,7 +213,7 @@ export function useSettings() {
     capability: 'vision' | 'audio' | 'files' | 'image' | 'thinking' | 'tools' | 'webSearch',
     enabled: boolean
   ) => {
-    const provider = settings_state.providers[providerId]
+    const provider = settingsManager.settings.providers[providerId]
     if (!provider) return
 
     const modelCapabilities = {
@@ -237,7 +297,7 @@ export function useSettings() {
 
   const updateProvider = async (providerId: string, request: UpdateProviderRequest): Promise<void> => {
     try {
-      const provider = settings_state.providers[providerId]
+      const provider = settingsManager.settings.providers[providerId]
       if (!provider) throw new Error('Provider not found')
 
       // Update API key if provided
@@ -269,7 +329,7 @@ export function useSettings() {
 
   const removeProvider = async (providerId: string): Promise<void> => {
     try {
-      const provider = settings_state.providers[providerId]
+      const provider = settingsManager.settings.providers[providerId]
       if (!provider) return
 
       // Delete API key from keychain
@@ -278,7 +338,7 @@ export function useSettings() {
       }
 
       // Remove provider from settings
-      const newProviders = { ...settings_state.providers }
+      const newProviders = { ...settingsManager.settings.providers }
       delete newProviders[providerId]
       await updateSetting('providers', newProviders)
     } catch (error) {
@@ -289,7 +349,7 @@ export function useSettings() {
 
   const updateProviderApiKey = async (providerId: string, apiKey: string): Promise<void> => {
     try {
-      const provider = settings_state.providers[providerId]
+      const provider = settingsManager.settings.providers[providerId]
       if (!provider) throw new Error('Provider not found')
 
       if (provider.isLocal) {
@@ -315,7 +375,7 @@ export function useSettings() {
 
   const getProviderApiKey = async (providerId: string): Promise<string | null> => {
     try {
-      const provider = settings_state.providers[providerId]
+      const provider = settingsManager.settings.providers[providerId]
       if (!provider || provider.isLocal) return null
       
       return await getApiKey(providerId)
@@ -327,7 +387,7 @@ export function useSettings() {
 
   const checkProviderApiKeys = async (): Promise<void> => {
     try {
-      const updatedProviders = { ...settings_state.providers }
+      const updatedProviders = { ...settingsManager.settings.providers }
       let hasChanges = false
 
       for (const [providerId, provider] of Object.entries(updatedProviders)) {
@@ -350,7 +410,7 @@ export function useSettings() {
 
   const refreshProviderModels = async (providerId: string): Promise<void> => {
     try {
-      const provider = settings_state.providers[providerId]
+      const provider = settingsManager.settings.providers[providerId]
       if (!provider) throw new Error('Provider not found')
 
       // Get API key if needed
@@ -389,7 +449,7 @@ export function useSettings() {
       console.error(`Failed to refresh models for provider ${providerId}:`, error)
       
       // Mark provider as disconnected
-      const provider = settings_state.providers[providerId]
+      const provider = settingsManager.settings.providers[providerId]
       if (provider) {
         await updateProviderSetting(providerId, {
           ...provider,
@@ -403,18 +463,18 @@ export function useSettings() {
 
   return {
     // Settings data (for direct access)
-    settings: settings_state,
+    settings: settingsManager.settings,
     
     // Individual setting values (for SettingsModal compatibility)
-    theme: settings_state.theme,
-    sendKey: settings_state.sendMessage,
-    globalHotkey: settings_state.globalHotkey,
-    showPricing: settings_state.showPricing,
-    showConversationSettings: settings_state.showConversationSettings,
-    providers: settings_state.providers,
+    theme: settingsManager.settings.theme,
+    sendKey: settingsManager.settings.sendMessage,
+    globalHotkey: settingsManager.settings.globalHotkey,
+    showPricing: settingsManager.settings.showPricing,
+    showConversationSettings: settingsManager.settings.showConversationSettings,
+    providers: settingsManager.settings.providers,
     
     // State
-    isLoading,
+    isLoading: settingsManager.isLoading,
     
     // Generic methods
     updateSetting,

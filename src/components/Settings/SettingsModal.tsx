@@ -1224,31 +1224,33 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
                 {isExpanded && (
                   <div className="mt-4 pl-8 space-y-2">
                     {providerModels.length > 0 ? (
-                      providerModels.map(model => {
-                        const capabilities = providersData[providerId]?.modelCapabilities?.[model.name]
-                        return (
-                          <div key={model.id} className="flex items-center gap-2 p-2 bg-secondary/50 rounded">
-                            <input
-                              type="checkbox"
-                              checked={model.enabled}
-                              onChange={(e) => onToggleModel(providerId, model.name, e.target.checked)}
-                              className="rounded"
-                            />
-                            <span className="text-sm flex-1">{model.name}</span>
-                            <ModelCapabilityIcons
-                              capabilities={capabilities}
-                              modelId={model.name}
-                              providerId={providerId}
-                              onCapabilityToggle={onCapabilityToggle}
-                            />
-                            {model.manuallyAdded && (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 text-xs rounded">
-                                Manual
-                              </span>
-                            )}
-                          </div>
-                        )
-                      })
+                      providerModels
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map(model => {
+                          const capabilities = providersData[providerId]?.modelCapabilities?.[model.name]
+                          return (
+                            <div key={model.id} className="flex items-center gap-2 p-2 bg-secondary/50 rounded">
+                              <input
+                                type="checkbox"
+                                checked={model.enabled}
+                                onChange={(e) => onToggleModel(providerId, model.name, e.target.checked)}
+                                className="rounded"
+                              />
+                              <span className="text-sm flex-1">{model.name}</span>
+                              <ModelCapabilityIcons
+                                capabilities={capabilities}
+                                modelId={model.name}
+                                providerId={providerId}
+                                onCapabilityToggle={onCapabilityToggle}
+                              />
+                              {model.manuallyAdded && (
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 text-xs rounded">
+                                  Manual
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })
                     ) : (
                       <div className="p-3 text-center text-sm text-muted-foreground bg-secondary/30 rounded">
                         No models available. Click the refresh button to fetch models from this provider.

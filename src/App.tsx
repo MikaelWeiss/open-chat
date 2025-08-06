@@ -14,6 +14,7 @@ function App() {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null)
   const messageInputRef = useRef<MessageInputHandle>(null)
   
   // Initialize settings (theme will be applied in useSettings hook)
@@ -76,11 +77,14 @@ function App() {
         onWidthChange={setSidebarWidth}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenShortcuts={() => setShortcutsOpen(true)}
+        selectedConversationId={selectedConversationId}
+        onSelectConversation={setSelectedConversationId}
       />
       
       <div className="flex-1 pr-2 pb-2 min-w-0 flex">
         <div className="flex-1 rounded-lg flex flex-col min-h-0 overflow-hidden">
           <ChatView 
+            conversationId={selectedConversationId}
             onOpenSettings={() => setSettingsOpen(true)} 
             messageInputRef={messageInputRef}
           />

@@ -1,6 +1,7 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
 import { Send, Paperclip, Loader2, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings } from 'lucide-react'
 import clsx from 'clsx'
+import { useSettings } from '../../hooks/useSettings'
 
 interface FileAttachment {
   path: string
@@ -39,12 +40,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [attachments, setAttachments] = useState<FileAttachment[]>([])
     const [isStreaming, setIsStreaming] = useState(false)
     
-    // Mock settings for frontend display
-    const settings = {
-      keyboard: { sendMessage: 'enter' },
-      showConversationSettings: true,
-      showPricing: true
-    }
+    const { settings: appSettings } = useSettings()
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -164,7 +160,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-      if (settings?.keyboard?.sendMessage === 'cmd-enter') {
+      if (appSettings?.sendMessage === 'cmd-enter') {
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
           if (!disabled && !isLoading && (message.trim() || attachments.length > 0)) {
@@ -184,7 +180,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const handleAttachFile = async () => {
       if (disabled) return
       console.log('Attach file clicked')
-      // Mock file attachment for display
+      // TODO: Implement file attachment
     }
 
     const removeAttachment = (index: number) => {
@@ -207,11 +203,12 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       return isMac ? '⌘' : 'Ctrl'
     }
 
-    // Mock usage stats
-    const totalTokens = messages.length * 100 // Mock calculation
-    const totalPromptTokens = Math.floor(totalTokens * 0.6)
-    const totalCompletionTokens = Math.floor(totalTokens * 0.4)
-    const totalCost = totalTokens * 0.0001 // Mock cost calculation
+    // Calculate real usage stats from messages
+    const totalInputTokens = messages?.reduce((sum, msg) => sum + (msg.input_tokens || 0), 0) || 0
+    const totalOutputTokens = messages?.reduce((sum, msg) => sum + (msg.output_tokens || 0), 0) || 0
+    const totalReasoningTokens = messages?.reduce((sum, msg) => sum + (msg.reasoning_tokens || 0), 0) || 0
+    const totalTokens = totalInputTokens + totalOutputTokens + totalReasoningTokens
+    const totalCost = messages?.reduce((sum, msg) => sum + (msg.cost || 0), 0) || 0
 
     return (
       <div className="border-t border-border p-4 min-w-0">
@@ -269,7 +266,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             )}
             
             {/* Conversation settings button - only show if enabled in settings */}
-            {settings?.showConversationSettings && (
+            {appSettings?.showConversationSettings && (
               <button
                 onClick={onOpenConversationSettings}
                 className={clsx(
@@ -343,25 +340,25 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         
         <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
           <span className="truncate">
-            {settings?.keyboard?.sendMessage === 'cmd-enter' 
+            {appSettings?.sendMessage === 'cmd-enter' 
               ? `Press ${getModifierKeyLabel()}+Enter to send, Enter for new line`
               : 'Press Enter to send, Shift+Enter for new line'
             }
           </span>
-          {(totalTokens > 0 || (totalCost > 0 && settings?.showPricing)) && (
+          {(totalTokens > 0 || (totalCost > 0 && appSettings?.showPricing)) && (
             <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
               {totalTokens > 0 && (
                 <div className="flex items-center gap-1">
                   <Zap className="h-3 w-3" />
                   <span>{totalTokens.toLocaleString()}</span>
-                  {totalPromptTokens > 0 && totalCompletionTokens > 0 && (
+                  {totalInputTokens > 0 && totalOutputTokens > 0 && (
                     <span className="text-muted-foreground/70">
-                      ({totalPromptTokens.toLocaleString()} in, {totalCompletionTokens.toLocaleString()} out)
+                      ({totalInputTokens.toLocaleString()} in, {totalOutputTokens.toLocaleString()} out)
                     </span>
                   )}
                 </div>
               )}
-              {totalCost > 0 && settings?.showPricing && (
+              {totalCost > 0 && appSettings?.showPricing && (
                 <div className="flex items-center gap-1">
                   <DollarSign className="h-3 w-3" />
                   <span>${totalCost.toFixed(4)}</span>

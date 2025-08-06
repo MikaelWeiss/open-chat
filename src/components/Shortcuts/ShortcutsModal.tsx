@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import { useSettings } from '../../hooks/useSettings'
 
 interface ShortcutsModalProps {
   isOpen: boolean
@@ -21,9 +22,9 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
   const modKey = isMac ? '⌘' : 'Ctrl'
   
-  // Mock settings for frontend display
-  const sendKey = 'enter' as 'enter' | 'cmd-enter' // Default to enter for now
-  const globalHotkey = 'Control+Space' // Mock global hotkey
+  const { settings } = useSettings()
+  const sendKey = settings?.sendMessage || 'enter'
+  const globalHotkey = settings?.globalHotkey || ''
 
   // Dynamic message shortcuts based on setting
   const messageShortcuts = sendKey === 'cmd-enter' 
@@ -84,6 +85,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
         { keys: [modKey, '/'], description: 'Toggle keyboard shortcuts' },
         { keys: [modKey, 'Shift', 'F'], description: 'Send feedback' },
         { keys: [modKey, 'L'], description: 'Focus message input' },
+        { keys: [modKey, '.'], description: 'Toggle model selector' },
       ]
     },
     {
