@@ -41,7 +41,7 @@ class MessageDatabase {
         processing_time_ms INTEGER,
         
         metadata JSON,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME,
         FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE
       )
     `)
@@ -49,13 +49,14 @@ class MessageDatabase {
 
   async addMessage(conversationId: number, message: CreateMessageInput) {
     const db = await this.init()
+    const now = new Date().toISOString()
     
     const result = await db.execute(`
       INSERT INTO messages (
         conversation_id, role, text, thinking, images, audio, files, [references],
         input_tokens, output_tokens, reasoning_tokens, cached_tokens, cost,
-        temperature, max_tokens, top_p, top_k, processing_time_ms, metadata
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        temperature, max_tokens, top_p, top_k, processing_time_ms, metadata, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
     `, [
       conversationId,
       message.role,
@@ -75,7 +76,8 @@ class MessageDatabase {
       message.top_p || null,
       message.top_k || null,
       message.processing_time_ms || null,
-      message.metadata ? JSON.stringify(message.metadata) : null
+      message.metadata ? JSON.stringify(message.metadata) : null,
+      now
     ])
     
     // Update conversation timestamp

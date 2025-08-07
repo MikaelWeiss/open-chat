@@ -24,8 +24,8 @@ class ConversationDatabase {
         model TEXT NOT NULL,
         system_prompt TEXT,
         is_favorite BOOLEAN DEFAULT FALSE,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME,
+        updated_at DATETIME
       )
     `)
   }
@@ -42,9 +42,10 @@ class ConversationDatabase {
 
   async createConversation(title: string, provider: string, model: string, systemPrompt?: string) {
     const db = await this.init()
+    const now = new Date().toISOString()
     const result = await db.execute(
-      'INSERT INTO conversations (title, provider, model, system_prompt) VALUES ($1, $2, $3, $4)',
-      [title, provider, model, systemPrompt || null]
+      'INSERT INTO conversations (title, provider, model, system_prompt, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)',
+      [title, provider, model, systemPrompt || null, now, now]
     )
     this.notifyListeners()
     return result.lastInsertId
@@ -105,7 +106,8 @@ class ConversationDatabase {
       values.push(updates.is_favorite)
     }
 
-    fields.push('updated_at = CURRENT_TIMESTAMP')
+    fields.push('updated_at = $' + (values.length + 1))
+    values.push(new Date().toISOString())
     values.push(id)
 
     const result = await db.execute(
@@ -125,9 +127,10 @@ class ConversationDatabase {
 
   async touchConversation(id: number) {
     const db = await this.init()
+    const now = new Date().toISOString()
     const result = await db.execute(
-      'UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-      [id]
+      'UPDATE conversations SET updated_at = $1 WHERE id = $2',
+      [now, id]
     )
     this.notifyListeners()
     return result
@@ -135,9 +138,10 @@ class ConversationDatabase {
 
   async updateConversationTitle(id: number, title: string) {
     const db = await this.init()
+    const now = new Date().toISOString()
     const result = await db.execute(
-      'UPDATE conversations SET title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [title, id]
+      'UPDATE conversations SET title = $1, updated_at = $2 WHERE id = $3',
+      [title, now, id]
     )
     this.notifyListeners()
     return result
@@ -145,9 +149,10 @@ class ConversationDatabase {
 
   async toggleConversationFavorite(id: number) {
     const db = await this.init()
+    const now = new Date().toISOString()
     const result = await db.execute(
-      'UPDATE conversations SET is_favorite = NOT is_favorite, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-      [id]
+      'UPDATE conversations SET is_favorite = NOT is_favorite, updated_at = $1 WHERE id = $2',
+      [now, id]
     )
     this.notifyListeners()
     return result
