@@ -1,4 +1,4 @@
-import { type CreateMessageInput } from '../shared/messageStore'
+import { type CreateMessageInput, messageStore } from '../shared/messageStore'
 
 interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant'
@@ -54,6 +54,7 @@ class ChatService {
    * Send a message to an OpenAI-compatible API and handle streaming response
    */
   async sendMessage({
+    conversationId,
     userMessage,
     systemPrompt,
     endpoint,
@@ -71,6 +72,9 @@ class ChatService {
     const startTime = Date.now()
 
     try {
+      // Get conversation history
+      const conversationHistory = await messageStore.getMessages(conversationId)
+      
       // Build OpenAI-compatible messages array
       const messages: OpenAIMessage[] = []
       
@@ -82,7 +86,23 @@ class ChatService {
         })
       }
 
-      // Convert user message to OpenAI format
+      // Add conversation history
+      for (const message of conversationHistory) {
+        if (message.role === 'system') continue // Skip system messages from history (we use systemPrompt)
+        
+        const content = this.buildMessageContent({
+          role: message.role as 'user' | 'assistant',
+          text: message.text || '',
+          images: message.images || undefined
+        })
+        
+        messages.push({
+          role: message.role as 'user' | 'assistant',
+          content
+        })
+      }
+
+      // Convert current user message to OpenAI format and add it
       const userContent = this.buildMessageContent(userMessage)
       messages.push({
         role: 'user',
