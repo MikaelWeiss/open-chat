@@ -216,7 +216,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const totalCost = messages?.reduce((sum, msg) => sum + (msg.cost || 0), 0) || 0
 
     return (
-      <div className="border-t border-border/10 p-4 min-w-0 glass-nav backdrop-blur-strong">
+      <div className="border-t border-border/10 p-4 w-full glass-nav backdrop-blur-strong">
         {/* File attachments preview */}
         {attachments.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">

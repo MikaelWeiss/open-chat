@@ -192,7 +192,7 @@ function App() {
       />
       
       <div className={`flex-1 min-w-0 flex ${!sidebarOpen ? '' : ''}`}>
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden max-w-5xl mx-auto w-full">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden w-full">
           <ChatView 
             conversationId={selectedConversationId}
             onOpenSettings={() => setSettingsOpen(true)} 

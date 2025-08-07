@@ -551,10 +551,10 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     <div className="h-full flex flex-col min-w-0">
       
       {/* Header */}
-      <div className="border-b border-border/10 px-6 pt-8 pb-3 min-w-0 glass-nav backdrop-blur-strong flex-shrink-0 select-none"
+      <div className="border-b border-border/10 px-6 pt-8 pb-3 w-full glass-nav backdrop-blur-strong flex-shrink-0 select-none"
            onMouseDown={handleStartDrag}
       >
-        <div className="flex items-center justify-between min-w-0 gap-4">
+        <div className="flex items-center justify-between w-full gap-4">
           <div 
             className="min-w-0 flex-1 select-none" 
             onMouseDown={handleStartDrag}
