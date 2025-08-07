@@ -178,7 +178,7 @@ function App() {
   })
 
   return (
-    <div className="flex h-screen bg-secondary text-foreground">
+    <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar
         isOpen={sidebarOpen}
         width={sidebarWidth}
@@ -191,8 +191,8 @@ function App() {
         onDeleteConversation={handleConversationDeleted}
       />
       
-      <div className={`flex-1 pr-2 pb-2 min-w-0 flex ${!sidebarOpen ? 'pl-2' : ''}`}>
-        <div className="flex-1 rounded-lg flex flex-col min-h-0 overflow-hidden">
+      <div className={`flex-1 min-w-0 flex ${!sidebarOpen ? '' : ''}`}>
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden max-w-5xl mx-auto w-full">
           <ChatView 
             conversationId={selectedConversationId}
             onOpenSettings={() => setSettingsOpen(true)} 

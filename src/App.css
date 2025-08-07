@@ -4,47 +4,57 @@
 
 @layer base {
   :root {
+    /* Light theme (fallback) */
     --background: 0 0% 100%;
     --foreground: 224 71.4% 4.1%;
     --card: 0 0% 100%;
     --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71.4% 4.1%;
-    --primary: 220.9 39.3% 11%;
+    --primary: 174 100% 37.5%; /* #00BF9C logo color */
     --primary-foreground: 210 20% 98%;
     --secondary: 220 14.3% 95.9%;
     --secondary-foreground: 220.9 39.3% 11%;
     --muted: 220 14.3% 95.9%;
     --muted-foreground: 220 8.9% 46.1%;
-    --accent: 220 14.3% 95.9%;
-    --accent-foreground: 220.9 39.3% 11%;
+    --accent: 174 100% 37.5%;
+    --accent-foreground: 210 20% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 224 71.4% 4.1%;
+    --ring: 174 100% 37.5%;
   }
 
   .dark {
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 20% 98%;
-    --card: 224 71.4% 4.1%;
+    /* Deep elegant dark theme */
+    --background: 222 84% 4.9%; /* Very dark navy blue #0a0a0a equivalent */
+    --foreground: 210 20% 98%; /* Pure white text */
+    --card: 220 13% 8%; /* Dark navy card background */
     --card-foreground: 210 20% 98%;
-    --popover: 224 71.4% 4.1%;
+    --popover: 220 13% 8%; /* Matching card */
     --popover-foreground: 210 20% 98%;
-    --primary: 210 20% 98%;
+    --primary: 174 100% 37.5%; /* #00BF9C logo color */
     --primary-foreground: 220.9 39.3% 11%;
-    --secondary: 215 27.9% 16.9%;
+    --secondary: 220 43% 7%; /* Deep navy secondary */
     --secondary-foreground: 210 20% 98%;
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 16.9%;
-    --accent-foreground: 210 20% 98%;
+    --muted: 220 43% 7%; /* Deep navy muted */
+    --muted-foreground: 215 20.2% 65.1%; /* Lighter gray text */
+    --accent: 174 100% 37.5%; /* Logo color accent */
+    --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 20% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 216 12.2% 83.9%;
+    --border: 217.2 32.6% 17.5%; /* Subtle navy border */
+    --input: 217.2 32.6% 17.5%; /* Input background */
+    --ring: 174 100% 37.5%; /* Logo color for focus rings */
+    
+    /* Additional elegant theme colors */
+    --glass: 220 13% 8% / 0.8; /* Glass morphism effect */
+    --surface: 220 43% 7%; /* Surface elements */
+    --surface-hover: 220 43% 9%; /* Hover states */
+    --gradient-start: 174 100% 37.5%; /* Logo color */
+    --gradient-end: 259 100% 65%; /* Purple accent */
+    --shadow: 222 84% 4.9% / 0.3; /* Enhanced shadows */
   }
 }
 
@@ -54,11 +64,10 @@
 
 body {
   @apply bg-background text-foreground;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
 }
 
 html, body, #root {
@@ -328,4 +337,161 @@ a,
 
 .typing-dot:nth-child(3) {
   animation-delay: 0.3s;
+}
+
+/* Elegant glassmorphism effects */
+.glass-effect {
+  background: rgba(20, 20, 20, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-nav {
+  background: rgba(20, 20, 20, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Elegant message bubbles */
+.message-bubble-assistant {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  position: relative;
+  backdrop-filter: blur(5px);
+}
+
+.message-bubble-user {
+  background: linear-gradient(135deg, rgba(0, 191, 156, 0.15), rgba(139, 92, 246, 0.15));
+  border: 1px solid rgba(0, 191, 156, 0.2);
+  border-radius: 16px;
+  position: relative;
+}
+
+/* Elegant avatar styles */
+.avatar-assistant {
+  background: linear-gradient(135deg, #00BF9C, #8b5cf6);
+  box-shadow: 0 0 20px rgba(0, 191, 156, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.avatar-assistant::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.avatar-user {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Enhanced input styling */
+.elegant-input-container {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.elegant-input-container:focus-within {
+  border-color: rgba(0, 191, 156, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 30px rgba(0, 191, 156, 0.1);
+}
+
+/* Elegant button styles */
+.elegant-button {
+  background: linear-gradient(135deg, #00BF9C, #8b5cf6);
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 191, 156, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.elegant-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(0, 191, 156, 0.4);
+}
+
+.elegant-button:active {
+  transform: scale(0.95);
+}
+
+/* Enhanced fade-in animation */
+@keyframes elegant-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.elegant-fade-in {
+  animation: elegant-fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Elegant loading dots */
+@keyframes elegant-pulse {
+  0%, 60%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.elegant-loading-dot {
+  width: 6px;
+  height: 6px;
+  background: linear-gradient(135deg, #00BF9C, #8b5cf6);
+  border-radius: 50%;
+  animation: elegant-pulse 1.5s infinite;
+}
+
+.elegant-loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.elegant-loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Elegant hover effects */
+.elegant-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.elegant-hover:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Enhanced scrollbar for elegant theme */
+.elegant-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.elegant-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.elegant-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.elegant-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
 }

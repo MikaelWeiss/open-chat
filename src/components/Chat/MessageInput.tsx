@@ -216,24 +216,24 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const totalCost = messages?.reduce((sum, msg) => sum + (msg.cost || 0), 0) || 0
 
     return (
-      <div className="border-t border-border p-4 min-w-0">
+      <div className="border-t border-border/10 p-6 min-w-0 glass-nav backdrop-blur-strong">
         {/* File attachments preview */}
         {attachments.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             {attachments.map((attachment, index) => {
               const Icon = getAttachmentIcon(attachment.type)
               return (
                 <div
                   key={index}
-                  className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2 text-sm border border-border"
+                  className="flex items-center gap-2 glass-effect border border-border/20 rounded-xl px-3 py-2 text-sm shadow-elegant"
                 >
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                  <span className="truncate max-w-32" title={attachment.name}>
+                  <Icon className="h-4 w-4 text-primary" />
+                  <span className="truncate max-w-32 text-foreground/90" title={attachment.name}>
                     {attachment.name}
                   </span>
                   <button
                     onClick={() => removeAttachment(index)}
-                    className="p-0.5 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors"
+                    className="p-0.5 elegant-hover rounded-lg text-muted-foreground hover:text-destructive transition-all"
                     title="Remove attachment"
                   >
                     <X className="h-3 w-3" />
@@ -245,23 +245,18 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         )}
         
         {/* Input container with integrated buttons */}
-        <div className={clsx(
-          'flex items-end rounded-lg border transition-all duration-200 shadow-sm',
-          disabled
-            ? 'bg-secondary/50 border-border/50'
-            : 'bg-secondary border-border hover:border-primary/30 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary'
-        )}>
+        <div className="elegant-input-container">
           {/* Left side buttons */}
-          <div className="flex items-center pl-3 pr-2 py-2">
+          <div className="flex items-center gap-1 pl-4 py-3">
             {/* Single attachment button with capability-based file filtering - only show if model has any attachment capabilities */}
             {(modelCapabilities?.vision || modelCapabilities?.audio || modelCapabilities?.files) && (
               <button
                 onClick={handleAttachFile}
                 className={clsx(
-                  'p-1.5 rounded-md transition-all duration-200 hover:scale-105',
+                  'p-2 rounded-xl transition-all duration-200 hover:scale-105',
                   disabled 
                     ? 'text-muted-foreground cursor-not-allowed' 
-                    : 'hover:bg-accent'
+                    : 'elegant-hover text-muted-foreground hover:text-primary'
                 )}
                 title="Attach file"
                 disabled={disabled}
@@ -275,10 +270,10 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               <button
                 onClick={onOpenConversationSettings}
                 className={clsx(
-                  'p-1.5 rounded-md transition-all duration-200 hover:scale-105',
+                  'p-2 rounded-xl transition-all duration-200 hover:scale-105',
                   disabled 
                     ? 'text-muted-foreground cursor-not-allowed' 
-                    : 'hover:bg-accent'
+                    : 'elegant-hover text-muted-foreground hover:text-primary'
                 )}
                 title="Conversation settings"
                 disabled={disabled}
@@ -300,11 +295,11 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 ? "Add an AI provider or select a model to start chatting..." 
                 : isLoading 
                   ? "Waiting for response..." 
-                  : "Type a message..."
+                  : "Message Open Chat..."
             }
             className={clsx(
-              'flex-1 resize-none bg-transparent px-3 py-2 min-h-[40px] max-h-[200px] focus:outline-none',
-              'scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent',
+              'flex-1 resize-none bg-transparent px-4 py-3 min-h-[48px] max-h-[200px] focus:outline-none text-foreground',
+              'elegant-scrollbar font-medium placeholder:text-muted-foreground',
               disabled && 'text-muted-foreground cursor-not-allowed'
             )}
             rows={1}
@@ -312,17 +307,17 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           />
           
           {/* Right side send button */}
-          <div className="flex items-center pl-2 pr-3 py-2">
+          <div className="flex items-center pr-4 py-3">
             <button
               onClick={handleCancelOrSend}
               disabled={disabled || (!isLoading && (!message.trim() && attachments.length === 0))}
               className={clsx(
-                'p-1.5 rounded-md transition-all duration-200 hover:scale-105',
+                'elegant-button p-2 rounded-xl transition-all duration-200 flex items-center justify-center',
                 disabled || (!isLoading && (!message.trim() && attachments.length === 0))
-                  ? 'text-muted-foreground cursor-not-allowed'
+                  ? 'opacity-40 cursor-not-allowed'
                   : isLoading
-                    ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground'
+                    : 'text-white'
               )}
               title={
                 isLoading 
@@ -331,38 +326,38 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               }
             >
               {isLoading ? (
-                <Square className="h-3.5 w-3.5" />
+                <Square className="h-4 w-4" />
               ) : (
-                <Send className="h-3.5 w-3.5" />
+                <Send className="h-4 w-4" />
               )}
             </button>
           </div>
         </div>
         
-        <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
-          <span className="truncate">
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground/80">
+          <span className="truncate font-medium">
             {appSettings?.sendMessage === 'cmd-enter' 
               ? `Press ${getModifierKeyLabel()}+Enter to send, Enter for new line`
               : 'Press Enter to send, Shift+Enter for new line'
             }
           </span>
           {(totalTokens > 0 || (totalCost > 0 && appSettings?.showPricing)) && (
-            <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
+            <div className="flex flex-wrap items-center gap-4 flex-shrink-0">
               {totalTokens > 0 && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 text-primary/80">
                   <Zap className="h-3 w-3" />
-                  <span>{totalTokens.toLocaleString()}</span>
+                  <span className="font-medium">{totalTokens.toLocaleString()}</span>
                   {totalInputTokens > 0 && totalOutputTokens > 0 && (
-                    <span className="text-muted-foreground/70">
+                    <span className="text-muted-foreground/60 text-[10px]">
                       ({totalInputTokens.toLocaleString()} in, {totalOutputTokens.toLocaleString()} out)
                     </span>
                   )}
                 </div>
               )}
               {totalCost > 0 && appSettings?.showPricing && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 text-primary/80">
                   <DollarSign className="h-3 w-3" />
-                  <span>${totalCost.toFixed(4)}</span>
+                  <span className="font-medium">${totalCost.toFixed(4)}</span>
                 </div>
               )}
             </div>

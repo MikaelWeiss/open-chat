@@ -36,24 +36,24 @@ function ModelCapabilityIcons({ capabilities, className = '' }: ModelCapabilityI
       key: 'vision' as const,
       icon: Eye,
       enabled: capabilities.vision,
-      color: 'text-blue-500 dark:text-blue-400',
-      grayColor: 'text-gray-400 dark:text-gray-600',
+      color: 'text-primary',
+      grayColor: 'text-muted-foreground/50',
       title: 'Vision/Images'
     },
     {
       key: 'audio' as const,
       icon: Volume2,
       enabled: capabilities.audio,
-      color: 'text-green-500 dark:text-green-400',
-      grayColor: 'text-gray-400 dark:text-gray-600',
+      color: 'text-primary',
+      grayColor: 'text-muted-foreground/50',
       title: 'Audio Input'
     },
     {
       key: 'files' as const,
       icon: FileText,
       enabled: capabilities.files,
-      color: 'text-orange-500 dark:text-orange-400',
-      grayColor: 'text-gray-400 dark:text-gray-600',
+      color: 'text-primary',
+      grayColor: 'text-muted-foreground/50',
       title: 'File Input'
     }
   ]
@@ -549,23 +549,18 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
 
   return (
     <div className="h-full flex flex-col min-w-0">
-      {/* Window title bar - draggable area */}
-      <div 
-        className="h-6 flex-shrink-0 rounded-t-lg select-none" 
-        onMouseDown={handleStartDrag}
-      />
       
-      {/* Header - now properly below the title bar */}
-      <div className="border-b border-border px-4 py-3 min-w-0 backdrop-blur-sm bg-background/80 flex-shrink-0 rounded-t-lg">
+      {/* Header */}
+      <div className="border-b border-border/10 px-6 py-4 min-w-0 glass-nav backdrop-blur-strong flex-shrink-0">
         <div className="flex items-center justify-between min-w-0 gap-4">
           <div 
             className="min-w-0 flex-1 select-none" 
             onMouseDown={handleStartDrag}
           >
-            <h2 className="text-lg font-semibold truncate">
+            <h2 className="text-lg font-semibold truncate text-foreground/95 tracking-tight">
               {currentConversation?.title || 'New Conversation'}
             </h2>
-            <p className="text-sm text-muted-foreground truncate">
+            <p className="text-sm text-muted-foreground/80 truncate">
               {currentConversation?.provider || 'No Provider'} • {currentConversation?.model || 'No Model'}
             </p>
           </div>
@@ -575,11 +570,11 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             {messages.length >= 1 && (
               <button
                 onClick={handleCopyConversation}
-                className="p-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
+                className="p-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 shadow-elegant border border-border/20 text-muted-foreground hover:text-primary"
                 title="Copy conversation"
               >
                 {copiedConversation ? (
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="h-4 w-4 text-primary" />
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
@@ -596,7 +591,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                     const event = new CustomEvent('openSettings', { detail: { section: 'providers' } })
                     window.dispatchEvent(event)
                   }}
-                  className="flex items-center gap-2 px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-all duration-200 hover:scale-105 text-sm shadow-sm border border-border"
+                  className="elegant-button flex items-center gap-2 px-4 py-2 text-white rounded-xl text-sm font-medium"
                 >
                   <Plus className="h-4 w-4" />
                   <span>Add Provider</span>
@@ -605,19 +600,19 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setShowModelSelector(!showModelSelector)}
-                    className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 text-sm shadow-sm border border-border hover:border-primary/30"
+                    className="flex items-center gap-2 px-4 py-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 text-sm shadow-elegant border border-border/20 text-muted-foreground hover:text-primary hover:border-primary/30"
                   >
-                    <span className={!selectedModel || !selectedModel.model ? 'text-muted-foreground' : ''}>
+                    <span className={!selectedModel || !selectedModel.model ? 'text-muted-foreground' : 'text-foreground/90'}>
                       {selectedModel && selectedModel.model ? selectedModel.model : 'Select Model'}
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </button>
               
               {showModelSelector && (
-                <div ref={dropdownRef} className="absolute right-0 top-full mt-1 w-80 bg-background border border-border rounded-lg shadow-lg z-10 max-h-80 overflow-y-auto">
+                <div ref={dropdownRef} className="absolute right-0 top-full mt-2 w-80 glass-effect border border-border/20 rounded-2xl shadow-elegant-xl z-10 max-h-80 overflow-y-auto elegant-scrollbar">
                   {/* Search bar - frozen at top */}
-                  <div className="sticky top-0 bg-background border-b border-border p-2">
-                    <div className="flex items-center gap-2 px-2 py-1 bg-secondary rounded-lg">
+                  <div className="sticky top-0 glass-nav backdrop-blur-strong border-b border-border/10 p-3">
+                    <div className="elegant-input-container flex items-center gap-2 px-3 py-2">
                       <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <input
                         ref={searchInputRef}
@@ -625,7 +620,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                         placeholder="Search models..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
+                        className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground text-foreground"
                       />
                     </div>
                   </div>
@@ -641,52 +636,56 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                     </div>
                   ) : (
                     Object.entries(filteredModelsByProvider).map(([providerName, models]) => (
-                      <div key={providerName}>
-                        <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-secondary/50 border-b border-border">
-                          {providerName}
+                      <div key={providerName} className="mb-2">
+                        <div className="px-4 py-3 text-xs font-semibold text-muted-foreground glass-nav backdrop-blur-strong border-b border-border/10 tracking-wide">
+                          {providerName.toUpperCase()}
                         </div>
-                        {models.map((model) => {
-                          const compatible = isModelCompatible(model)
-                          const incompatibilityReason = getIncompatibilityReason(model)
-                          
-                          return (
-                            <button
-                              key={`${model.provider}-${model.model}`}
-                              onClick={() => {
-                                if (!compatible) return // Prevent selection of incompatible models
-                                handleModelSelect({ provider: model.provider, model: model.model })
-                              }}
-                              onMouseEnter={() => handleModelMouseEnter(model)}
-                              className={clsx(
-                                'w-full text-left px-4 py-2 transition-colors border-b border-border/30 last:border-b-0',
-                                !compatible 
-                                  ? 'cursor-not-allowed opacity-50' 
-                                  : 'hover:bg-accent/50 cursor-pointer',
-                                selectedModel?.provider === model.provider && selectedModel?.model === model.model
-                                  ? 'bg-accent'
-                                  : isModelHighlighted(model)
-                                  ? 'bg-accent/50'
-                                  : ''
-                              )}
-                              disabled={!compatible}
-                              title={incompatibilityReason || undefined}
-                              data-model-id={`${model.provider}-${model.model}`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className={clsx(
-                                  "font-medium text-sm",
-                                  !compatible ? "text-muted-foreground" : ""
-                                )}>
-                                  {model.model}
+                        <div className="p-1">
+                          {models.map((model) => {
+                            const compatible = isModelCompatible(model)
+                            const incompatibilityReason = getIncompatibilityReason(model)
+                            const isSelected = selectedModel?.provider === model.provider && selectedModel?.model === model.model
+                            const isHighlighted = isModelHighlighted(model)
+                            
+                            return (
+                              <button
+                                key={`${model.provider}-${model.model}`}
+                                onClick={() => {
+                                  if (!compatible) return
+                                  handleModelSelect({ provider: model.provider, model: model.model })
+                                }}
+                                onMouseEnter={() => handleModelMouseEnter(model)}
+                                className={clsx(
+                                  'w-full text-left px-3 py-2 transition-all duration-200 rounded-xl mx-1 my-0.5',
+                                  !compatible 
+                                    ? 'cursor-not-allowed opacity-50' 
+                                    : 'cursor-pointer elegant-hover',
+                                  isSelected
+                                    ? 'bg-gradient-subtle border border-primary/20'
+                                    : isHighlighted
+                                    ? 'bg-surface-hover'
+                                    : ''
+                                )}
+                                disabled={!compatible}
+                                title={incompatibilityReason || undefined}
+                                data-model-id={`${model.provider}-${model.model}`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className={clsx(
+                                    "font-medium text-sm",
+                                    !compatible ? "text-muted-foreground" : "text-foreground/90"
+                                  )}>
+                                    {model.model}
+                                  </div>
+                                  <ModelCapabilityIcons 
+                                    capabilities={model.capabilities} 
+                                    className={!compatible ? "opacity-50" : ""}
+                                  />
                                 </div>
-                                <ModelCapabilityIcons 
-                                  capabilities={model.capabilities} 
-                                  className={!compatible ? "opacity-50" : ""}
-                                />
-                              </div>
-                            </button>
-                          )
-                        })}
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
                     ))
                   )}
@@ -700,7 +699,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             {messages.length >= 1 && (
               <button
                 onClick={handleNewConversation}
-                className="p-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
+                className="p-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 shadow-elegant border border-border/20 text-muted-foreground hover:text-primary"
                 title="New conversation"
               >
                 <Plus className="h-4 w-4" />
@@ -710,7 +709,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 bg-background/80">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Messages - this should be the scrollable area */}
       <div className="flex-1 min-h-0">
         <MessageList 

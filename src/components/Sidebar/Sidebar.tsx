@@ -187,18 +187,19 @@ export default function Sidebar({
   // Helper function to render a conversation item
   const renderConversation = (conversation: Conversation) => {
     const isDeleting = deletingIds.has(conversation.id)
+    const isSelected = selectedConversationId === conversation.id
     
     return (
       <div
         key={conversation.id}
         className={clsx(
-          'group relative flex items-center w-full hover:bg-accent transition-all duration-300 overflow-hidden',
-          selectedConversationId === conversation.id && 'bg-accent',
+          'group relative flex items-center w-full elegant-hover mx-2 rounded-xl overflow-hidden elegant-fade-in',
+          isSelected && 'bg-gradient-subtle border border-primary/20',
           isDeleting && 'opacity-0 scale-95 pointer-events-none'
         )}
         style={{
           maxHeight: isDeleting ? '0px' : '80px',
-          marginBottom: isDeleting ? '0px' : undefined,
+          marginBottom: isDeleting ? '0px' : '8px',
           paddingTop: isDeleting ? '0px' : undefined,
           paddingBottom: isDeleting ? '0px' : undefined
         }}
@@ -206,13 +207,13 @@ export default function Sidebar({
         <button
           onClick={() => handleSelectConversation(conversation)}
           onContextMenu={(e) => handleContextMenu(e, conversation)}
-          className="flex-1 min-w-0 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
+          className="flex-1 min-w-0 px-4 py-3 text-left transition-all duration-200"
         >
           <div className="flex items-center gap-2 font-medium text-sm pr-8">
             {conversation.is_favorite && (
-              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+              <Star className="h-3 w-3 fill-primary text-primary flex-shrink-0 drop-shadow-sm" />
             )}
-            <span className="truncate">{conversation.title}</span>
+            <span className="truncate text-foreground/90">{conversation.title}</span>
           </div>
           <div className="text-xs text-muted-foreground mt-1 truncate">
             {conversation.model || 'No model'} • {format(new Date(conversation.updated_at), 'h:mm a')}
@@ -220,7 +221,7 @@ export default function Sidebar({
         </button>
         <button
           onClick={(e) => handleDeleteClick(e, conversation)}
-          className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
+          className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive rounded-lg transition-all duration-200 hover:scale-110"
           title="Delete conversation (hold ⌘ to skip confirmation)"
         >
           <Trash2 className="h-4 w-4" />
@@ -231,19 +232,21 @@ export default function Sidebar({
   
   if (loading) {
     return (
-      <div className={clsx('relative flex flex-col bg-secondary', isOpen ? '' : 'w-0')} style={{ width: isOpen ? `${width}px` : '0px' }}>
+      <div className={clsx('relative flex flex-col glass-nav border-r border-border/10', isOpen ? '' : 'w-0')} style={{ width: isOpen ? `${width}px` : '0px' }}>
         <div className={clsx('relative flex flex-col h-full', !isOpen && 'invisible')}>
           {/* Header skeleton */}
-          <div className="h-6 bg-secondary rounded-tl-lg" />
-          <div className="px-4 py-5 border-b border-border/20 bg-secondary/70 backdrop-blur-lg">
+          <div className="h-6 glass-nav rounded-tl-lg" />
+          <div className="px-6 py-4 border-b border-border/10 glass-nav">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <img src={Logo} alt="Open Chat" className="h-5 w-5" />
-                <h1 className="text-xl font-semibold">Open Chat</h1>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-elegant rounded-lg flex items-center justify-center shadow-glow">
+                  <img src={Logo} alt="Open Chat" className="h-5 w-5" />
+                </div>
+                <h1 className="text-lg font-semibold text-foreground/95">Open Chat</h1>
               </div>
-              <div className="flex items-center gap-2">
-                <button className="p-2 hover:bg-accent rounded-lg transition-colors text-sm font-mono">/</button>
-                <button className="p-2 hover:bg-accent rounded-lg transition-colors">
+              <div className="flex items-center gap-1">
+                <button className="p-2 elegant-hover rounded-lg transition-all text-sm font-mono text-muted-foreground">/</button>
+                <button className="p-2 elegant-hover rounded-lg transition-all text-muted-foreground">
                   <Settings className="h-4 w-4" />
                 </button>
               </div>
@@ -251,7 +254,7 @@ export default function Sidebar({
           </div>
           
           {/* Conversations skeleton */}
-          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent">
+          <div className="flex-1 overflow-y-auto elegant-scrollbar">
             <ConversationListSkeleton />
           </div>
         </div>
@@ -261,7 +264,7 @@ export default function Sidebar({
   
   if (error) {
     return (
-      <div className={clsx('relative flex flex-col bg-secondary', isOpen ? '' : 'w-0')} style={{ width: isOpen ? `${width}px` : '0px' }}>
+      <div className={clsx('relative flex flex-col glass-nav border-r border-border/10', isOpen ? '' : 'w-0')} style={{ width: isOpen ? `${width}px` : '0px' }}>
         <div className={clsx('flex flex-col h-full justify-center items-center', !isOpen && 'invisible')}>
           <div className="text-destructive">Error: {error}</div>
         </div>
@@ -272,14 +275,14 @@ export default function Sidebar({
   return (
     <div
       className={clsx(
-        'relative flex flex-col bg-secondary',
+        'relative flex flex-col glass-nav border-r border-border/10',
         isOpen ? '' : 'w-0'
       )}
       style={{ width: isOpen ? `${width}px` : '0px' }}
     >
       <div className={clsx('relative flex flex-col h-full', !isOpen && 'invisible')}>
         {/* Conversations List - Now extends full height behind header */}
-        <div className="absolute inset-0 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent pt-24 pb-20">
+        <div className="absolute inset-0 overflow-y-auto elegant-scrollbar pt-24 pb-20">
           {conversations.length === 0 && (
             <EmptyState
               type="no-conversations"
@@ -298,31 +301,37 @@ export default function Sidebar({
           )}
           {/* Favorites Section */}
           {favorites.length > 0 && (
-            <div>
+            <div className="mb-4">
               <button
                 onClick={() => setIsFavoritesCollapsed(!isFavoritesCollapsed)}
-                className="w-full px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 z-10 bg-secondary/70 backdrop-blur-lg -webkit-backdrop-filter border-b border-border/20 flex items-center gap-2 hover:bg-accent/50 transition-colors"
+                className="w-full px-6 py-3 text-xs font-semibold text-muted-foreground sticky top-0 z-10 glass-nav backdrop-blur-strong border-b border-border/10 flex items-center gap-2 elegant-hover transition-all"
               >
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                <span className="flex-1 text-left">Favorites</span>
+                <Star className="h-3 w-3 fill-primary text-primary drop-shadow-sm" />
+                <span className="flex-1 text-left tracking-wide">FAVORITES</span>
                 <ChevronDown 
                   className={clsx(
-                    "h-3 w-3 transition-transform duration-200",
+                    "h-3 w-3 transition-transform duration-200 text-primary/70",
                     isFavoritesCollapsed && "-rotate-90"
                   )} 
                 />
               </button>
-              {!isFavoritesCollapsed && favorites.map(renderConversation)}
+              {!isFavoritesCollapsed && (
+                <div className="space-y-1 mt-2">
+                  {favorites.map(renderConversation)}
+                </div>
+              )}
             </div>
           )}
 
           {/* Regular Conversations by Date */}
           {regularByDate.map(([dateKey, convs]) => (
-            <div key={dateKey}>
-              <div className="px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 z-10 bg-secondary/70 backdrop-blur-lg -webkit-backdrop-filter border-b border-border/20">
-                {dateKey}
+            <div key={dateKey} className="mb-6">
+              <div className="px-6 py-3 text-xs font-semibold text-muted-foreground sticky top-0 z-10 glass-nav backdrop-blur-strong border-b border-border/10 tracking-wide">
+                {dateKey.toUpperCase()}
               </div>
-              {convs.map(renderConversation)}
+              <div className="space-y-1 mt-2">
+                {convs.map(renderConversation)}
+              </div>
             </div>
           ))}
         </div>
@@ -331,31 +340,33 @@ export default function Sidebar({
         <div className="absolute top-0 left-0 right-0 z-20">
           {/* Window controls area */}
           <div 
-            className="h-6 select-none bg-secondary rounded-tl-lg" 
+            className="h-6 select-none glass-nav rounded-tl-lg" 
             onMouseDown={handleStartDrag}
           />
           
           {/* Header */}
           <div 
-            className="px-4 py-5 border-b border-border/20 bg-secondary/70 backdrop-blur-lg -webkit-backdrop-filter select-none"
+            className="px-6 py-4 border-b border-border/10 glass-nav backdrop-blur-strong select-none"
             onMouseDown={handleStartDrag}
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <img src={Logo} alt="Open Chat" className="h-5 w-5" />
-                <h1 className="text-xl font-semibold">Open Chat</h1>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-elegant rounded-lg flex items-center justify-center shadow-glow">
+                  <img src={Logo} alt="Open Chat" className="h-5 w-5" />
+                </div>
+                <h1 className="text-lg font-semibold text-foreground/95 tracking-tight">Open Chat</h1>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={onOpenShortcuts}
-                  className="p-2 hover:bg-accent rounded-lg transition-colors text-sm font-mono"
+                  className="p-2 elegant-hover rounded-lg transition-all text-sm font-mono text-muted-foreground hover:text-primary"
                   title="Keyboard Shortcuts"
                 >
                   /
                 </button>
                 <button
                   onClick={onOpenSettings}
-                  className="p-2 hover:bg-accent rounded-lg transition-colors"
+                  className="p-2 elegant-hover rounded-lg transition-all text-muted-foreground hover:text-primary"
                   title="Settings"
                 >
                   <Settings className="h-4 w-4" />
@@ -366,10 +377,10 @@ export default function Sidebar({
         </div>
 
         {/* Bottom Feedback Button - Now positioned absolutely */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/20 bg-secondary/70 backdrop-blur-lg -webkit-backdrop-filter shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/10 glass-nav backdrop-blur-strong shadow-elegant-xl">
           <button
             onClick={() => console.log('Send feedback')}
-            className="ml-auto block p-2 hover:bg-accent/80 rounded-lg transition-colors"
+            className="ml-auto block p-2 elegant-hover rounded-lg transition-all text-muted-foreground hover:text-primary"
             title="Send Feedback"
           >
             <MessageSquare className="h-4 w-4" />
@@ -380,7 +391,7 @@ export default function Sidebar({
       {/* Resize Handle */}
       {isOpen && (
         <div
-          className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize"
+          className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/20 transition-colors"
           onMouseDown={handleMouseDown}
         />
       )}
@@ -388,7 +399,7 @@ export default function Sidebar({
       {/* Toggle Button */}
       <button
         onClick={onToggle}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 bg-secondary border border-border rounded-full p-1 hover:bg-accent transition-colors no-drag z-50"
+        className="absolute -right-3 top-1/2 -translate-y-1/2 glass-effect border border-border/20 rounded-full p-1.5 elegant-hover no-drag z-50 text-muted-foreground hover:text-primary shadow-elegant"
       >
         {isOpen ? (
           <ChevronLeft className="h-4 w-4" />
@@ -399,22 +410,22 @@ export default function Sidebar({
 
       {/* Confirmation Dialog */}
       {confirmDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background border border-border rounded-lg p-6 max-w-sm mx-4 shadow-lg">
-            <h3 className="text-lg font-semibold mb-2">Delete Conversation</h3>
-            <p className="text-muted-foreground mb-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="glass-effect border border-border/20 rounded-2xl p-6 max-w-sm mx-4 shadow-elegant-xl">
+            <h3 className="text-lg font-semibold mb-2 text-foreground/95">Delete Conversation</h3>
+            <p className="text-muted-foreground mb-6 leading-relaxed">
               Are you sure you want to delete "{confirmDelete.title}"? This action cannot be undone.
             </p>
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setConfirmDelete(null)}
-                className="px-4 py-2 text-sm bg-secondary hover:bg-accent rounded-md transition-colors"
+                className="px-4 py-2 text-sm elegant-hover rounded-xl transition-all text-muted-foreground hover:text-foreground"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDeleteConversation(confirmDelete.id)}
-                className="px-4 py-2 text-sm bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-md transition-colors"
+                className="px-4 py-2 text-sm bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-xl transition-all hover:scale-105"
               >
                 Delete
               </button>

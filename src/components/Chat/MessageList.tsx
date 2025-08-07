@@ -39,11 +39,11 @@ function CodeBlock({ children, className, isDark }: CodeBlockProps) {
     <div className="relative group">
       <button
         onClick={handleCopy}
-        className="absolute top-2 right-2 p-1.5 rounded-md bg-background/80 border border-border opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-background"
+        className="absolute top-2 right-2 p-1.5 rounded-xl glass-effect border border-border/20 opacity-0 group-hover:opacity-100 transition-all duration-200 elegant-hover text-muted-foreground hover:text-primary"
         title="Copy code"
       >
         {copied ? (
-          <Check className="h-3 w-3 text-green-500" />
+          <Check className="h-3 w-3 text-primary" />
         ) : (
           <Copy className="h-3 w-3" />
         )}
@@ -97,10 +97,10 @@ function AttachmentDisplay({ attachments }: { attachments: { type: string; path:
         return (
           <div
             key={index}
-            className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2 text-sm border border-border"
+            className="flex items-center gap-2 glass-effect border border-border/20 rounded-xl px-3 py-2 text-sm shadow-elegant"
           >
-            <Icon className="h-4 w-4 text-muted-foreground" />
-            <span className="truncate max-w-32" title={fileName}>
+            <Icon className="h-4 w-4 text-primary" />
+            <span className="truncate max-w-32 text-foreground/90" title={fileName}>
               {fileName}
             </span>
           </div>
@@ -154,7 +154,7 @@ export default function MessageList({ messages = [], isLoading = false, streamin
       
       if (isActuallyInline) {
         return (
-          <code className="bg-secondary border border-border px-1.5 py-0.5 rounded text-sm shadow-sm font-mono">
+          <code className="glass-effect border border-border/20 px-2 py-1 rounded-lg text-sm shadow-elegant font-mono text-primary/90">
             {children}
           </code>
         )
@@ -221,30 +221,30 @@ export default function MessageList({ messages = [], isLoading = false, streamin
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-6 min-w-0 scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent">
+    <div className="h-full overflow-y-auto p-6 space-y-8 min-w-0 elegant-scrollbar">
       {messages.map((message) => (
-        <div key={message.id} className="flex gap-3 min-w-0 animate-in fade-in duration-300">
+        <div key={message.id} className="flex gap-4 min-w-0 elegant-fade-in">
           <div
             className={clsx(
-              'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border',
+              'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-elegant border relative overflow-hidden',
               message.role === 'user'
-                ? 'bg-primary text-primary-foreground border-primary/20'
-                : 'bg-secondary border-border'
+                ? 'avatar-user'
+                : 'avatar-assistant'
             )}
           >
             {message.role === 'user' ? (
-              <User className="h-4 w-4" />
+              <User className="h-5 w-5 text-foreground/90" />
             ) : (
-              <Bot className="h-4 w-4" />
+              <Bot className="h-5 w-5 text-white" />
             )}
           </div>
           
-          <div className="flex-1 space-y-2 min-w-0">
-            <div className="flex items-baseline gap-2">
-              <span className="font-medium">
+          <div className="flex-1 space-y-3 min-w-0">
+            <div className="flex items-baseline gap-3">
+              <span className="font-semibold text-foreground/95">
                 {message.role === 'user' ? 'You' : 'Assistant'}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground/70 font-medium">
                 {format(new Date(message.created_at), 'h:mm a')}
               </span>
             </div>
@@ -257,19 +257,22 @@ export default function MessageList({ messages = [], isLoading = false, streamin
               null
             } />
             
-            <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20">
+            <div className={clsx(
+              'prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-4 rounded-2xl relative group',
+              message.role === 'user' ? 'message-bubble-user' : 'message-bubble-assistant'
+            )}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={markdownComponents}
               >
                 {message.text || ''}
               </ReactMarkdown>
-            </div>
-            
-            <button
-              onClick={() => copyToClipboard(message.text || '', message.id.toString())}
-              className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-secondary/50 group"
-            >
+              
+              <button
+                onClick={() => copyToClipboard(message.text || '', message.id.toString())}
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                title="Copy message"
+              >
               {copiedMessageId === message.id.toString() ? (
                 <>
                   <Check className="h-3 w-3" />
@@ -281,76 +284,78 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                   Copy
                 </>
               )}
-            </button>
+              </button>
+            </div>
           </div>
         </div>
       ))}
       
       {/* Streaming message */}
       {streamingMessage && (
-        <div className="flex gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-secondary">
-            <Bot className="h-4 w-4" />
+        <div className="flex gap-4 min-w-0 elegant-fade-in">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-elegant border relative overflow-hidden avatar-assistant">
+            <Bot className="h-5 w-5 text-white" />
           </div>
           
-          <div className="flex-1 space-y-2 min-w-0">
-            <div className="flex items-baseline gap-2">
-              <span className="font-medium">Assistant</span>
-              <span className="text-xs text-muted-foreground">
+          <div className="flex-1 space-y-3 min-w-0">
+            <div className="flex items-baseline gap-3">
+              <span className="font-semibold text-foreground/95">Assistant</span>
+              <span className="text-xs text-muted-foreground/70 font-medium">
                 {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
             
-            <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20">
+            <div className="message-bubble-assistant prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-4 rounded-2xl relative group">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={markdownComponents}
               >
                 {streamingMessage}
               </ReactMarkdown>
-              <div className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
+              <div className="inline-block w-2 h-4 bg-primary animate-pulse ml-1 rounded-full" />
+              
+              <button
+                onClick={() => copyToClipboard(streamingMessage, 'streaming')}
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                title="Copy message"
+              >
+                {copiedMessageId === 'streaming' ? (
+                  <>
+                    <Check className="h-3 w-3" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3 w-3" />
+                    Copy
+                  </>
+                )}
+              </button>
             </div>
-            
-            <button
-              onClick={() => copyToClipboard(streamingMessage, 'streaming')}
-              className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-secondary/50 group"
-            >
-              {copiedMessageId === 'streaming' ? (
-                <>
-                  <Check className="h-3 w-3" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3 w-3" />
-                  Copy
-                </>
-              )}
-            </button>
           </div>
         </div>
       )}
       
       {/* Loading indicator - show when loading and no streaming started yet */}
       {isLoading && !streamingMessage && (
-        <div className="flex gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-secondary">
-            <Bot className="h-4 w-4" />
+        <div className="flex gap-4 min-w-0 elegant-fade-in">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-elegant border relative overflow-hidden avatar-assistant">
+            <Bot className="h-5 w-5 text-white" />
           </div>
           
-          <div className="flex-1 space-y-2 min-w-0">
-            <div className="flex items-baseline gap-2">
-              <span className="font-medium">Assistant</span>
+          <div className="flex-1 space-y-3 min-w-0">
+            <div className="flex items-baseline gap-3">
+              <span className="font-semibold text-foreground/95">Assistant</span>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="message-bubble-assistant p-4 rounded-2xl flex items-center gap-3">
               <Lottie
                 animationData={spinnerAnimation}
                 loop
                 autoplay
                 style={{ width: 22, height: 22 }}
               />
-              <span className="text-sm text-muted-foreground animate-pulse">{loadingMessage}...</span>
+              <span className="text-sm text-foreground/80 animate-pulse font-medium">{loadingMessage}...</span>
             </div>
           </div>
         </div>
