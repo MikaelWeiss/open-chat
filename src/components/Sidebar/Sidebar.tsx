@@ -193,7 +193,7 @@ export default function Sidebar({
       <div
         key={conversation.id}
         className={clsx(
-          'group relative flex items-center w-full elegant-hover mx-2 rounded-xl overflow-hidden elegant-fade-in',
+          'group relative flex items-center w-full elegant-hover mx-3 mr-2 rounded-xl overflow-hidden elegant-fade-in',
           isSelected && 'bg-gradient-subtle border border-primary/20',
           isDeleting && 'opacity-0 scale-95 pointer-events-none'
         )}
@@ -275,14 +275,19 @@ export default function Sidebar({
   return (
     <div
       className={clsx(
-        'relative flex flex-col glass-nav border-r border-border/10',
-        isOpen ? '' : 'w-0'
+        "relative flex flex-col glass-nav border-r border-border/10",
+        isOpen ? "" : "w-0"
       )}
-      style={{ width: isOpen ? `${width}px` : '0px' }}
+      style={{ width: isOpen ? `${width}px` : "0px" }}
     >
-      <div className={clsx('relative flex flex-col h-full', !isOpen && 'invisible')}>
+      <div
+        className={clsx(
+          "relative flex flex-col h-full",
+          !isOpen && "invisible"
+        )}
+      >
         {/* Conversations List - Now extends full height behind header */}
-        <div className="absolute inset-0 overflow-y-auto elegant-scrollbar pt-24 pb-20">
+        <div className="absolute inset-0 overflow-y-auto overflow-x-hidden elegant-scrollbar pt-24 pb-20">
           {conversations.length === 0 && (
             <EmptyState
               type="no-conversations"
@@ -292,9 +297,13 @@ export default function Sidebar({
                 label: "Start New Chat",
                 onClick: async () => {
                   // Create a new conversation
-                  const id = await createConversation('New Conversation', '', '')
-                  onSelectConversation?.(id || null)
-                }
+                  const id = await createConversation(
+                    "New Conversation",
+                    "",
+                    ""
+                  );
+                  onSelectConversation?.(id || null);
+                },
               }}
               className="h-full"
             />
@@ -307,12 +316,14 @@ export default function Sidebar({
                 className="w-full px-6 py-3 text-xs font-semibold text-muted-foreground sticky top-0 z-10 glass-nav backdrop-blur-strong border-b border-border/10 flex items-center gap-2 elegant-hover transition-all"
               >
                 <Star className="h-3 w-3 fill-primary text-primary drop-shadow-sm" />
-                <span className="flex-1 text-left tracking-wide">FAVORITES</span>
-                <ChevronDown 
+                <span className="flex-1 text-left tracking-wide">
+                  FAVORITES
+                </span>
+                <ChevronDown
                   className={clsx(
                     "h-3 w-3 transition-transform duration-200 text-primary/70",
                     isFavoritesCollapsed && "-rotate-90"
-                  )} 
+                  )}
                 />
               </button>
               {!isFavoritesCollapsed && (
@@ -339,22 +350,22 @@ export default function Sidebar({
         {/* Header - Now positioned absolutely */}
         <div className="absolute top-0 left-0 right-0 z-20">
           {/* Window controls area */}
-          <div 
-            className="h-6 select-none glass-nav rounded-tl-lg" 
+          <div
+            className="h-6 select-none glass-nav rounded-tl-lg"
             onMouseDown={handleStartDrag}
           />
-          
+
           {/* Header */}
-          <div 
+          <div
             className="px-6 py-4 border-b border-border/10 glass-nav backdrop-blur-strong select-none"
             onMouseDown={handleStartDrag}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-elegant rounded-lg flex items-center justify-center shadow-glow">
-                  <img src={Logo} alt="Open Chat" className="h-5 w-5" />
-                </div>
-                <h1 className="text-lg font-semibold text-foreground/95 tracking-tight">Open Chat</h1>
+                <img src={Logo} alt="Open Chat" className="h-5 w-5" />
+                <h1 className="text-lg font-semibold text-foreground/95 tracking-tight">
+                  Open Chat
+                </h1>
               </div>
               <div className="flex items-center gap-1">
                 <button
@@ -379,7 +390,7 @@ export default function Sidebar({
         {/* Bottom Feedback Button - Now positioned absolutely */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/10 glass-nav backdrop-blur-strong shadow-elegant-xl">
           <button
-            onClick={() => console.log('Send feedback')}
+            onClick={() => console.log("Send feedback")}
             className="ml-auto block p-2 elegant-hover rounded-lg transition-all text-muted-foreground hover:text-primary"
             title="Send Feedback"
           >
@@ -395,7 +406,7 @@ export default function Sidebar({
           onMouseDown={handleMouseDown}
         />
       )}
-      
+
       {/* Toggle Button */}
       <button
         onClick={onToggle}
@@ -412,9 +423,12 @@ export default function Sidebar({
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="glass-effect border border-border/20 rounded-2xl p-6 max-w-sm mx-4 shadow-elegant-xl">
-            <h3 className="text-lg font-semibold mb-2 text-foreground/95">Delete Conversation</h3>
+            <h3 className="text-lg font-semibold mb-2 text-foreground/95">
+              Delete Conversation
+            </h3>
             <p className="text-muted-foreground mb-6 leading-relaxed">
-              Are you sure you want to delete "{confirmDelete.title}"? This action cannot be undone.
+              Are you sure you want to delete "{confirmDelete.title}"? This
+              action cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -443,18 +457,18 @@ export default function Sidebar({
         isFavorite={contextMenu?.conversation.is_favorite || false}
         onToggleFavorite={() => {
           if (contextMenu) {
-            handleToggleFavorite(contextMenu.conversation.id)
+            handleToggleFavorite(contextMenu.conversation.id);
           }
         }}
         onDelete={() => {
           if (contextMenu) {
-            setConfirmDelete({ 
-              id: contextMenu.conversation.id, 
-              title: contextMenu.conversation.title 
-            })
+            setConfirmDelete({
+              id: contextMenu.conversation.id,
+              title: contextMenu.conversation.title,
+            });
           }
         }}
       />
     </div>
-  )
+  );
 }
