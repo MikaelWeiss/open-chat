@@ -7,6 +7,7 @@ import { User, Bot, Copy, Check, FileText, Image, Volume2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
 import { type Message } from '../../shared/messageStore'
+import EmptyState from '../EmptyState/EmptyState'
 
 interface MessageListProps {
   messages?: Message[]
@@ -205,6 +206,19 @@ export default function MessageList({ messages = [], isLoading = false, streamin
     ),
   }
   
+  // Show empty state if no messages and not loading
+  if (messages.length === 0 && !isLoading && !streamingMessage) {
+    return (
+      <div className="h-full flex items-center justify-center p-4">
+        <EmptyState
+          type="empty-chat"
+          title="Start a conversation"
+          description="Type a message below to begin chatting with AI"
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="h-full overflow-y-auto p-4 space-y-6 min-w-0 scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent">
       {messages.map((message) => (
@@ -329,12 +343,12 @@ export default function MessageList({ messages = [], isLoading = false, streamin
             </div>
             
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 bg-primary/60 rounded-full typing-dot" />
+                <div className="w-2 h-2 bg-primary/60 rounded-full typing-dot" />
+                <div className="w-2 h-2 bg-primary/60 rounded-full typing-dot" />
               </div>
-              <span className="text-sm text-muted-foreground">{loadingMessage}...</span>
+              <span className="text-sm text-muted-foreground animate-pulse">{loadingMessage}...</span>
             </div>
           </div>
         </div>

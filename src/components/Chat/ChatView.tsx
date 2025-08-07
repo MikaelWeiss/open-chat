@@ -10,6 +10,7 @@ import { type Conversation } from '../../shared/conversationStore'
 import { type CreateMessageInput } from '../../shared/messageStore'
 import { chatService } from '../../services/chatService'
 import clsx from 'clsx'
+import EmptyState from '../EmptyState/EmptyState'
 
 interface ChatViewProps {
   conversationId?: number | null
@@ -630,8 +631,13 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                   </div>
                   
                   {Object.entries(filteredModelsByProvider).length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      {searchQuery ? `No models found for "${searchQuery}"` : 'No models available. Check your provider settings.'}
+                    <div className="py-4">
+                      <EmptyState
+                        type="no-results"
+                        title={searchQuery ? "No models found" : "No models available"}
+                        description={searchQuery ? `No models matching "${searchQuery}"` : "Check your provider settings"}
+                        className="scale-75"
+                      />
                     </div>
                   ) : (
                     Object.entries(filteredModelsByProvider).map(([providerName, models]) => (

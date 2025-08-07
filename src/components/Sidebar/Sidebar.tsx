@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ChevronDown, Settings, Trash2, MessageSquare, Star } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Settings, Trash2, Star, MessageSquare } from 'lucide-react'
 import { format } from 'date-fns'
 import clsx from 'clsx'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -6,6 +6,8 @@ import { useConversations } from '../../hooks/useConversations'
 import { type Conversation } from '../../shared/conversationStore'
 import { useState, useEffect } from 'react'
 import ContextMenu from '../ContextMenu/ContextMenu'
+import EmptyState from '../EmptyState/EmptyState'
+import { ConversationListSkeleton } from '../Skeleton/Skeleton'
 
 interface SidebarProps {
   isOpen: boolean
@@ -30,7 +32,7 @@ export default function Sidebar({
   onSelectConversation,
   onDeleteConversation,
 }: SidebarProps) {
-  const { conversations, loading, error, deleteConversation, toggleConversationFavorite } = useConversations()
+  const { conversations, loading, error, deleteConversation, toggleConversationFavorite, createConversation } = useConversations()
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; title: string } | null>(null)
   const [contextMenu, setContextMenu] = useState<{
     x: number
@@ -229,8 +231,25 @@ export default function Sidebar({
   if (loading) {
     return (
       <div className={clsx('relative flex flex-col bg-secondary', isOpen ? '' : 'w-0')} style={{ width: isOpen ? `${width}px` : '0px' }}>
-        <div className={clsx('flex flex-col h-full justify-center items-center', !isOpen && 'invisible')}>
-          <div className="text-muted-foreground">Loading conversations...</div>
+        <div className={clsx('relative flex flex-col h-full', !isOpen && 'invisible')}>
+          {/* Header skeleton */}
+          <div className="h-6 bg-secondary rounded-tl-lg" />
+          <div className="px-4 py-5 border-b border-border/20 bg-secondary/70 backdrop-blur-lg">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-semibold">Open Chat</h1>
+              <div className="flex items-center gap-2">
+                <button className="p-2 hover:bg-accent rounded-lg transition-colors text-sm font-mono">/</button>
+                <button className="p-2 hover:bg-accent rounded-lg transition-colors">
+                  <Settings className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Conversations skeleton */}
+          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent">
+            <ConversationListSkeleton />
+          </div>
         </div>
       </div>
     )
@@ -258,14 +277,20 @@ export default function Sidebar({
         {/* Conversations List - Now extends full height behind header */}
         <div className="absolute inset-0 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent pt-24 pb-20">
           {conversations.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
-              <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
-              <p className="text-center text-sm">
-                No conversations yet.
-                <br />
-                Click the + button to start chatting!
-              </p>
-            </div>
+            <EmptyState
+              type="no-conversations"
+              title="No conversations yet"
+              description="Start a new conversation to begin chatting with AI"
+              action={{
+                label: "Start New Chat",
+                onClick: async () => {
+                  // Create a new conversation
+                  const id = await createConversation('New Conversation', '', '')
+                  onSelectConversation?.(id || null)
+                }
+              }}
+              className="h-full"
+            />
           )}
           {/* Favorites Section */}
           {favorites.length > 0 && (

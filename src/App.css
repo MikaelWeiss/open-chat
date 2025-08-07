@@ -132,6 +132,32 @@ html, body, #root {
   animation: fade-in 0.3s ease-out;
 }
 
+/* Skeleton wave animation */
+@keyframes skeleton-wave {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-wave::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  animation: skeleton-wave 1.5s ease-in-out infinite;
+}
+
 /* Ensure markdown content doesn't block scroll events */
 .prose * {
   overscroll-behavior-x: contain;
@@ -179,4 +205,127 @@ html, body, #root {
 .prose .overflow-x-auto {
   /* Allow vertical scroll to bubble up to parent */
   overflow-y: visible !important;
+}
+
+/* Professional microinteractions and polish */
+button {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ripple effect for buttons */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.ripple:active::after {
+  width: 100px;
+  height: 100px;
+  opacity: 0.2;
+  animation: ripple 0.6s ease-out;
+}
+
+/* Enhanced focus states */
+*:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline-offset: 4px;
+}
+
+/* Smooth hover transitions */
+button,
+a,
+.hover\:bg-accent,
+.hover\:bg-secondary {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Better shadow effects */
+.shadow-elegant {
+  box-shadow: 
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+.shadow-elegant-hover:hover {
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+
+/* Smooth number transitions */
+.transition-number {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Loading dots animation */
+@keyframes loading-dot {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.loading-dot {
+  animation: loading-dot 1.4s ease-in-out infinite;
+}
+
+.loading-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loading-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+/* Typing indicator animation */
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+
+.typing-dot {
+  animation: typing 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
 }
