@@ -105,8 +105,20 @@ const illustrations = {
 
 export default function EmptyState({ type, title, description, action, className }: EmptyStateProps) {
   const [primaryColor, setPrimaryColor] = useState('#6366f1')
+  const [isDarkMode, setIsDarkMode] = useState(false)
   
   useEffect(() => {
+    // Check if we're in dark mode
+    const checkDarkMode = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'))
+    }
+    
+    checkDarkMode()
+    
+    // Watch for theme changes
+    const observer = new MutationObserver(checkDarkMode)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    
     // Get the primary color from CSS variables
     const computedStyle = getComputedStyle(document.documentElement)
     const primaryHsl = computedStyle.getPropertyValue('--primary').trim()
@@ -146,10 +158,13 @@ export default function EmptyState({ type, title, description, action, className
         console.error('Failed to convert HSL to hex:', e)
       }
     }
+    
+    return () => observer.disconnect()
   }, [])
   
   const Illustration = illustrations[type]
-  const illustrationColor = type === 'error' ? '#ef4444' : primaryColor
+  // Use a brighter color in dark mode to ensure visibility
+  const illustrationColor = type === 'error' ? '#ef4444' : (isDarkMode ? '#8b5cf6' : primaryColor)
   
   return (
     <div className={clsx(
