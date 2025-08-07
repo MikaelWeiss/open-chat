@@ -405,7 +405,7 @@ export default function Sidebar({
       {/* Toggle Button */}
       <button
         onClick={onToggle}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 glass-effect border border-border/20 rounded-full p-1.5 elegant-hover no-drag z-50 text-muted-foreground hover:text-primary shadow-elegant"
+        className="absolute -right-3 top-1/2 -translate-y-1/2 glass-effect border border-border/20 rounded-full p-1.5 elegant-hover no-drag z-50 text-muted-foreground hover:text-primary shadow-elegant hover:scale-110 transition-transform duration-200"
       >
         {isOpen ? (
           <ChevronLeft className="h-4 w-4" />
