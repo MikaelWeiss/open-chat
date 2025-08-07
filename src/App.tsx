@@ -104,7 +104,7 @@ function App() {
     try {
       const dbMessages = await messageStore.getMessages(selectedConversationId)
       
-      if (dbMessages.length <= 1) {
+      if (dbMessages.length < 1) {
         return
       }
     } catch (error) {

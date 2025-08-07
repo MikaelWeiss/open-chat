@@ -380,7 +380,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   
   // Handle conversation copy
   const handleCopyConversation = async () => {
-    if (messages.length <= 1) return
+    if (messages.length < 1) return
     
     try {
       const conversationText = messages
@@ -558,8 +558,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           </div>
           
           <div className="flex-shrink-0 flex items-center gap-2">
-            {/* Copy conversation button - only show if there's more than one message */}
-            {messages.length > 1 && (
+            {/* Copy conversation button - only show if there's at least one message */}
+            {messages.length >= 1 && (
               <button
                 onClick={handleCopyConversation}
                 className="p-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
@@ -574,7 +574,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             )}
             
             {/* Model selector or Add Provider button */}
-            {messages.length <= 1 && (
+            {messages.length < 1 && (
               availableModels.length === 0 ? (
                 // Show Add Provider button when no models are available
                 <button
@@ -678,8 +678,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
               )
             )}
             
-            {/* New conversation button - only show if there's more than one message */}
-            {messages.length > 1 && (
+            {/* New conversation button - only show if there's at least one message */}
+            {messages.length >= 1 && (
               <button
                 onClick={handleNewConversation}
                 className="p-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
