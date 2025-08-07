@@ -38,7 +38,6 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const [message, setMessage] = useState('')
     const [attachments, setAttachments] = useState<FileAttachment[]>([])
-    const [isStreaming, setIsStreaming] = useState(false)
     
     const { settings: appSettings } = useSettings()
 
@@ -148,9 +147,8 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }
 
     const handleCancelOrSend = () => {
-      if (isStreaming) {
+      if (isLoading) {
         onCancel?.()
-        setIsStreaming(false)
       } else {
         console.log('Sending message:', message, attachments)
         onSend(message, attachments.length > 0 ? attachments : undefined)
@@ -160,6 +158,13 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
+      // ESC key cancels request if loading
+      if (e.key === 'Escape' && isLoading) {
+        e.preventDefault()
+        onCancel?.()
+        return
+      }
+      
       if (appSettings?.sendMessage === 'cmd-enter') {
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
@@ -310,26 +315,22 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           <div className="flex items-center pl-2 pr-3 py-2">
             <button
               onClick={handleCancelOrSend}
-              disabled={disabled || (!isStreaming && (!message.trim() && attachments.length === 0)) || isLoading}
+              disabled={disabled || (!isLoading && (!message.trim() && attachments.length === 0))}
               className={clsx(
                 'p-1.5 rounded-md transition-all duration-200 hover:scale-105',
-                disabled || (!isStreaming && (!message.trim() && attachments.length === 0)) || isLoading
+                disabled || (!isLoading && (!message.trim() && attachments.length === 0))
                   ? 'text-muted-foreground cursor-not-allowed'
-                  : isStreaming
+                  : isLoading
                     ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
                     : 'bg-primary text-primary-foreground hover:bg-primary/90'
               )}
               title={
-                isStreaming 
+                isLoading 
                   ? "Stop generation (Esc)" 
-                  : isLoading 
-                    ? "Generating response..." 
-                    : "Send message"
+                  : "Send message"
               }
             >
               {isLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : isStreaming ? (
                 <Square className="h-3.5 w-3.5" />
               ) : (
                 <Send className="h-3.5 w-3.5" />

@@ -495,18 +495,15 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       // For non-streaming, we would need to save assistantMessage here, but currently we're always streaming
       
     } catch (err) {
-      if (err instanceof Error && err.message === 'Request was cancelled') {
-        console.log('Message sending was cancelled')
-      } else {
-        console.error('Failed to send message:', err)
-        // Show error toast
-        if (window.showToast) {
-          window.showToast({
-            type: 'error',
-            title: 'Failed to send message',
-            message: err instanceof Error ? err.message : 'An unknown error occurred'
-          })
-        }
+      // Since we handle cancellation gracefully now, we shouldn't get cancelled errors
+      console.error('Failed to send message:', err)
+      // Show error toast
+      if (window.showToast) {
+        window.showToast({
+          type: 'error',
+          title: 'Failed to send message',
+          message: err instanceof Error ? err.message : 'An unknown error occurred'
+        })
       }
     } finally {
       setIsLoading(false)
@@ -515,9 +512,24 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     }
   }
   
-  const handleCancel = () => {
+  const handleCancel = async () => {
     if (abortController) {
       abortController.abort()
+      
+      // Save partial message if there's content
+      if (streamingMessage.trim()) {
+        try {
+          const partialMessage: CreateMessageInput = {
+            role: 'assistant',
+            text: streamingMessage,
+            processing_time_ms: Date.now() // We don't track start time, so use current time
+          }
+          await addMessage(partialMessage)
+        } catch (err) {
+          console.error('Failed to save partial message:', err)
+        }
+      }
+      
       setAbortController(null)
       setIsLoading(false)
       setStreamingMessage('')

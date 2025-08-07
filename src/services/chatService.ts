@@ -180,7 +180,13 @@ class ChatService {
 
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Request was cancelled')
+        // For AbortError, we don't throw - let the caller handle the cancellation
+        // The partial message will be handled by the cancel handler
+        return {
+          role: 'assistant',
+          text: '', // Empty since partial content is handled elsewhere
+          processing_time_ms: Date.now() - startTime
+        }
       }
       console.error('Chat service error:', error)
       throw error instanceof Error ? error : new Error('Unknown chat service error')
@@ -270,6 +276,7 @@ class ChatService {
     let fullContent = ''
     let totalInputTokens = 0
     let totalOutputTokens = 0
+    let wasAborted = false
 
     try {
       while (true) {
@@ -321,9 +328,26 @@ class ChatService {
         processing_time_ms: options.processingTime
       }
 
-      options.onStreamComplete?.(assistantMessage)
+      // Only call onStreamComplete if not aborted (let the cancel handler save partial content)
+      if (!wasAborted) {
+        options.onStreamComplete?.(assistantMessage)
+      }
       return assistantMessage
 
+    } catch (error) {
+      if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+        wasAborted = true
+        // Don't call onStreamComplete for aborted requests - let the cancel handler deal with partial content
+        // Still return the partial message for potential use
+        return {
+          role: 'assistant',
+          text: fullContent,
+          input_tokens: totalInputTokens,
+          output_tokens: totalOutputTokens,
+          processing_time_ms: options.processingTime
+        }
+      }
+      throw error
     } finally {
       reader.releaseLock()
     }
