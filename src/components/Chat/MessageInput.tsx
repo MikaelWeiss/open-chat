@@ -216,10 +216,10 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const totalCost = messages?.reduce((sum, msg) => sum + (msg.cost || 0), 0) || 0
 
     return (
-      <div className="border-t border-border/10 p-6 min-w-0 glass-nav backdrop-blur-strong">
+      <div className="border-t border-border/10 p-4 min-w-0 glass-nav backdrop-blur-strong">
         {/* File attachments preview */}
         {attachments.length > 0 && (
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="mb-3 flex flex-wrap gap-2">
             {attachments.map((attachment, index) => {
               const Icon = getAttachmentIcon(attachment.type)
               return (
@@ -244,10 +244,10 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           </div>
         )}
         
-        {/* Input container with integrated buttons */}
-        <div className="elegant-input-container">
+        {/* Horizontal input container with all controls in one row */}
+        <div className="flex items-center gap-2">
           {/* Left side buttons */}
-          <div className="flex items-center gap-1 pl-4 py-3">
+          <div className="flex items-center gap-1 flex-shrink-0">
             {/* Single attachment button with capability-based file filtering - only show if model has any attachment capabilities */}
             {(modelCapabilities?.vision || modelCapabilities?.audio || modelCapabilities?.files) && (
               <button
@@ -283,31 +283,52 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             )}
           </div>
           
-          {/* Textarea */}
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={(e) => !disabled && !isLoading && setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder={
-              noProvider
-                ? "Add an AI provider or select a model to start chatting..." 
-                : isLoading 
-                  ? "Waiting for response..." 
-                  : "Message Open Chat..."
-            }
-            className={clsx(
-              'flex-1 resize-none bg-transparent px-4 py-3 min-h-[48px] max-h-[200px] focus:outline-none text-foreground',
-              'elegant-scrollbar font-medium placeholder:text-muted-foreground',
-              disabled && 'text-muted-foreground cursor-not-allowed'
-            )}
-            rows={1}
-            disabled={disabled}
-          />
+          {/* Textarea container */}
+          <div className="flex-1 elegant-input-container">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => !disabled && !isLoading && setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder={
+                noProvider
+                  ? "Add an AI provider or select a model to start chatting..." 
+                  : isLoading 
+                    ? "Waiting for response..." 
+                    : "Message Open Chat..."
+              }
+              className={clsx(
+                'w-full resize-none bg-transparent px-4 py-2.5 min-h-[48px] max-h-[200px] focus:outline-none text-foreground',
+                'elegant-scrollbar font-medium placeholder:text-muted-foreground flex items-center',
+                disabled && 'text-muted-foreground cursor-not-allowed'
+              )}
+              rows={1}
+              disabled={disabled}
+            />
+          </div>
           
-          {/* Right side send button */}
-          <div className="flex items-center pr-4 py-3">
+          {/* Right side buttons and stats */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Token and cost stats - show inline if there's space */}
+            {(totalTokens > 0 || (totalCost > 0 && appSettings?.showPricing)) && (
+              <div className="hidden lg:flex items-center gap-3 text-xs text-muted-foreground/80">
+                {totalTokens > 0 && (
+                  <div className="flex items-center gap-1.5 text-primary/80">
+                    <Zap className="h-3 w-3" />
+                    <span className="font-medium">{totalTokens.toLocaleString()}</span>
+                  </div>
+                )}
+                {totalCost > 0 && appSettings?.showPricing && (
+                  <div className="flex items-center gap-1.5 text-primary/80">
+                    <DollarSign className="h-3 w-3" />
+                    <span className="font-medium">${totalCost.toFixed(4)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Send button */}
             <button
               onClick={handleCancelOrSend}
               disabled={disabled || (!isLoading && (!message.trim() && attachments.length === 0))}
@@ -334,15 +355,17 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           </div>
         </div>
         
-        <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground/80">
+        {/* Footer info - keyboard shortcut and mobile stats */}
+        <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs text-muted-foreground/80">
           <span className="truncate font-medium">
             {appSettings?.sendMessage === 'cmd-enter' 
               ? `Press ${getModifierKeyLabel()}+Enter to send, Enter for new line`
               : 'Press Enter to send, Shift+Enter for new line'
             }
           </span>
+          {/* Show stats on mobile/smaller screens */}
           {(totalTokens > 0 || (totalCost > 0 && appSettings?.showPricing)) && (
-            <div className="flex flex-wrap items-center gap-4 flex-shrink-0">
+            <div className="flex lg:hidden items-center gap-4 flex-shrink-0">
               {totalTokens > 0 && (
                 <div className="flex items-center gap-1.5 text-primary/80">
                   <Zap className="h-3 w-3" />
