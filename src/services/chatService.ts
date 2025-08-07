@@ -90,30 +90,23 @@ class ChatService {
       })
 
       // Build request payload based on provider
-      let requestPayload: any
-      
-      if (endpoint.includes('anthropic.com')) {
-        // Anthropic API format
-        requestPayload = {
-          model,
-          messages,
-          stream: !!onStreamChunk,
-          max_tokens: maxTokens || 1024,
-          ...(temperature !== undefined && { temperature }),
-          ...(topP !== undefined && { top_p: topP }),
-          ...(topK !== undefined && { top_k: topK }),
-        }
-      } else {
-        // OpenAI API format
-        requestPayload = {
-          model,
-          messages,
-          stream: !!onStreamChunk,
-          ...(temperature !== undefined && { temperature }),
-          ...(maxTokens !== undefined && { max_tokens: maxTokens }),
-          ...(topP !== undefined && { top_p: topP }),
-          ...(topK !== undefined && { top_k: topK }),
-        }
+      const isAnthropic = endpoint.includes('anthropic.com')
+      const requestPayload = isAnthropic ? {
+        model,
+        messages,
+        stream: !!onStreamChunk,
+        max_tokens: maxTokens || 1024,
+        ...(temperature !== undefined && { temperature }),
+        ...(topP !== undefined && { top_p: topP }),
+        ...(topK !== undefined && { top_k: topK }),
+      } : {
+        model,
+        messages,
+        stream: !!onStreamChunk,
+        ...(temperature !== undefined && { temperature }),
+        ...(maxTokens !== undefined && { max_tokens: maxTokens }),
+        ...(topP !== undefined && { top_p: topP }),
+        ...(topK !== undefined && { top_k: topK }),
       }
 
       // Build headers
@@ -123,41 +116,17 @@ class ChatService {
 
       // Add authentication based on provider
       if (!isLocal && apiKey) {
-        if (endpoint.includes('anthropic.com')) {
+        if (isAnthropic) {
           headers['x-api-key'] = apiKey
           headers['anthropic-version'] = '2023-06-01'
           headers['anthropic-dangerous-direct-browser-access'] = 'true'
-        } else if (endpoint.includes('generativelanguage.googleapis.com')) {
-          // Google AI OpenAI-compatible endpoint needs Bearer token
-          headers['Authorization'] = `Bearer ${apiKey}`
         } else {
-          // Standard OpenAI-compatible Bearer token
           headers['Authorization'] = `Bearer ${apiKey}`
         }
       }
 
       // Build endpoint URL
-      let chatEndpoint: string
-      if (endpoint.includes('anthropic.com')) {
-        chatEndpoint = endpoint + '/messages'
-      } else if (endpoint.includes('generativelanguage.googleapis.com')) {
-        // Google AI uses OpenAI-compatible endpoint
-        chatEndpoint = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
-      } else if (endpoint.includes('ollama') || endpoint.includes('11434')) {
-        chatEndpoint = endpoint.replace('/v1', '') + '/api/chat'
-      } else if (endpoint.includes('deepinfra.com')) {
-        // Deep Infra uses OpenAI-compatible endpoint
-        chatEndpoint = 'https://api.deepinfra.com/v1/openai/chat/completions'
-      } else {
-        // For standard OpenAI-compatible endpoints, check if path already exists
-        if (endpoint.endsWith('/chat/completions')) {
-          chatEndpoint = endpoint
-        } else if (endpoint.endsWith('/v1')) {
-          chatEndpoint = endpoint + '/chat/completions'
-        } else {
-          chatEndpoint = endpoint + '/chat/completions'
-        }
-      }
+      const chatEndpoint = this.buildChatEndpoint(endpoint)
 
       // Make the API call
       const response = await fetch(chatEndpoint, {
@@ -187,7 +156,7 @@ class ChatService {
           processingTime,
           onStreamChunk,
           onStreamComplete,
-          isAnthropic: endpoint.includes('anthropic.com')
+          isAnthropic
         })
       } else {
         return this.handleNonStreamResponse(response, {
@@ -203,6 +172,34 @@ class ChatService {
       console.error('Chat service error:', error)
       throw error instanceof Error ? error : new Error('Unknown chat service error')
     }
+  }
+
+  /**
+   * Build the appropriate chat endpoint URL based on provider
+   */
+  private buildChatEndpoint(endpoint: string): string {
+    // Special case for Anthropic
+    if (endpoint.includes('anthropic.com')) {
+      return endpoint.endsWith('/v1') ? endpoint + '/messages' : endpoint + '/messages'
+    }
+    
+    // Special case for Ollama
+    if (endpoint.includes('ollama') || endpoint.includes('11434')) {
+      return endpoint.replace('/v1', '') + '/api/chat'
+    }
+    
+    // For OpenAI-compatible endpoints, ensure /chat/completions suffix
+    if (endpoint.endsWith('/chat/completions')) {
+      return endpoint
+    }
+    
+    // Add appropriate suffix
+    if (endpoint.endsWith('/v1')) {
+      return endpoint + '/chat/completions'
+    }
+    
+    // Default: append /chat/completions
+    return endpoint + '/chat/completions'
   }
 
   /**

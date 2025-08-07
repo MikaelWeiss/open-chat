@@ -561,14 +561,14 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
     {
       id: 'inception-labs',
       name: 'Inception Labs',
-      endpoint: 'https://api.inceptionlabs.ai/v1/chat/completions',
+      endpoint: 'https://api.inceptionlabs.ai/v1',
       description: 'Advanced AI models from Inception Labs',
       apiKeyUrl: 'https://api.inceptionlabs.ai'
     },
     {
       id: 'deep-infra',
       name: 'Deep Infra',
-      endpoint: 'https://api.deepinfra.com/v1/openai/chat/completions',
+      endpoint: 'https://api.deepinfra.com/v1/openai',
       description: 'GPU-accelerated inference for open-source models',
       apiKeyUrl: 'https://deepinfra.com/dash/api_keys'
     },
@@ -596,7 +596,7 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
     {
       id: 'google-ai',
       name: 'Google AI',
-      endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
       description: 'Gemini models with native multimodal capabilities',
       apiKeyUrl: 'https://aistudio.google.com/app/apikey'
     },
