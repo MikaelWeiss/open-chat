@@ -163,8 +163,8 @@ export default function EmptyState({ type, title, description, action, className
   }, [])
   
   const Illustration = illustrations[type]
-  // Use a brighter color in dark mode to ensure visibility
-  const illustrationColor = type === 'error' ? '#ef4444' : (isDarkMode ? '#8b5cf6' : primaryColor)
+  // Use a brighter color in dark mode to ensure visibility  
+  const illustrationColor = type === 'error' ? '#ef4444' : (isDarkMode ? '#c084fc' : primaryColor)
   
   return (
     <div className={clsx(
