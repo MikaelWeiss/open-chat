@@ -84,3 +84,6 @@ The SQLite database auto-creates tables for:
 
 ## Development Workflow Notes
 - Most of the time I have the app running already, so if you try running it, it'll fail. There's already hot-reload, so you can just tell me to look at the app and see if things are fixed instead of running it yourself.
+
+## Build Checks
+- When you're done doing anything, run `pnpm build` to make sure there aren't any errors
