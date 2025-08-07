@@ -51,7 +51,7 @@ export default function Sidebar({
   useEffect(() => {
     const conversationIds = new Set(conversations.map(c => c.id))
     setDeletingIds(prev => {
-      const newSet = new Set()
+      const newSet = new Set<number>()
       for (const id of prev) {
         if (conversationIds.has(id)) {
           newSet.add(id)

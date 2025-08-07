@@ -201,7 +201,7 @@ export default function SettingsModal({ isOpen, onClose, initialSection = 'gener
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setActiveTab(tab.id as 'general' | 'models' | 'about')}
                 className={clsx(
                   'w-full text-left px-3 py-2 rounded-lg transition-colors',
                   activeTab === tab.id

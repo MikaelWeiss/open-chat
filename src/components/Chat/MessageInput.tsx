@@ -1,5 +1,5 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
-import { Send, Paperclip, Loader2, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings } from 'lucide-react'
+import { Send, Paperclip, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../../hooks/useSettings'
 

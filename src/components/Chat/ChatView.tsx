@@ -498,8 +498,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       // Since we handle cancellation gracefully now, we shouldn't get cancelled errors
       console.error('Failed to send message:', err)
       // Show error toast
-      if (window.showToast) {
-        window.showToast({
+      if ((window as any).showToast) {
+        (window as any).showToast({
           type: 'error',
           title: 'Failed to send message',
           message: err instanceof Error ? err.message : 'An unknown error occurred'
