@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react'
 import ContextMenu from '../ContextMenu/ContextMenu'
 import EmptyState from '../EmptyState/EmptyState'
 import { ConversationListSkeleton } from '../Skeleton/Skeleton'
+import Logo from '../../assets/Logo.svg'
 
 interface SidebarProps {
   isOpen: boolean
@@ -236,7 +237,10 @@ export default function Sidebar({
           <div className="h-6 bg-secondary rounded-tl-lg" />
           <div className="px-4 py-5 border-b border-border/20 bg-secondary/70 backdrop-blur-lg">
             <div className="flex items-center justify-between">
-              <h1 className="text-xl font-semibold">Open Chat</h1>
+              <div className="flex items-center gap-2">
+                <img src={Logo} alt="Open Chat" className="h-5 w-5" />
+                <h1 className="text-xl font-semibold">Open Chat</h1>
+              </div>
               <div className="flex items-center gap-2">
                 <button className="p-2 hover:bg-accent rounded-lg transition-colors text-sm font-mono">/</button>
                 <button className="p-2 hover:bg-accent rounded-lg transition-colors">
@@ -337,7 +341,10 @@ export default function Sidebar({
             onMouseDown={handleStartDrag}
           >
             <div className="flex items-center justify-between">
-              <h1 className="text-xl font-semibold">Open Chat</h1>
+              <div className="flex items-center gap-2">
+                <img src={Logo} alt="Open Chat" className="h-5 w-5" />
+                <h1 className="text-xl font-semibold">Open Chat</h1>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={onOpenShortcuts}
