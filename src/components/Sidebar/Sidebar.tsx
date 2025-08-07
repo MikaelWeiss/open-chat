@@ -37,6 +37,7 @@ export default function Sidebar({
     y: number
     conversation: Conversation
   } | null>(null)
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
   const [isFavoritesCollapsed, setIsFavoritesCollapsed] = useState(() => {
     const saved = localStorage.getItem('favoritesCollapsed')
     return saved === 'true'
@@ -46,18 +47,41 @@ export default function Sidebar({
     localStorage.setItem('favoritesCollapsed', isFavoritesCollapsed.toString())
   }, [isFavoritesCollapsed])
   
+  // Clean up deleting state when conversations change
+  useEffect(() => {
+    const conversationIds = new Set(conversations.map(c => c.id))
+    setDeletingIds(prev => {
+      const newSet = new Set()
+      for (const id of prev) {
+        if (conversationIds.has(id)) {
+          newSet.add(id)
+        }
+      }
+      return newSet
+    })
+  }, [conversations])
+  
   const handleSelectConversation = (conversation: Conversation) => {
     onSelectConversation?.(conversation.id)
   }
   
   const handleDeleteConversation = async (id: number) => {
+    // Start the deletion animation immediately
+    setDeletingIds(prev => new Set(prev).add(id))
+    setConfirmDelete(null)
+    
     try {
       await deleteConversation(id)
       // Notify parent component that a conversation was deleted
       onDeleteConversation?.(id)
-      setConfirmDelete(null)
     } catch (err) {
       console.error('Failed to delete conversation:', err)
+      // Remove from deleting state if deletion failed
+      setDeletingIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(id)
+        return newSet
+      })
     }
   }
 
@@ -158,38 +182,49 @@ export default function Sidebar({
   const { favorites, regularByDate } = getConversationsByDate()
   
   // Helper function to render a conversation item
-  const renderConversation = (conversation: Conversation) => (
-    <div
-      key={conversation.id}
-      className={clsx(
-        'group relative flex items-center w-full hover:bg-accent transition-colors overflow-hidden',
-        selectedConversationId === conversation.id && 'bg-accent'
-      )}
-    >
-      <button
-        onClick={() => handleSelectConversation(conversation)}
-        onContextMenu={(e) => handleContextMenu(e, conversation)}
-        className="flex-1 min-w-0 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
+  const renderConversation = (conversation: Conversation) => {
+    const isDeleting = deletingIds.has(conversation.id)
+    
+    return (
+      <div
+        key={conversation.id}
+        className={clsx(
+          'group relative flex items-center w-full hover:bg-accent transition-all duration-300 overflow-hidden',
+          selectedConversationId === conversation.id && 'bg-accent',
+          isDeleting && 'opacity-0 scale-95 pointer-events-none'
+        )}
+        style={{
+          maxHeight: isDeleting ? '0px' : '80px',
+          marginBottom: isDeleting ? '0px' : undefined,
+          paddingTop: isDeleting ? '0px' : undefined,
+          paddingBottom: isDeleting ? '0px' : undefined
+        }}
       >
-        <div className="flex items-center gap-2 font-medium text-sm pr-8">
-          {conversation.is_favorite && (
-            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
-          )}
-          <span className="truncate">{conversation.title}</span>
-        </div>
-        <div className="text-xs text-muted-foreground mt-1 truncate">
-          {conversation.model || 'No model'} • {format(new Date(conversation.updated_at), 'h:mm a')}
-        </div>
-      </button>
-      <button
-        onClick={(e) => handleDeleteClick(e, conversation)}
-        className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
-        title="Delete conversation (hold ⌘ to skip confirmation)"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-    </div>
-  )
+        <button
+          onClick={() => handleSelectConversation(conversation)}
+          onContextMenu={(e) => handleContextMenu(e, conversation)}
+          className="flex-1 min-w-0 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
+        >
+          <div className="flex items-center gap-2 font-medium text-sm pr-8">
+            {conversation.is_favorite && (
+              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+            )}
+            <span className="truncate">{conversation.title}</span>
+          </div>
+          <div className="text-xs text-muted-foreground mt-1 truncate">
+            {conversation.model || 'No model'} • {format(new Date(conversation.updated_at), 'h:mm a')}
+          </div>
+        </button>
+        <button
+          onClick={(e) => handleDeleteClick(e, conversation)}
+          className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded transition-all duration-200 hover:scale-110"
+          title="Delete conversation (hold ⌘ to skip confirmation)"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    )
+  }
   
   if (loading) {
     return (
