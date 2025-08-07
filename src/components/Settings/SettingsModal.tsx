@@ -622,13 +622,6 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
       apiKeyUrl: 'https://cloud.cerebras.ai/platform'
     },
     {
-      id: 'z-ai',
-      name: 'Z AI',
-      endpoint: 'https://api.z.ai/api/paas/v4/',
-      description: 'Advanced AI models from Z AI',
-      apiKeyUrl: 'https://z.ai'
-    },
-    {
       id: 'cohere',
       name: 'Cohere',
       endpoint: 'https://api.cohere.ai/compatibility/v1',

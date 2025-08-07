@@ -128,8 +128,8 @@ class ChatService {
           headers['anthropic-version'] = '2023-06-01'
           headers['anthropic-dangerous-direct-browser-access'] = 'true'
         } else if (endpoint.includes('generativelanguage.googleapis.com')) {
-          // Google AI uses query parameter auth
-          // Will be handled in URL construction
+          // Google AI OpenAI-compatible endpoint needs Bearer token
+          headers['Authorization'] = `Bearer ${apiKey}`
         } else {
           // Standard OpenAI-compatible Bearer token
           headers['Authorization'] = `Bearer ${apiKey}`
@@ -141,11 +141,22 @@ class ChatService {
       if (endpoint.includes('anthropic.com')) {
         chatEndpoint = endpoint + '/messages'
       } else if (endpoint.includes('generativelanguage.googleapis.com')) {
-        chatEndpoint = `${endpoint}:generateContent${apiKey ? `?key=${apiKey}` : ''}`
+        // Google AI uses OpenAI-compatible endpoint
+        chatEndpoint = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
       } else if (endpoint.includes('ollama') || endpoint.includes('11434')) {
         chatEndpoint = endpoint.replace('/v1', '') + '/api/chat'
+      } else if (endpoint.includes('deepinfra.com')) {
+        // Deep Infra uses OpenAI-compatible endpoint
+        chatEndpoint = 'https://api.deepinfra.com/v1/openai/chat/completions'
       } else {
-        chatEndpoint = endpoint + '/chat/completions'
+        // For standard OpenAI-compatible endpoints, check if path already exists
+        if (endpoint.endsWith('/chat/completions')) {
+          chatEndpoint = endpoint
+        } else if (endpoint.endsWith('/v1')) {
+          chatEndpoint = endpoint + '/chat/completions'
+        } else {
+          chatEndpoint = endpoint + '/chat/completions'
+        }
       }
 
       // Make the API call
