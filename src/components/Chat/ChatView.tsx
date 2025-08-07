@@ -611,9 +611,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                   </button>
               
               {showModelSelector && (
-                <div ref={dropdownRef} className="absolute right-0 top-full mt-2 w-80 glass-effect border border-border/20 rounded-2xl shadow-elegant-xl z-10 max-h-80 overflow-y-auto elegant-scrollbar">
+                <div ref={dropdownRef} className="absolute right-0 top-full mt-2 w-80 glass-effect border border-border/20 rounded-2xl shadow-elegant-xl z-[9999] max-h-80 overflow-y-auto overflow-x-hidden elegant-scrollbar">
                   {/* Search bar - frozen at top */}
-                  <div className="sticky top-0 glass-nav backdrop-blur-strong border-b border-border/10 p-3">
+                  <div className="sticky top-0 glass-nav backdrop-blur-strong border-b border-border/10 p-3 z-10">
                     <div className="elegant-input-container flex items-center gap-2 px-3 py-2">
                       <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <input
