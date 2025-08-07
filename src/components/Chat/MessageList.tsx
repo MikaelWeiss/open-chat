@@ -7,6 +7,8 @@ import { User, Bot, Copy, Check, FileText, Image, Volume2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
 import { type Message } from '../../shared/messageStore'
+import Lottie from 'lottie-react'
+import spinnerAnimation from '../../assets/spinner.json'
 import EmptyState from '../EmptyState/EmptyState'
 
 interface MessageListProps {
@@ -110,7 +112,7 @@ function AttachmentDisplay({ attachments }: { attachments: { type: string; path:
 
 
 export default function MessageList({ messages = [], isLoading = false, streamingMessage = '' }: MessageListProps) {
-  const [loadingMessage, setLoadingMessage] = useState('Thinking')
+  const [loadingMessage, setLoadingMessage] = useState('assembling')
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   
   const copyToClipboard = async (text: string, messageId: string) => {
@@ -128,20 +130,19 @@ export default function MessageList({ messages = [], isLoading = false, streamin
   
   useEffect(() => {
     if (!isLoading) return
-    
-    const messages = [
-      'Thinking',
-      'Processing your request',
-      'Generating response',
-      'Almost ready'
+
+    const verbs = [
+      'Architecting', 'Assembling', 'Brewing', 'Calculating', 'Calibrating', 'Cerebrating', 'Channeling', 'Coalescing', 'Composing', 'Conceptualizing', 'Conjuring', 'Contemplating', 'Crafting', 'Crystallizing', 'Cultivating', 'Curating', 'Deciphering', 'Deliberating', 'Discovering', 'Distilling', 'Emanating', 'Envisioning', 'Exploring', 'Extrapolating', 'Forging', 'Forming', 'Germinating', 'Harmonizing', 'Herding', 'Imagining', 'Incubating', 'Inferring', 'Innovating', 'Manifesting', 'Materializing', 'Musing', 'Orchestrating', 'Parsing', 'Percolating', 'Philosophizing', 'Pioneering', 'Pondering', 'Puttering', 'Rationalizing', 'Refining', 'Sculpting', 'Stewing', 'Strategizing', 'Sussing', 'Synthesizing', 'Theorizing', 'Untangling', 'Unveiling', 'Weaving', 'Working'
     ]
-    
-    let currentIndex = 0
-    const interval = setInterval(() => {
-      currentIndex = (currentIndex + 1) % messages.length
-      setLoadingMessage(messages[currentIndex])
-    }, 2500)
-    
+
+    const pickRandom = () => {
+      const next = verbs[Math.floor(Math.random() * verbs.length)]
+      setLoadingMessage(next.toLowerCase())
+    }
+
+    // Pick immediately, then at interval
+    pickRandom()
+    const interval = setInterval(pickRandom, 2500)
     return () => clearInterval(interval)
   }, [isLoading])
   
@@ -343,11 +344,12 @@ export default function MessageList({ messages = [], isLoading = false, streamin
             </div>
             
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 bg-primary/60 rounded-full typing-dot" />
-                <div className="w-2 h-2 bg-primary/60 rounded-full typing-dot" />
-                <div className="w-2 h-2 bg-primary/60 rounded-full typing-dot" />
-              </div>
+              <Lottie
+                animationData={spinnerAnimation}
+                loop
+                autoplay
+                style={{ width: 22, height: 22 }}
+              />
               <span className="text-sm text-muted-foreground animate-pulse">{loadingMessage}...</span>
             </div>
           </div>
