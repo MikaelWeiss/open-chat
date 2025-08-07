@@ -141,11 +141,24 @@ class ChatService {
         try {
           const errorBody = await response.text()
           console.error('API Error Response:', errorBody)
-          errorText = errorBody || response.statusText
+          // Try to parse as JSON to extract error message
+          try {
+            const errorJson = JSON.parse(errorBody)
+            if (errorJson.error?.message) {
+              errorText = errorJson.error.message
+            } else if (errorJson.message) {
+              errorText = errorJson.message
+            } else {
+              errorText = errorBody || response.statusText
+            }
+          } catch {
+            // Not JSON, use as-is
+            errorText = errorBody || response.statusText
+          }
         } catch (e) {
           // Ignore errors reading response body
         }
-        throw new Error(`API call failed: ${response.status} ${errorText}`)
+        throw new Error(errorText)
       }
 
       const processingTime = Date.now() - startTime

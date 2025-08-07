@@ -499,7 +499,14 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         console.log('Message sending was cancelled')
       } else {
         console.error('Failed to send message:', err)
-        // TODO: Show error toast
+        // Show error toast
+        if (window.showToast) {
+          window.showToast({
+            type: 'error',
+            title: 'Failed to send message',
+            message: err instanceof Error ? err.message : 'An unknown error occurred'
+          })
+        }
       }
     } finally {
       setIsLoading(false)
