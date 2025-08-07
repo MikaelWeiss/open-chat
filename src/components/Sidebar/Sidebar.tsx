@@ -402,7 +402,7 @@ export default function Sidebar({
       {/* Resize Handle */}
       {isOpen && (
         <div
-          className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/20 transition-colors"
+          className="absolute -right-1 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/20 transition-colors"
           onMouseDown={handleMouseDown}
         />
       )}
