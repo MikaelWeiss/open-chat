@@ -1,10 +1,10 @@
-import { ChevronLeft, ChevronRight, Settings, Trash2, MessageSquare, Star } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Settings, Trash2, MessageSquare, Star } from 'lucide-react'
 import { format } from 'date-fns'
 import clsx from 'clsx'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useConversations } from '../../hooks/useConversations'
 import { type Conversation } from '../../shared/conversationStore'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ContextMenu from '../ContextMenu/ContextMenu'
 
 interface SidebarProps {
@@ -37,6 +37,14 @@ export default function Sidebar({
     y: number
     conversation: Conversation
   } | null>(null)
+  const [isFavoritesCollapsed, setIsFavoritesCollapsed] = useState(() => {
+    const saved = localStorage.getItem('favoritesCollapsed')
+    return saved === 'true'
+  })
+  
+  useEffect(() => {
+    localStorage.setItem('favoritesCollapsed', isFavoritesCollapsed.toString())
+  }, [isFavoritesCollapsed])
   
   const handleSelectConversation = (conversation: Conversation) => {
     onSelectConversation?.(conversation.id)
@@ -227,11 +235,20 @@ export default function Sidebar({
           {/* Favorites Section */}
           {favorites.length > 0 && (
             <div>
-              <div className="px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 z-10 bg-secondary/70 backdrop-blur-lg -webkit-backdrop-filter border-b border-border/20 flex items-center gap-2">
+              <button
+                onClick={() => setIsFavoritesCollapsed(!isFavoritesCollapsed)}
+                className="w-full px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 z-10 bg-secondary/70 backdrop-blur-lg -webkit-backdrop-filter border-b border-border/20 flex items-center gap-2 hover:bg-accent/50 transition-colors"
+              >
                 <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                Favorites
-              </div>
-              {favorites.map(renderConversation)}
+                <span className="flex-1 text-left">Favorites</span>
+                <ChevronDown 
+                  className={clsx(
+                    "h-3 w-3 transition-transform duration-200",
+                    isFavoritesCollapsed && "-rotate-90"
+                  )} 
+                />
+              </button>
+              {!isFavoritesCollapsed && favorites.map(renderConversation)}
             </div>
           )}
 
