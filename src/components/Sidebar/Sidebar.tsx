@@ -212,40 +212,8 @@ export default function Sidebar({
       style={{ width: isOpen ? `${width}px` : '0px' }}
     >
       <div className={clsx('relative flex flex-col h-full', !isOpen && 'invisible')}>
-        {/* Window controls area */}
-        <div 
-          className="h-6 select-none bg-secondary rounded-tl-lg" 
-          onMouseDown={handleStartDrag}
-        />
-        
-        {/* Header */}
-        <div 
-          className="px-4 py-5 border-b border-border backdrop-blur-sm select-none"
-          onMouseDown={handleStartDrag}
-        >
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold">Open Chat</h1>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onOpenShortcuts}
-                className="p-2 hover:bg-accent rounded-lg transition-colors text-sm font-mono"
-                title="Keyboard Shortcuts"
-              >
-                /
-              </button>
-              <button
-                onClick={onOpenSettings}
-                className="p-2 hover:bg-accent rounded-lg transition-colors"
-                title="Settings"
-              >
-                <Settings className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Conversations List - Now extends full height */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent pb-20">
+        {/* Conversations List - Now extends full height behind header */}
+        <div className="absolute inset-0 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent pt-24 pb-20">
           {conversations.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
               <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
@@ -259,7 +227,7 @@ export default function Sidebar({
           {/* Favorites Section */}
           {favorites.length > 0 && (
             <div>
-              <div className="px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 bg-secondary/80 backdrop-blur-sm border-b border-border/50 flex items-center gap-2">
+              <div className="px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 z-10 bg-secondary/70 backdrop-blur-lg -webkit-backdrop-filter border-b border-border/20 flex items-center gap-2">
                 <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                 Favorites
               </div>
@@ -270,12 +238,47 @@ export default function Sidebar({
           {/* Regular Conversations by Date */}
           {regularByDate.map(([dateKey, convs]) => (
             <div key={dateKey}>
-              <div className="px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 bg-secondary/80 backdrop-blur-sm border-b border-border/50">
+              <div className="px-4 py-2 text-xs font-medium text-muted-foreground sticky top-0 z-10 bg-secondary/70 backdrop-blur-lg -webkit-backdrop-filter border-b border-border/20">
                 {dateKey}
               </div>
               {convs.map(renderConversation)}
             </div>
           ))}
+        </div>
+
+        {/* Header - Now positioned absolutely */}
+        <div className="absolute top-0 left-0 right-0 z-20">
+          {/* Window controls area */}
+          <div 
+            className="h-6 select-none bg-secondary rounded-tl-lg" 
+            onMouseDown={handleStartDrag}
+          />
+          
+          {/* Header */}
+          <div 
+            className="px-4 py-5 border-b border-border/20 bg-secondary/70 backdrop-blur-lg -webkit-backdrop-filter select-none"
+            onMouseDown={handleStartDrag}
+          >
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-semibold">Open Chat</h1>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onOpenShortcuts}
+                  className="p-2 hover:bg-accent rounded-lg transition-colors text-sm font-mono"
+                  title="Keyboard Shortcuts"
+                >
+                  /
+                </button>
+                <button
+                  onClick={onOpenSettings}
+                  className="p-2 hover:bg-accent rounded-lg transition-colors"
+                  title="Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Bottom Feedback Button - Now positioned absolutely */}
