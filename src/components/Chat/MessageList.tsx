@@ -112,7 +112,7 @@ function AttachmentDisplay({ attachments }: { attachments: { type: string; path:
 
 
 export default function MessageList({ messages = [], isLoading = false, streamingMessage = '' }: MessageListProps) {
-  const [loadingMessage, setLoadingMessage] = useState('assembling')
+  const [loadingMessage, setLoadingMessage] = useState('Assembling')
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   
   const copyToClipboard = async (text: string, messageId: string) => {
@@ -137,7 +137,7 @@ export default function MessageList({ messages = [], isLoading = false, streamin
 
     const pickRandom = () => {
       const next = verbs[Math.floor(Math.random() * verbs.length)]
-      setLoadingMessage(next.toLowerCase())
+      setLoadingMessage(next)
     }
 
     // Pick immediately, then at interval
