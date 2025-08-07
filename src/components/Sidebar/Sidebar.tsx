@@ -349,15 +349,10 @@ export default function Sidebar({
 
         {/* Header - Now positioned absolutely */}
         <div className="absolute top-0 left-0 right-0 z-20">
-          {/* Window controls area */}
-          <div
-            className="h-6 select-none glass-nav rounded-tl-lg"
-            onMouseDown={handleStartDrag}
-          />
 
           {/* Header */}
           <div
-            className="px-6 py-4 border-b border-border/10 glass-nav backdrop-blur-strong select-none"
+            className="px-6 py-4 pt-11 border-b border-border/10 glass-nav backdrop-blur-strong select-none"
             onMouseDown={handleStartDrag}
           >
             <div className="flex items-center justify-between">
