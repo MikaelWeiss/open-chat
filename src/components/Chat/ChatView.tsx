@@ -1,4 +1,4 @@
-import { ChevronDown, Copy, Eye, Volume2, FileText, Search, Plus } from 'lucide-react'
+import { ChevronDown, Copy, Eye, Volume2, FileText, Search, Plus, Check } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
 import { useRef, RefObject, useState, useEffect, useMemo } from 'react'
@@ -88,6 +88,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const [searchQuery, setSearchQuery] = useState('')
   const [highlightedModelIndex, setHighlightedModelIndex] = useState(0)
   const [selectedModel, setSelectedModel] = useState<{provider: string, model: string} | null>(null)
+  const [copiedConversation, setCopiedConversation] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   
@@ -354,6 +355,26 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     }, 100)
   }
   
+  // Handle conversation copy
+  const handleCopyConversation = async () => {
+    if (messages.length <= 1) return
+    
+    try {
+      const conversationText = messages
+        .map(msg => {
+          const role = msg.role === 'user' ? 'You' : 'Assistant'
+          return `${role}: ${msg.text || ''}`
+        })
+        .join('\n\n')
+      
+      await navigator.clipboard.writeText(conversationText)
+      setCopiedConversation(true)
+      setTimeout(() => setCopiedConversation(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy conversation:', err)
+    }
+  }
+  
   // Handle new conversation creation
   const handleNewConversation = async () => {
     try {
@@ -507,14 +528,20 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           </div>
           
           <div className="flex-shrink-0 flex items-center gap-2">
-            {/* Copy conversation button */}
-            <button
-              onClick={() => console.log('Copy conversation')}
-              className="p-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
-              title="Copy conversation"
-            >
-              <Copy className="h-4 w-4" />
-            </button>
+            {/* Copy conversation button - only show if there's more than one message */}
+            {messages.length > 1 && (
+              <button
+                onClick={handleCopyConversation}
+                className="p-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 shadow-sm border border-border hover:border-primary/30"
+                title="Copy conversation"
+              >
+                {copiedConversation ? (
+                  <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </button>
+            )}
             
             {/* Model selector - only show if conversation has no messages or only 1 message (user message) */}
             {messages.length <= 1 && (
