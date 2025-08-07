@@ -203,7 +203,7 @@ export default function SettingsModal({ isOpen, onClose, initialSection = 'gener
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as 'general' | 'models' | 'about')}
                 className={clsx(
-                  'w-full text-left px-3 py-2 rounded-lg transition-colors',
+                  'w-full text-left px-3 py-2 my-1 rounded-lg transition-colors',
                   activeTab === tab.id
                     ? 'bg-accent text-accent-foreground'
                     : 'hover:bg-accent/50'
