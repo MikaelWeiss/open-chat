@@ -174,6 +174,20 @@ Settings are stored in a separate key-value store (`settings.json`), and API key
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
+## Brand assets and logo usage
+
+The following brand assets are NOT licensed under Apache-2.0. All rights are reserved by Weiss Solutions LLC:
+
+- `src/assets/Logo.svg`
+- `public/Logo.png`
+- Any other `Logo`-named assets or components
+- The name and visual identity "Open Chat" (word mark and logo)
+- All application icons referenced in `src-tauri/tauri.conf.json` and generated via Tauri Icon (files under `icons/` when present)
+
+No license or right is granted to use these brand assets, including in product names, domain names, or in ways that imply sponsorship or endorsement. Limited descriptive, non-misleading references to the project name are permitted where necessary to identify the software.
+
+Copyright © Weiss Solutions LLC. Unregistered trademark rights are claimed in the name and logo to the fullest extent permitted by applicable law.
+
 ## Support
 
 - Create an [issue](https://github.com/your-username/open-chat/issues) for bug reports
