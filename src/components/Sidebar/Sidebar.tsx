@@ -193,7 +193,7 @@ export default function Sidebar({
       <div
         key={conversation.id}
         className={clsx(
-          'group relative flex items-center w-full elegant-hover mx-3 mr-2 rounded-xl overflow-hidden elegant-fade-in',
+          'group relative flex items-center elegant-hover mx-3 rounded-xl overflow-hidden elegant-fade-in',
           isSelected && 'bg-gradient-subtle border border-primary/20',
           isDeleting && 'opacity-0 scale-95 pointer-events-none'
         )}
@@ -287,7 +287,7 @@ export default function Sidebar({
         )}
       >
         {/* Conversations List - Now extends full height behind header */}
-        <div className="absolute inset-0 overflow-y-auto overflow-x-hidden elegant-scrollbar pt-24 pb-20">
+        <div className="absolute inset-0 overflow-y-auto elegant-scrollbar pt-24 pb-20">
           {conversations.length === 0 && (
             <EmptyState
               type="no-conversations"
