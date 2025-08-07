@@ -211,7 +211,7 @@ export default function Sidebar({
       )}
       style={{ width: isOpen ? `${width}px` : '0px' }}
     >
-      <div className={clsx('flex flex-col h-full', !isOpen && 'invisible')}>
+      <div className={clsx('relative flex flex-col h-full', !isOpen && 'invisible')}>
         {/* Window controls area */}
         <div 
           className="h-6 select-none bg-secondary rounded-tl-lg" 
@@ -244,8 +244,8 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent">
+        {/* Conversations List - Now extends full height */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground scrollbar-track-transparent pb-20">
           {conversations.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
               <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
@@ -278,11 +278,11 @@ export default function Sidebar({
           ))}
         </div>
 
-        {/* Bottom Feedback Button */}
-        <div className="p-4 border-t border-border">
+        {/* Bottom Feedback Button - Now positioned absolutely */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/20 bg-secondary/70 backdrop-blur-lg -webkit-backdrop-filter shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
           <button
             onClick={() => console.log('Send feedback')}
-            className="ml-auto block p-2 hover:bg-accent rounded-lg transition-colors"
+            className="ml-auto block p-2 hover:bg-accent/80 rounded-lg transition-colors"
             title="Send Feedback"
           >
             <MessageSquare className="h-4 w-4" />
