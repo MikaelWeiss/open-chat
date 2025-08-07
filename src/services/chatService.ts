@@ -9,15 +9,6 @@ interface OpenAIMessage {
   }>
 }
 
-interface OpenAIChatCompletionRequest {
-  model: string
-  messages: OpenAIMessage[]
-  stream?: boolean
-  temperature?: number
-  max_tokens?: number
-  top_p?: number
-  top_k?: number
-}
 
 interface OpenAIChatCompletionResponse {
   id: string
@@ -39,20 +30,6 @@ interface OpenAIChatCompletionResponse {
   }
 }
 
-interface StreamChunk {
-  id: string
-  object: string
-  created: number
-  model: string
-  choices: {
-    index: number
-    delta: {
-      role?: 'assistant'
-      content?: string
-    }
-    finish_reason?: string
-  }[]
-}
 
 export interface SendMessageOptions {
   conversationId: number

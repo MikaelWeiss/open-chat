@@ -111,7 +111,9 @@ export function useConversations() {
       loadConversations()
     })
     
-    return unsubscribe
+    return () => {
+      unsubscribe()
+    }
   }, [loadConversations])
 
   return {

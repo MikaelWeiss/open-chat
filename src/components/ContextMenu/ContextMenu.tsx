@@ -1,7 +1,6 @@
 import { createPortal } from 'react-dom'
 import { useEffect, useRef } from 'react'
 import { Star, StarOff, Trash2 } from 'lucide-react'
-import clsx from 'clsx'
 
 interface ContextMenuProps {
   x: number

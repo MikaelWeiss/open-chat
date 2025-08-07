@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { settings, SETTINGS_KEYS } from '../shared/settingsStore'
 import { saveApiKey, getApiKey, deleteApiKey, hasApiKey } from '../utils/secureStorage'
 import { Provider, AddProviderRequest, UpdateProviderRequest } from '../types/provider'
@@ -59,9 +59,12 @@ export function useSettings() {
   
   // Subscribe to settings manager updates
   useEffect(() => {
-    return settingsManager.subscribe(() => {
+    const unsubscribe = settingsManager.subscribe(() => {
       forceUpdate({})
     })
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   // Load settings on mount (only once globally)

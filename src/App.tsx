@@ -9,7 +9,6 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { MessageInputHandle } from './components/Chat/MessageInput'
 import { useSettings } from './hooks/useSettings'
 import { useConversations } from './hooks/useConversations'
-import { useMessages } from './hooks/useMessages'
 import { messageStore } from './shared/messageStore'
 
 function App() {
@@ -26,8 +25,6 @@ function App() {
   // Initialize conversations
   const { conversations, createConversation } = useConversations()
   
-  // Get messages for current conversation to control keyboard shortcuts
-  const { messages } = useMessages(selectedConversationId)
   
   // Create initial conversation when app starts and no conversation is selected
   useEffect(() => {

@@ -423,7 +423,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       const apiKey = await getProviderApiKey(currentConversation.provider)
       
       // Send to AI provider with streaming
-      const assistantMessage = await chatService.sendMessage({
+      await chatService.sendMessage({
         conversationId,
         userMessage,
         systemPrompt: currentConversation.system_prompt || undefined,
