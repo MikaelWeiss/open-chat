@@ -253,26 +253,49 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     }
   }, [])
   
-  // Clear selected model if it's no longer available
+  // Auto-select model logic: always ensure a model is selected
   useEffect(() => {
-    if (selectedModel && availableModels.length > 0) {
-      const isModelStillAvailable = availableModels.some(
-        model => model.provider === selectedModel.provider && model.model === selectedModel.model
-      )
-      
-      if (!isModelStillAvailable) {
-        console.log('Selected model is no longer available, clearing selection')
-        setSelectedModel(null)
-        // Also clear from conversation if applicable
+    // If we have available models
+    if (availableModels.length > 0) {
+      // Check if current selected model is still available
+      if (selectedModel) {
+        const isModelStillAvailable = availableModels.some(
+          model => model.provider === selectedModel.provider && model.model === selectedModel.model
+        )
+        
+        if (!isModelStillAvailable) {
+          console.log('Selected model is no longer available, auto-selecting first available')
+          // Auto-select the first available model
+          const firstModel = availableModels[0]
+          setSelectedModel({ provider: firstModel.provider, model: firstModel.model })
+          
+          // Update conversation if applicable
+          if (conversationId) {
+            updateConversation(conversationId, {
+              provider: firstModel.provider,
+              model: firstModel.model
+            }).catch(err => console.error('Failed to update conversation model:', err))
+          }
+        }
+      } else if (!currentConversation?.model) {
+        // No model selected and no conversation model, auto-select first available
+        console.log('No model selected, auto-selecting first available')
+        const firstModel = availableModels[0]
+        setSelectedModel({ provider: firstModel.provider, model: firstModel.model })
+        
+        // Update conversation if applicable
         if (conversationId) {
           updateConversation(conversationId, {
-            provider: '',
-            model: ''
-          }).catch(err => console.error('Failed to clear conversation model:', err))
+            provider: firstModel.provider,
+            model: firstModel.model
+          }).catch(err => console.error('Failed to update conversation model:', err))
         }
       }
+    } else {
+      // No models available
+      setSelectedModel(null)
     }
-  }, [availableModels, selectedModel, conversationId, updateConversation])
+  }, [availableModels, selectedModel, conversationId, updateConversation, currentConversation?.model])
   
   // Function to check if a model is compatible with current attachments
   const isModelCompatible = (model: any) => {
@@ -543,18 +566,32 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
               </button>
             )}
             
-            {/* Model selector - only show if conversation has no messages or only 1 message (user message) */}
+            {/* Model selector or Add Provider button */}
             {messages.length <= 1 && (
-              <div className="relative" ref={dropdownRef}>
+              availableModels.length === 0 ? (
+                // Show Add Provider button when no models are available
                 <button
-                  onClick={() => setShowModelSelector(!showModelSelector)}
-                  className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 text-sm shadow-sm border border-border hover:border-primary/30"
+                  onClick={() => {
+                    // Open settings modal to provider section
+                    const event = new CustomEvent('openSettings', { detail: { section: 'providers' } })
+                    window.dispatchEvent(event)
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-all duration-200 hover:scale-105 text-sm shadow-sm border border-border"
                 >
-                  <span className={!selectedModel || !selectedModel.model ? 'text-muted-foreground' : ''}>
-                    {selectedModel && selectedModel.model ? selectedModel.model : 'Select Model'}
-                  </span>
-                  <ChevronDown className="h-4 w-4" />
+                  <Plus className="h-4 w-4" />
+                  <span>Add Provider</span>
                 </button>
+              ) : (
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowModelSelector(!showModelSelector)}
+                    className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-accent rounded-lg transition-all duration-200 hover:scale-105 text-sm shadow-sm border border-border hover:border-primary/30"
+                  >
+                    <span className={!selectedModel || !selectedModel.model ? 'text-muted-foreground' : ''}>
+                      {selectedModel && selectedModel.model ? selectedModel.model : 'Select Model'}
+                    </span>
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
               
               {showModelSelector && (
                 <div ref={dropdownRef} className="absolute right-0 top-full mt-1 w-80 bg-background border border-border rounded-lg shadow-lg z-10 max-h-80 overflow-y-auto">
@@ -630,7 +667,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                   )}
                 </div>
               )}
-            </div>
+                </div>
+              )
             )}
             
             {/* New conversation button - only show if there's more than one message */}

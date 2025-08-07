@@ -9,6 +9,7 @@ import { Provider, ProviderPreset, ModelCapabilities } from '../../types/provide
 interface SettingsModalProps {
   isOpen: boolean
   onClose: () => void
+  initialSection?: 'general' | 'models' | 'about'
 }
 
 interface ModelCapabilityIconsProps {
@@ -135,8 +136,16 @@ function ModelCapabilityIcons({
   )
 }
 
-export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState('general')
+export default function SettingsModal({ isOpen, onClose, initialSection = 'general' }: SettingsModalProps) {
+  const [activeTab, setActiveTab] = useState(initialSection)
+  
+  // Update active tab when initialSection changes
+  useEffect(() => {
+    if (initialSection) {
+      setActiveTab(initialSection)
+    }
+  }, [initialSection, isOpen])
+  
   const {
     theme,
     sendKey,

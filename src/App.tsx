@@ -15,12 +15,34 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsSection, setSettingsSection] = useState<'general' | 'models' | 'about'>('general')
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null)
   const messageInputRef = useRef<MessageInputHandle>(null)
   
   // Initialize settings (theme will be applied in useSettings hook)
   useSettings()
+  
+  // Listen for custom event to open settings to a specific section
+  useEffect(() => {
+    const handleOpenSettings = (event: CustomEvent) => {
+      const section = event.detail?.section
+      if (section === 'providers') {
+        setSettingsSection('models')
+        setSettingsOpen(true)
+      } else if (section === 'general' || section === 'models' || section === 'about') {
+        setSettingsSection(section)
+        setSettingsOpen(true)
+      } else {
+        setSettingsOpen(true)
+      }
+    }
+    
+    window.addEventListener('openSettings' as any, handleOpenSettings)
+    return () => {
+      window.removeEventListener('openSettings' as any, handleOpenSettings)
+    }
+  }, [])
   
   // Initialize conversations
   const { conversations, createConversation } = useConversations()
@@ -183,6 +205,7 @@ function App() {
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        initialSection={settingsSection}
       />
       
       <ShortcutsModal
