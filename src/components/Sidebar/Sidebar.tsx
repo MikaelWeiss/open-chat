@@ -154,22 +154,22 @@ export default function Sidebar({
     <div
       key={conversation.id}
       className={clsx(
-        'group relative flex items-center w-full hover:bg-accent transition-colors',
+        'group relative flex items-center w-full hover:bg-accent transition-colors overflow-hidden',
         selectedConversationId === conversation.id && 'bg-accent'
       )}
     >
       <button
         onClick={() => handleSelectConversation(conversation)}
         onContextMenu={(e) => handleContextMenu(e, conversation)}
-        className="flex-1 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
+        className="flex-1 min-w-0 px-4 py-3 text-left hover:scale-[1.02] transition-transform duration-150"
       >
-        <div className="flex items-center gap-2 font-medium text-sm truncate pr-8">
+        <div className="flex items-center gap-2 font-medium text-sm pr-8">
           {conversation.is_favorite && (
             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
           )}
-          {conversation.title}
+          <span className="truncate">{conversation.title}</span>
         </div>
-        <div className="text-xs text-muted-foreground mt-1">
+        <div className="text-xs text-muted-foreground mt-1 truncate">
           {conversation.model || 'No model'} • {format(new Date(conversation.updated_at), 'h:mm a')}
         </div>
       </button>
@@ -227,13 +227,6 @@ export default function Sidebar({
             <h1 className="text-xl font-semibold">Open Chat</h1>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => console.log('Send feedback')}
-                className="p-2 hover:bg-accent rounded-lg transition-colors"
-                title="Send Feedback"
-              >
-                <MessageSquare className="h-4 w-4" />
-              </button>
-              <button
                 onClick={onOpenShortcuts}
                 className="p-2 hover:bg-accent rounded-lg transition-colors text-sm font-mono"
                 title="Keyboard Shortcuts"
@@ -284,6 +277,17 @@ export default function Sidebar({
             </div>
           ))}
         </div>
+
+        {/* Bottom Feedback Button */}
+        <div className="p-4 border-t border-border">
+          <button
+            onClick={() => console.log('Send feedback')}
+            className="ml-auto block p-2 hover:bg-accent rounded-lg transition-colors"
+            title="Send Feedback"
+          >
+            <MessageSquare className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Resize Handle */}
@@ -297,7 +301,7 @@ export default function Sidebar({
       {/* Toggle Button */}
       <button
         onClick={onToggle}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 bg-secondary border border-border rounded-full p-1 hover:bg-accent transition-colors no-drag z-10"
+        className="absolute -right-3 top-1/2 -translate-y-1/2 bg-secondary border border-border rounded-full p-1 hover:bg-accent transition-colors no-drag z-50"
       >
         {isOpen ? (
           <ChevronLeft className="h-4 w-4" />
