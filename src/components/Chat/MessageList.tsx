@@ -228,14 +228,14 @@ export default function MessageList({ messages = [], isLoading = false, streamin
             className={clsx(
               'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-elegant border relative overflow-hidden',
               message.role === 'user'
-                ? 'avatar-user'
-                : 'avatar-assistant'
+                ? 'avatar-assistant'
+                : 'avatar-user'
             )}
           >
             {message.role === 'user' ? (
-              <User className="h-5 w-5 text-foreground/90" />
+              <User className="h-5 w-5 text-white" />
             ) : (
-              <Bot className="h-5 w-5 text-white" />
+              <Bot className="h-5 w-5 text-foreground/90" />
             )}
           </div>
           
@@ -293,8 +293,8 @@ export default function MessageList({ messages = [], isLoading = false, streamin
       {/* Streaming message */}
       {streamingMessage && (
         <div className="flex gap-4 min-w-0 elegant-fade-in">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-elegant border relative overflow-hidden avatar-assistant">
-            <Bot className="h-5 w-5 text-white" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-elegant border relative overflow-hidden avatar-user">
+            <Bot className="h-5 w-5 text-foreground/90" />
           </div>
           
           <div className="flex-1 space-y-3 min-w-0">
@@ -339,8 +339,8 @@ export default function MessageList({ messages = [], isLoading = false, streamin
       {/* Loading indicator - show when loading and no streaming started yet */}
       {isLoading && !streamingMessage && (
         <div className="flex gap-4 min-w-0 elegant-fade-in">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-elegant border relative overflow-hidden avatar-assistant">
-            <Bot className="h-5 w-5 text-white" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-elegant border relative overflow-hidden avatar-user">
+            <Bot className="h-5 w-5 text-foreground/90" />
           </div>
           
           <div className="flex-1 space-y-3 min-w-0">
