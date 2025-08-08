@@ -42,7 +42,17 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [message, setMessage] = useState('')
     const [attachments, setAttachments] = useState<FileAttachment[]>([])
     
+    // Use refs to access current values in event handlers
+    const disabledRef = useRef(disabled)
+    const isLoadingRef = useRef(isLoading)
+    const modelCapabilitiesRef = useRef(modelCapabilities)
+    
     const { settings: appSettings } = useSettings()
+    
+    // Update refs when props change
+    disabledRef.current = disabled
+    isLoadingRef.current = isLoading
+    modelCapabilitiesRef.current = modelCapabilities
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -98,18 +108,18 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     useEffect(() => {
       let unlisten: (() => void) | null = null
       
-      const setupListener = async () => {
+      const setupListener = async () => {        
         try {
           const webview = getCurrentWebview()
+          
           const unlistenFn = await webview.onDragDropEvent(async (event) => {
-            if (disabled || isLoading) return
+            if (disabledRef.current || isLoadingRef.current) return
             
             // Handle different drag and drop event types
             if (event.payload.type === 'over') {
               // File is being dragged over the webview
               // Could add visual feedback here in the future
             } else if (event.payload.type === 'drop') {
-              // Files have been dropped
               
               const filePaths: string[] = event.payload.paths || []
               if (filePaths.length === 0) return
@@ -130,7 +140,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                   
                   // Image types - only allow if model supports vision
                   if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(fileExtension)) {
-                    if (!modelCapabilities?.vision) {
+                    if (!modelCapabilitiesRef.current?.vision) {
                       console.error('Model does not support vision - skipping image:', fileName)
                       continue
                     }
@@ -139,7 +149,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                   }
                   // SVG is special case for images
                   else if (fileExtension === 'svg') {
-                    if (!modelCapabilities?.vision) {
+                    if (!modelCapabilitiesRef.current?.vision) {
                       console.error('Model does not support vision - skipping SVG image:', fileName)
                       continue
                     }
@@ -148,7 +158,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                   }
                   // Audio types - only allow if model supports audio
                   else if (['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma'].includes(fileExtension)) {
-                    if (!modelCapabilities?.audio) {
+                    if (!modelCapabilitiesRef.current?.audio) {
                       console.error('Model does not support audio - skipping audio file:', fileName)
                       continue
                     }
@@ -157,7 +167,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                   }
                   // Document types - only allow if model supports files
                   else if (['txt', 'md', 'pdf', 'doc', 'docx', 'rtf', 'csv', 'json', 'xml', 'html'].includes(fileExtension)) {
-                    if (!modelCapabilities?.files) {
+                    if (!modelCapabilitiesRef.current?.files) {
                       console.error('Model does not support files - skipping document:', fileName)
                       continue
                     }
