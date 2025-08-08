@@ -8,6 +8,7 @@ interface KeyboardShortcutsProps {
   onSendFeedback: () => void
   onFocusInput: () => void
   onCloseModal: () => void
+  onToggleTheme: () => void
   settingsOpen: boolean
   shortcutsOpen: boolean
 }
@@ -20,6 +21,7 @@ export const useKeyboardShortcuts = ({
   onSendFeedback,
   onFocusInput,
   onCloseModal,
+  onToggleTheme,
   settingsOpen,
   shortcutsOpen
 }: KeyboardShortcutsProps) => {
@@ -47,9 +49,15 @@ export const useKeyboardShortcuts = ({
           break
           
         case 't':
-          // Cmd/Ctrl + T - New chat (alternative)
-          event.preventDefault()
-          onNewChat()
+          if (event.shiftKey) {
+            // Cmd/Ctrl + Shift + T - Toggle theme
+            event.preventDefault()
+            onToggleTheme()
+          } else {
+            // Cmd/Ctrl + T - New chat (alternative)
+            event.preventDefault()
+            onNewChat()
+          }
           break
           
         case 's':
@@ -99,6 +107,7 @@ export const useKeyboardShortcuts = ({
     onSendFeedback,
     onFocusInput,
     onCloseModal,
+    onToggleTheme,
     settingsOpen,
     shortcutsOpen
   ])

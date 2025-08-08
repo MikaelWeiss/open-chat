@@ -29,7 +29,7 @@ function App() {
   const messageInputRef = useRef<MessageInputHandle>(null)
   
   // Initialize settings (theme will be applied in useSettings hook)
-  useSettings()
+  const { handleThemeChange, theme } = useSettings()
   
   // Initialize Zustand store
   useEffect(() => {
@@ -162,6 +162,12 @@ function App() {
     }
   }
 
+  const handleToggleTheme = () => {
+    // Toggle between light and dark only
+    const newTheme = theme === 'light' ? 'dark' : 'light'
+    handleThemeChange(newTheme)
+  }
+
   // Initialize keyboard shortcuts
   useKeyboardShortcuts({
     onNewChat: handleNewChat,
@@ -171,6 +177,7 @@ function App() {
     onSendFeedback: handleSendFeedback,
     onFocusInput: handleFocusInput,
     onCloseModal: handleCloseModal,
+    onToggleTheme: handleToggleTheme,
     settingsOpen,
     shortcutsOpen
   })

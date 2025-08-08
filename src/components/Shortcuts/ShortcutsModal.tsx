@@ -83,6 +83,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
         { keys: [modKey, 'S'], description: 'Toggle sidebar' },
         { keys: [modKey, ','], description: 'Open settings' },
         { keys: [modKey, '/'], description: 'Toggle keyboard shortcuts' },
+        { keys: [modKey, 'Shift', 'T'], description: 'Toggle theme (light/dark)' },
         { keys: [modKey, 'Shift', 'F'], description: 'Send feedback' },
         { keys: [modKey, 'L'], description: 'Focus message input' },
         { keys: [modKey, '.'], description: 'Toggle model selector' },

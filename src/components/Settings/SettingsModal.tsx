@@ -1,8 +1,9 @@
-import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search, Brain, Hammer, ImageIcon, Globe } from 'lucide-react'
+import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search, Brain, Hammer, ImageIcon, Globe, Sun, Moon, Monitor } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { open } from '@tauri-apps/plugin-shell'
 import clsx from 'clsx'
 import AboutSettings from './AboutSettings'
+import SegmentedControl from './SegmentedControl'
 import { useSettings } from '../../hooks/useSettings'
 import { Provider, ProviderPreset, ModelCapabilities } from '../../types/provider'
 
@@ -388,16 +389,29 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, se
         <h3 className="text-lg font-medium mb-4">Appearance</h3>
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium">Theme</label>
-            <select
+            <label className="text-sm font-medium mb-3 block">Theme</label>
+            <p className="text-xs text-muted-foreground mb-4">Toggle with ⌘⇧T</p>
+            <SegmentedControl
+              options={[
+                {
+                  value: "light",
+                  label: "Light",
+                  icon: <Sun className="w-4 h-4" />
+                },
+                {
+                  value: "dark", 
+                  label: "Dark",
+                  icon: <Moon className="w-4 h-4" />
+                },
+                {
+                  value: "system",
+                  label: "System",
+                  icon: <Monitor className="w-4 h-4" />
+                }
+              ]}
               value={theme}
-              onChange={(e) => setTheme(e.target.value)}
-              className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
+              onChange={setTheme}
+            />
           </div>
         </div>
       </div>
@@ -468,16 +482,22 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, se
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium">Send Message</label>
-            <select
+            <label className="text-sm font-medium mb-3 block">Send Message</label>
+            <SegmentedControl
+              options={[
+                {
+                  value: "enter",
+                  label: "Enter"
+                },
+                {
+                  value: "cmd-enter",
+                  label: "⌘+Enter"
+                }
+              ]}
               value={sendKey}
-              onChange={(e) => setSendKey(e.target.value)}
-              className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="enter">Enter</option>
-              <option value="cmd-enter">Cmd/Ctrl + Enter</option>
-            </select>
-            <p className="text-xs text-muted-foreground mt-1">
+              onChange={setSendKey}
+            />
+            <p className="text-xs text-muted-foreground mt-3">
               {sendKey === 'enter' ? 'Shift+Enter for new line' : 'Enter for new line'}
             </p>
           </div>
