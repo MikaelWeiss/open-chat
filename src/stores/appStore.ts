@@ -6,73 +6,86 @@ import { messageStore, type Message, type CreateMessageInput } from '../shared/m
 import { settings, SETTINGS_KEYS } from '../shared/settingsStore'
 import { type Provider } from '../types/provider'
 
-// Draft conversation type (exists only in memory)
-export interface DraftConversation {
-  id: string // temporary ID (UUID or timestamp)
+// Pending conversation type (exists only in memory until first message)
+export interface PendingConversation {
   title: string
   provider: string
   model: string
   system_prompt?: string
-  isDraft: true
   created_at: string
   updated_at: string
 }
-
-// Combined conversation type
-export type ConversationWithDraft = Conversation | DraftConversation
 
 // App state interface
 interface AppState {
   // Conversations
   conversations: Conversation[]
-  draftConversations: Map<string, DraftConversation>
-  selectedConversationId: number | string | null
+  pendingConversation: PendingConversation | null
+  selectedConversationId: number | 'pending' | null
   
   // Messages
-  messagesByConversation: Map<number | string, Message[]>
-  streamingMessages: Map<number | string, string>
-  loadingConversations: Set<number | string>
+  messagesByConversation: Map<number | 'pending', Message[]>
+  streamingMessages: Map<number | 'pending', string>
+  loadingConversations: Set<number>
   
   // Providers
   providers: Record<string, Provider>
   isProvidersLoaded: boolean
   
+  // Error states
+  errorStates: Map<number | 'pending', string>
+  retryAttempts: Map<number | 'pending', number>
+  
   // Actions - Conversations
   loadConversations: () => Promise<void>
-  createDraftConversation: (title: string, provider: string, model: string, systemPrompt?: string) => string
-  promoteToPersistent: (draftId: string) => Promise<number | null>
-  updateConversation: (id: number | string, updates: Partial<Conversation>) => Promise<void>
-  deleteConversation: (id: number | string) => Promise<void>
-  setSelectedConversation: (id: number | string | null) => void
+  createPendingConversation: (title: string, provider: string, model: string, systemPrompt?: string) => void
+  commitPendingConversation: () => Promise<number | null>
+  updateConversation: (id: number | 'pending', updates: Partial<Conversation>) => Promise<void>
+  deleteConversation: (id: number | 'pending') => Promise<void>
+  setSelectedConversation: (id: number | 'pending' | null) => void
   
   // Actions - Messages
-  loadMessages: (conversationId: number | string) => Promise<void>
-  addMessage: (conversationId: number | string, message: CreateMessageInput) => Promise<void>
-  setStreamingMessage: (conversationId: number | string, content: string) => void
-  clearStreamingMessage: (conversationId: number | string) => void
+  loadMessages: (conversationId: number) => Promise<void>
+  addMessage: (conversationId: number | 'pending', message: CreateMessageInput) => Promise<void>
+  setStreamingMessage: (conversationId: number | 'pending', content: string) => void
+  clearStreamingMessage: (conversationId: number | 'pending') => void
   
   // Actions - Providers
   loadProviders: () => Promise<void>
   updateProviders: (providers: Record<string, Provider>) => void
   
+  // Actions - Error handling
+  setError: (conversationId: number | 'pending', error: string) => void
+  clearError: (conversationId: number | 'pending') => void
+  incrementRetryAttempt: (conversationId: number | 'pending') => void
+  resetRetryAttempt: (conversationId: number | 'pending') => void
+  
   // Helper methods
-  getConversation: (id: number | string) => ConversationWithDraft | null
-  getAllConversations: () => ConversationWithDraft[]
-  getMessages: (conversationId: number | string) => Message[]
-  getStreamingMessage: (conversationId: number | string) => string
+  getConversation: (id: number | 'pending') => Conversation | PendingConversation | null
+  getAllConversations: () => (Conversation | (PendingConversation & { id: 'pending' }))[]
+  getMessages: (conversationId: number | 'pending') => Message[]
+  getStreamingMessage: (conversationId: number | 'pending') => string
+  
+  // Cleanup
+  cleanup: () => void
 }
+
+const MAX_RETRY_ATTEMPTS = 3
+const RETRY_DELAY = 1000 // 1 second
 
 export const useAppStore = create<AppState>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
     conversations: [],
-    draftConversations: new Map(),
+    pendingConversation: null,
     selectedConversationId: null,
     messagesByConversation: new Map(),
     streamingMessages: new Map(),
     loadingConversations: new Set(),
     providers: {},
     isProvidersLoaded: false,
+    errorStates: new Map(),
+    retryAttempts: new Map(),
 
     // Conversation actions
     loadConversations: async () => {
@@ -81,231 +94,256 @@ export const useAppStore = create<AppState>()(
         set({ conversations })
       } catch (error) {
         console.error('Failed to load conversations:', error)
+        get().setError('system' as any, 'Failed to load conversations')
       }
     },
 
-    createDraftConversation: (title: string, provider: string, model: string, systemPrompt?: string) => {
-      const draftId = `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    createPendingConversation: (title: string, provider: string, model: string, systemPrompt?: string) => {
       const now = new Date().toISOString()
       
-      const draft: DraftConversation = {
-        id: draftId,
+      // Clear any existing pending conversation and its messages
+      get().cleanup()
+      
+      const pending: PendingConversation = {
         title,
         provider,
         model,
         system_prompt: systemPrompt,
-        isDraft: true,
         created_at: now,
         updated_at: now
       }
 
-      set((state) => ({
-        draftConversations: new Map(state.draftConversations.set(draftId, draft))
-      }))
-
-      return draftId
+      set({ 
+        pendingConversation: pending,
+        selectedConversationId: 'pending'
+      })
     },
 
-    promoteToPersistent: async (draftId: string) => {
+    commitPendingConversation: async () => {
       const state = get()
-      const draft = state.draftConversations.get(draftId)
+      const pending = state.pendingConversation
       
-      if (!draft) {
-        console.error('Draft conversation not found:', draftId)
+      if (!pending) {
+        console.error('No pending conversation to commit')
         return null
       }
 
+      const conversationId = 'pending'
+      const retryAttempt = state.retryAttempts.get(conversationId) || 0
+
       try {
+        get().clearError(conversationId)
+        
         // Create persistent conversation
         const persistentId = await conversationStore.createConversation(
-          draft.title,
-          draft.provider,
-          draft.model,
-          draft.system_prompt
+          pending.title,
+          pending.provider,
+          pending.model,
+          pending.system_prompt
         )
 
         if (persistentId) {
-          // Remove from drafts
-          const newDrafts = new Map(state.draftConversations)
-          newDrafts.delete(draftId)
-          
           // Move messages if any exist in memory
-          const draftMessages = state.messagesByConversation.get(draftId)
-          if (draftMessages && draftMessages.length > 0) {
+          const pendingMessages = state.messagesByConversation.get('pending')
+          if (pendingMessages && pendingMessages.length > 0) {
             // Save messages to persistent storage
-            for (const message of draftMessages) {
-              // Convert Message to CreateMessageInput by handling null text
-            const messageInput: CreateMessageInput = {
-              role: message.role,
-              text: message.text || undefined,
-              thinking: message.thinking || undefined,
-              images: message.images || undefined,
-              audio: message.audio || undefined,
-              files: message.files || undefined,
-              references: message.references || undefined,
-              processing_time_ms: message.processing_time_ms || undefined
-            }
-            await messageStore.addMessage(persistentId, messageInput)
+            for (const message of pendingMessages) {
+              const messageInput: CreateMessageInput = {
+                role: message.role,
+                text: message.text || undefined,
+                thinking: message.thinking || undefined,
+                images: message.images || undefined,
+                audio: message.audio || undefined,
+                files: message.files || undefined,
+                references: message.references || undefined,
+                processing_time_ms: message.processing_time_ms || undefined
+              }
+              await messageStore.addMessage(persistentId, messageInput)
             }
             
-            // Update messages map
+            // Move messages to persistent conversation in memory
             const newMessagesByConversation = new Map(state.messagesByConversation)
-            newMessagesByConversation.delete(draftId)
-            newMessagesByConversation.set(persistentId, draftMessages)
-            
+            newMessagesByConversation.delete('pending')
+            newMessagesByConversation.set(persistentId, pendingMessages)
             set({ messagesByConversation: newMessagesByConversation })
           }
           
-          // Reload conversations to get the new persistent one
+          // Move streaming message if any
+          const streamingMessage = state.streamingMessages.get('pending')
+          if (streamingMessage) {
+            const newStreamingMessages = new Map(state.streamingMessages)
+            newStreamingMessages.delete('pending')
+            newStreamingMessages.set(persistentId, streamingMessage)
+            set({ streamingMessages: newStreamingMessages })
+          }
+          
+          // Reload conversations and clear pending state
           await get().loadConversations()
           
           set({ 
-            draftConversations: newDrafts,
+            pendingConversation: null,
             selectedConversationId: persistentId
           })
-
+          
+          get().resetRetryAttempt('pending')
           return persistentId
         }
       } catch (error) {
-        console.error('Failed to promote draft to persistent:', error)
+        console.error('Failed to commit pending conversation:', error)
+        get().setError(conversationId, `Failed to save conversation: ${error}`)
+        get().incrementRetryAttempt(conversationId)
+        
+        // Auto-retry with exponential backoff
+        if (retryAttempt < MAX_RETRY_ATTEMPTS) {
+          setTimeout(() => {
+            get().commitPendingConversation()
+          }, RETRY_DELAY * Math.pow(2, retryAttempt))
+        }
       }
       
       return null
     },
 
-    updateConversation: async (id: number | string, updates: Partial<Conversation>) => {
-      if (typeof id === 'string') {
-        // Update draft conversation
+    updateConversation: async (id: number | 'pending', updates: Partial<Conversation>) => {
+      if (id === 'pending') {
+        // Update pending conversation
         const state = get()
-        const draft = state.draftConversations.get(id)
-        if (draft) {
-          const updatedDraft: DraftConversation = { 
-            ...draft, 
+        const pending = state.pendingConversation
+        if (pending) {
+          const updatedPending: PendingConversation = { 
+            ...pending, 
             ...updates, 
-            id: draft.id, // Ensure id stays string
-            system_prompt: (updates.system_prompt !== undefined ? updates.system_prompt : draft.system_prompt) || undefined,
-            isDraft: true,
+            system_prompt: (updates.system_prompt !== undefined ? updates.system_prompt : pending.system_prompt) || undefined,
             updated_at: new Date().toISOString() 
           }
-          set((state) => ({
-            draftConversations: new Map(state.draftConversations.set(id, updatedDraft))
-          }))
+          set({ pendingConversation: updatedPending })
         }
       } else {
         // Update persistent conversation
         try {
+          get().clearError(id)
           await conversationStore.updateConversation(id, updates)
           await get().loadConversations()
+          get().resetRetryAttempt(id)
         } catch (error) {
           console.error('Failed to update conversation:', error)
+          get().setError(id, `Failed to update conversation: ${error}`)
         }
       }
     },
 
-    deleteConversation: async (id: number | string) => {
-      if (typeof id === 'string') {
-        // Delete draft conversation
-        const state = get()
-        const newDrafts = new Map(state.draftConversations)
-        newDrafts.delete(id)
-        
-        // Also remove any messages
-        const newMessagesByConversation = new Map(state.messagesByConversation)
-        newMessagesByConversation.delete(id)
-        
-        set({ 
-          draftConversations: newDrafts,
-          messagesByConversation: newMessagesByConversation
-        })
+    deleteConversation: async (id: number | 'pending') => {
+      if (id === 'pending') {
+        // Clear pending conversation and its messages
+        get().cleanup()
+        set({ selectedConversationId: null })
       } else {
         // Delete persistent conversation
         try {
+          get().clearError(id)
           await conversationStore.deleteConversation(id)
           await get().loadConversations()
           
           // Remove messages from memory
           const newMessagesByConversation = new Map(get().messagesByConversation)
           newMessagesByConversation.delete(id)
-          set({ messagesByConversation: newMessagesByConversation })
+          const newStreamingMessages = new Map(get().streamingMessages)
+          newStreamingMessages.delete(id)
+          
+          set({ 
+            messagesByConversation: newMessagesByConversation,
+            streamingMessages: newStreamingMessages
+          })
+          
+          get().resetRetryAttempt(id)
         } catch (error) {
           console.error('Failed to delete conversation:', error)
+          get().setError(id, `Failed to delete conversation: ${error}`)
         }
       }
     },
 
-    setSelectedConversation: (id: number | string | null) => {
+    setSelectedConversation: (id: number | 'pending' | null) => {
       set({ selectedConversationId: id })
     },
 
     // Message actions
-    loadMessages: async (conversationId: number | string) => {
-      if (typeof conversationId === 'string') {
-        // Draft conversation - messages only exist in memory
-        return
-      }
-
-      const state = get()
-      if (state.loadingConversations.has(conversationId)) {
+    loadMessages: async (conversationId: number) => {
+      if (get().loadingConversations.has(conversationId)) {
         return // Already loading
       }
 
       try {
-        const newLoadingConversations = new Set(state.loadingConversations)
+        const newLoadingConversations = new Set(get().loadingConversations)
         newLoadingConversations.add(conversationId)
         set({ loadingConversations: newLoadingConversations })
 
+        get().clearError(conversationId)
         const messages = await messageStore.getMessages(conversationId)
         
         set((state) => ({
           messagesByConversation: new Map(state.messagesByConversation.set(conversationId, messages)),
           loadingConversations: new Set([...state.loadingConversations].filter(id => id !== conversationId))
         }))
+        
+        get().resetRetryAttempt(conversationId)
       } catch (error) {
         console.error('Failed to load messages:', error)
+        get().setError(conversationId, `Failed to load messages: ${error}`)
         set((state) => ({
           loadingConversations: new Set([...state.loadingConversations].filter(id => id !== conversationId))
         }))
       }
     },
 
-    addMessage: async (conversationId: number | string, message: CreateMessageInput) => {
-      if (typeof conversationId === 'string') {
-        // Draft conversation - store in memory
+    addMessage: async (conversationId: number | 'pending', message: CreateMessageInput) => {
+      if (conversationId === 'pending') {
+        // Pending conversation - store in memory
         const state = get()
-        const existingMessages = state.messagesByConversation.get(conversationId) || []
+        const existingMessages = state.messagesByConversation.get('pending') || []
         const newMessage: Message = {
           id: Date.now(),
-          conversation_id: conversationId as any,
+          conversation_id: 'pending' as any,
           role: message.role,
           text: message.text || '',
+          thinking: message.thinking,
           images: message.images,
           audio: message.audio,
           files: message.files,
+          references: message.references,
+          input_tokens: message.input_tokens,
+          output_tokens: message.output_tokens,
+          reasoning_tokens: message.reasoning_tokens,
+          cached_tokens: message.cached_tokens,
+          cost: message.cost,
           processing_time_ms: message.processing_time_ms,
           created_at: new Date().toISOString()
         }
         
         set((state) => ({
-          messagesByConversation: new Map(state.messagesByConversation.set(conversationId, [...existingMessages, newMessage]))
+          messagesByConversation: new Map(state.messagesByConversation.set('pending', [...existingMessages, newMessage]))
         }))
       } else {
         // Persistent conversation - save to database and update memory
         try {
+          get().clearError(conversationId)
           await messageStore.addMessage(conversationId, message)
-          await get().loadMessages(conversationId) // Reload to get the saved message with ID
+          await get().loadMessages(conversationId)
+          get().resetRetryAttempt(conversationId)
         } catch (error) {
           console.error('Failed to add message:', error)
+          get().setError(conversationId, `Failed to save message: ${error}`)
         }
       }
     },
 
-    setStreamingMessage: (conversationId: number | string, content: string) => {
+    setStreamingMessage: (conversationId: number | 'pending', content: string) => {
       set((state) => ({
         streamingMessages: new Map(state.streamingMessages.set(conversationId, content))
       }))
     },
 
-    clearStreamingMessage: (conversationId: number | string) => {
+    clearStreamingMessage: (conversationId: number | 'pending') => {
       set((state) => {
         const newStreamingMessages = new Map(state.streamingMessages)
         newStreamingMessages.delete(conversationId)
@@ -328,11 +366,43 @@ export const useAppStore = create<AppState>()(
       set({ providers })
     },
 
+    // Error handling actions
+    setError: (conversationId: number | 'pending', error: string) => {
+      set((state) => ({
+        errorStates: new Map(state.errorStates.set(conversationId, error))
+      }))
+    },
+
+    clearError: (conversationId: number | 'pending') => {
+      set((state) => {
+        const newErrorStates = new Map(state.errorStates)
+        newErrorStates.delete(conversationId)
+        return { errorStates: newErrorStates }
+      })
+    },
+
+    incrementRetryAttempt: (conversationId: number | 'pending') => {
+      set((state) => {
+        const currentAttempts = state.retryAttempts.get(conversationId) || 0
+        return {
+          retryAttempts: new Map(state.retryAttempts.set(conversationId, currentAttempts + 1))
+        }
+      })
+    },
+
+    resetRetryAttempt: (conversationId: number | 'pending') => {
+      set((state) => {
+        const newRetryAttempts = new Map(state.retryAttempts)
+        newRetryAttempts.delete(conversationId)
+        return { retryAttempts: newRetryAttempts }
+      })
+    },
+
     // Helper methods
-    getConversation: (id: number | string) => {
+    getConversation: (id: number | 'pending') => {
       const state = get()
-      if (typeof id === 'string') {
-        return state.draftConversations.get(id) || null
+      if (id === 'pending') {
+        return state.pendingConversation
       } else {
         return state.conversations.find(conv => conv.id === id) || null
       }
@@ -340,10 +410,11 @@ export const useAppStore = create<AppState>()(
 
     getAllConversations: () => {
       const state = get()
-      const allConversations: ConversationWithDraft[] = [
-        ...state.conversations,
-        ...Array.from(state.draftConversations.values())
-      ]
+      const allConversations: (Conversation | (PendingConversation & { id: 'pending' }))[] = [...state.conversations]
+      
+      if (state.pendingConversation) {
+        allConversations.unshift({ ...state.pendingConversation, id: 'pending' })
+      }
       
       // Sort by updated_at (most recent first)
       return allConversations.sort((a, b) => 
@@ -351,56 +422,86 @@ export const useAppStore = create<AppState>()(
       )
     },
 
-    getMessages: (conversationId: number | string) => {
+    getMessages: (conversationId: number | 'pending') => {
       return get().messagesByConversation.get(conversationId) || []
     },
 
-    getStreamingMessage: (conversationId: number | string) => {
+    getStreamingMessage: (conversationId: number | 'pending') => {
       return get().streamingMessages.get(conversationId) || ''
+    },
+
+    // Cleanup method
+    cleanup: () => {
+      set((state) => {
+        // Clean up pending conversation data
+        const newMessagesByConversation = new Map(state.messagesByConversation)
+        newMessagesByConversation.delete('pending')
+        
+        const newStreamingMessages = new Map(state.streamingMessages)
+        newStreamingMessages.delete('pending')
+        
+        const newErrorStates = new Map(state.errorStates)
+        newErrorStates.delete('pending')
+        
+        const newRetryAttempts = new Map(state.retryAttempts)
+        newRetryAttempts.delete('pending')
+        
+        return {
+          pendingConversation: null,
+          messagesByConversation: newMessagesByConversation,
+          streamingMessages: newStreamingMessages,
+          errorStates: newErrorStates,
+          retryAttempts: newRetryAttempts
+        }
+      })
     }
   }))
 )
 
 // Initialize store by loading data
 export const initializeAppStore = async () => {
-  const store = useAppStore.getState()
-  await Promise.all([
-    store.loadConversations(),
-    store.loadProviders()
-  ])
+  try {
+    const store = useAppStore.getState()
+    await Promise.all([
+      store.loadConversations(),
+      store.loadProviders()
+    ])
+  } catch (error) {
+    console.error('Failed to initialize app store:', error)
+  }
 }
 
 // Selector hooks for common patterns
 export const useConversations = () => {
-  // Use separate selectors to avoid object recreation
-  const persistentConversations = useAppStore((state) => state.conversations)
-  const draftConversations = useAppStore((state) => state.draftConversations)
+  const conversations = useAppStore((state) => state.conversations)
+  const pendingConversation = useAppStore((state) => state.pendingConversation)
   const selectedConversationId = useAppStore((state) => state.selectedConversationId)
-  const createDraftConversation = useAppStore((state) => state.createDraftConversation)
-  const promoteToPersistent = useAppStore((state) => state.promoteToPersistent)
+  const createPendingConversation = useAppStore((state) => state.createPendingConversation)
+  const commitPendingConversation = useAppStore((state) => state.commitPendingConversation)
   const updateConversation = useAppStore((state) => state.updateConversation)
   const deleteConversation = useAppStore((state) => state.deleteConversation)
   const setSelectedConversation = useAppStore((state) => state.setSelectedConversation)
   const getConversation = useAppStore((state) => state.getConversation)
 
   // Memoize the combined conversations
-  const conversations = useMemo(() => {
-    const allConversations: ConversationWithDraft[] = [
-      ...persistentConversations,
-      ...Array.from(draftConversations.values())
-    ]
+  const allConversations = useMemo(() => {
+    const combined: (Conversation | (PendingConversation & { id: 'pending' }))[] = [...conversations]
+    
+    if (pendingConversation) {
+      combined.unshift({ ...pendingConversation, id: 'pending' })
+    }
     
     // Sort by updated_at (most recent first)
-    return allConversations.sort((a, b) => 
+    return combined.sort((a, b) => 
       new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
     )
-  }, [persistentConversations, draftConversations.size, Array.from(draftConversations.keys()).join(',')])
+  }, [conversations, pendingConversation])
 
   return {
-    conversations,
+    conversations: allConversations,
     selectedConversationId,
-    createDraftConversation,
-    promoteToPersistent,
+    createPendingConversation,
+    commitPendingConversation,
     updateConversation,
     deleteConversation,
     setSelectedConversation,
@@ -408,8 +509,7 @@ export const useConversations = () => {
   }
 }
 
-export const useMessages = (conversationId: number | string | null) => {
-  // Get raw data from store and memoize the results
+export const useMessages = (conversationId: number | 'pending' | null) => {
   const messagesByConversation = useAppStore((state) => state.messagesByConversation)
   const streamingMessages = useAppStore((state) => state.streamingMessages)
   const loadingConversations = useAppStore((state) => state.loadingConversations)
@@ -428,7 +528,7 @@ export const useMessages = (conversationId: number | string | null) => {
   }, [conversationId, streamingMessages])
 
   const isLoading = useMemo(() => {
-    return conversationId ? loadingConversations.has(conversationId) : false
+    return conversationId && typeof conversationId === 'number' ? loadingConversations.has(conversationId) : false
   }, [conversationId, loadingConversations])
 
   return {
@@ -453,5 +553,23 @@ export const useProviders = () => {
     isProvidersLoaded,
     loadProviders,
     updateProviders
+  }
+}
+
+export const useErrors = () => {
+  const errorStates = useAppStore((state) => state.errorStates)
+  const retryAttempts = useAppStore((state) => state.retryAttempts)
+  const setError = useAppStore((state) => state.setError)
+  const clearError = useAppStore((state) => state.clearError)
+  const resetRetryAttempt = useAppStore((state) => state.resetRetryAttempt)
+  
+  return {
+    errorStates,
+    retryAttempts,
+    setError,
+    clearError,
+    resetRetryAttempt,
+    getError: (id: number | 'pending') => errorStates.get(id) || null,
+    getRetryAttempts: (id: number | 'pending') => retryAttempts.get(id) || 0
   }
 }

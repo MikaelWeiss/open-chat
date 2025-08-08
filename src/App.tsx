@@ -9,7 +9,6 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { MessageInputHandle } from './components/Chat/MessageInput'
 import { useSettings } from './hooks/useSettings'
 import { useConversations, useAppStore } from './stores/appStore'
-import { messageStore } from './shared/messageStore'
 import { initializeAppStore } from './stores/appStore'
 
 function App() {
@@ -18,16 +17,16 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState<'general' | 'models' | 'about'>('general')
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  
   // Use Zustand store for conversations
   const { 
     conversations, 
     selectedConversationId, 
     setSelectedConversation,
-    createDraftConversation,
+    createPendingConversation,
     deleteConversation: deleteConversationFromStore
   } = useConversations()
   const messageInputRef = useRef<MessageInputHandle>(null)
-  const hasInitialized = useRef(false)
   
   // Initialize settings (theme will be applied in useSettings hook)
   useSettings()
@@ -60,29 +59,20 @@ function App() {
   
   
   
-  // Create initial draft conversation when app starts and no conversation is selected
+  // Create initial pending conversation when app starts and no conversation is selected
   useEffect(() => {
-    if (hasInitialized.current) return
-    
-    // Only create a new draft conversation if there's no selected conversation and no existing conversations
+    // Only create a new pending conversation if there's no selected conversation and no existing conversations
     if (!selectedConversationId && conversations.length === 0) {
-      try {
-        hasInitialized.current = true
-        const draftId = createDraftConversation('New Conversation', '', '')
-        setSelectedConversation(draftId)
-      } catch (err) {
-        console.error('Failed to create initial draft conversation:', err)
-        hasInitialized.current = false
-      }
+      createPendingConversation('New Conversation', '', '')
     }
-  }, [conversations.length, selectedConversationId, createDraftConversation, setSelectedConversation])
+  }, [conversations.length, selectedConversationId, createPendingConversation])
 
   // Handle when a conversation is deleted
-  const handleConversationDeleted = async (deletedId: number | string) => {
+  const handleConversationDeleted = async (deletedId: number | 'pending') => {
     // Delete from store
     await deleteConversationFromStore(deletedId)
     
-    // If the deleted conversation was the currently selected one, create a new draft chat
+    // If the deleted conversation was the currently selected one, create a new pending chat
     if (selectedConversationId === deletedId) {
       try {
         // Get the last conversation's model to inherit it (if any)
@@ -95,46 +85,29 @@ function App() {
           model = lastConversation.model || ''
         }
         
-        // Create a new draft conversation
-        const draftId = createDraftConversation('New Conversation', provider, model)
-        setSelectedConversation(draftId)
+        // Create a new pending conversation
+        createPendingConversation('New Conversation', provider, model)
         
         // Focus the message input after creating new conversation
         setTimeout(() => {
           messageInputRef.current?.focus()
         }, 100)
       } catch (err) {
-        console.error('Failed to create new draft conversation after deletion:', err)
+        console.error('Failed to create new pending conversation after deletion:', err)
       }
     }
   }
 
   // Keyboard shortcut handlers
-  const handleNewChat = async () => {
+  const handleNewChat = () => {
     if (!selectedConversationId) {
       return
     }
     
-    // For draft conversations (string IDs), check if there are messages in memory
-    if (typeof selectedConversationId === 'string') {
-      // Draft conversation - check messages in Zustand store
-      // If no messages, don't create new chat
-      const messages = useAppStore.getState().getMessages(selectedConversationId)
-      if (messages.length < 1) {
-        return
-      }
-    } else {
-      // Persistent conversation - check database
-      try {
-        const dbMessages = await messageStore.getMessages(selectedConversationId)
-        
-        if (dbMessages.length < 1) {
-          return
-        }
-      } catch (error) {
-        console.error('Failed to check message count:', error)
-        return
-      }
+    // Check if current conversation has messages
+    const messages = useAppStore.getState().getMessages(selectedConversationId)
+    if (messages.length < 1) {
+      return // Don't create new chat if current one is empty
     }
     
     try {
@@ -148,11 +121,10 @@ function App() {
         model = lastConversation.model || ''
       }
       
-      // Create a new draft conversation
-      const draftId = createDraftConversation('New Conversation', provider, model)
-      setSelectedConversation(draftId)
+      // Create a new pending conversation
+      createPendingConversation('New Conversation', provider, model)
       
-      // Focus the message input after a short delay to ensure the conversation loads
+      // Focus the message input after a short delay
       setTimeout(() => {
         messageInputRef.current?.focus()
       }, 100)

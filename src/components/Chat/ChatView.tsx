@@ -5,17 +5,18 @@ import { useRef, RefObject, useState, useEffect, useMemo } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useSettings } from '../../hooks/useSettings'
 import { useProviders, useMessages, useConversations } from '../../stores/appStore'
-import { type ConversationWithDraft } from '../../stores/appStore'
+import { type PendingConversation } from '../../stores/appStore'
+import { type Conversation } from '../../shared/conversationStore'
 import { type CreateMessageInput } from '../../shared/messageStore'
 import { chatService } from '../../services/chatService'
 import clsx from 'clsx'
 import EmptyState from '../EmptyState/EmptyState'
 
 interface ChatViewProps {
-  conversationId?: number | string | null
+  conversationId?: number | 'pending' | null
   onOpenSettings?: () => void
   messageInputRef?: RefObject<MessageInputHandle>
-  onSelectConversation?: (conversationId: number | string | null) => void
+  onSelectConversation?: (conversationId: number | 'pending' | null) => void
 }
 
 interface ModelCapabilityIconsProps {
@@ -103,13 +104,13 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const { 
     getConversation,
     updateConversation, 
-    createDraftConversation,
-    promoteToPersistent
+    createPendingConversation,
+    commitPendingConversation
   } = useConversations()
   const { getProviderApiKey } = useSettings()
   const { providers } = useProviders()
   
-  const [currentConversation, setCurrentConversation] = useState<ConversationWithDraft | null>(null)
+  const [currentConversation, setCurrentConversation] = useState<Conversation | PendingConversation | null>(null)
   
   // Debug: Log when ChatView's providers change from Zustand
   useEffect(() => {
@@ -376,7 +377,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         })
         
         // Update local state immediately to reflect the change
-        setCurrentConversation(prev => prev ? {
+        setCurrentConversation((prev) => prev ? {
           ...prev,
           provider: model.provider,
           model: model.model
@@ -419,9 +420,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       const provider = currentConversation?.provider || ''
       const model = currentConversation?.model || ''
       
-      // Create a draft conversation
-      const draftId = createDraftConversation('New Conversation', provider, model)
-      onSelectConversation?.(draftId)
+      // Create a pending conversation
+      createPendingConversation('New Conversation', provider, model)
       
       // Focus the message input after a short delay
       setTimeout(() => {
@@ -449,10 +449,10 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       setIsLoading(true)
       clearStreamingMessage(conversationId)
       
-      // If this is a draft conversation, promote it to persistent before sending message
-      if (typeof conversationId === 'string') {
-        console.log('Promoting draft conversation to persistent before sending message')
-        const persistentId = await promoteToPersistent(conversationId)
+      // If this is a pending conversation, commit it to persistent before sending message
+      if (conversationId === 'pending') {
+        console.log('Committing pending conversation to persistent before sending message')
+        const persistentId = await commitPendingConversation()
         if (persistentId) {
           activeConversationId = persistentId
           onSelectConversation?.(persistentId)
@@ -462,7 +462,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             setCurrentConversation(promotedConv)
           }
         } else {
-          console.error('Failed to promote draft conversation')
+          console.error('Failed to commit pending conversation')
           return
         }
       }

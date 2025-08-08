@@ -8,7 +8,8 @@
       "Bash(pnpm build:*)",
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(gh pr diff:*)"
     ],
     "deny": []
   }

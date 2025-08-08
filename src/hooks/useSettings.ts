@@ -128,19 +128,9 @@ export function useSettings() {
         applyTheme(value as string)
       }
       
-      // Debug log for providers updates and sync with Zustand
+      // Sync providers with Zustand store for immediate reactivity
       if (key === 'providers') {
-        console.log('updateSetting: Setting new providers state')
-        console.log('updateSetting: Previous providers keys:', Object.keys(settingsManager.settings.providers || {}))
-        console.log('updateSetting: New providers keys:', Object.keys((value as any) || {}))
-        // Log the specific enabled models for anthropic
-        const newProviders = value as any
-        if (newProviders.anthropic) {
-          console.log('updateSetting: New anthropic enabled models:', newProviders.anthropic.enabledModels)
-        }
-        
-        // Sync with Zustand store for immediate reactivity
-        updateProviders(newProviders || {})
+        updateProviders((value as Record<string, Provider>) || {})
       }
       
       settingsManager.updateSettings(newSettings)

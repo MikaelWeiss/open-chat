@@ -2,8 +2,17 @@ import { ChevronLeft, ChevronRight, ChevronDown, Settings, Trash2, Star, Message
 import { format } from 'date-fns'
 import clsx from 'clsx'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { useConversations } from '../../hooks/useConversations'
+import { useConversations } from '../../stores/appStore'
 import { type Conversation } from '../../shared/conversationStore'
+import { type PendingConversation } from '../../stores/appStore'
+
+// Helper type for sidebar display
+type SidebarConversation = Conversation | (PendingConversation & { id: 'pending', is_favorite?: boolean })
+
+// Helper function to check if conversation is persistent
+const isPersistentConversation = (conv: SidebarConversation): conv is Conversation => {
+  return typeof conv.id === 'number'
+}
 import { useState, useEffect } from 'react'
 import ContextMenu from '../ContextMenu/ContextMenu'
 import EmptyState from '../EmptyState/EmptyState'
@@ -17,9 +26,9 @@ interface SidebarProps {
   onWidthChange: (width: number) => void
   onOpenSettings: () => void
   onOpenShortcuts: () => void
-  selectedConversationId?: number | string | null
-  onSelectConversation?: (conversationId: number | string | null) => void
-  onDeleteConversation?: (deletedId: number | string) => void
+  selectedConversationId?: number | 'pending' | null
+  onSelectConversation?: (conversationId: number | 'pending' | null) => void
+  onDeleteConversation?: (deletedId: number | 'pending') => void
 }
 
 export default function Sidebar({
@@ -33,14 +42,18 @@ export default function Sidebar({
   onSelectConversation,
   onDeleteConversation,
 }: SidebarProps) {
-  const { conversations, loading, error, deleteConversation, toggleConversationFavorite, createConversation } = useConversations()
-  const [confirmDelete, setConfirmDelete] = useState<{ id: number; title: string } | null>(null)
+  const { conversations, deleteConversation, createPendingConversation } = useConversations()
+  
+  // For now, disable loading/error states - can be added back later
+  const loading = false
+  const error = null
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number | 'pending'; title: string } | null>(null)
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
-    conversation: Conversation
+    conversation: SidebarConversation
   } | null>(null)
-  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
+  const [deletingIds, setDeletingIds] = useState<Set<number | 'pending'>>(new Set())
   const [isFavoritesCollapsed, setIsFavoritesCollapsed] = useState(() => {
     const saved = localStorage.getItem('favoritesCollapsed')
     return saved === 'true'
@@ -54,7 +67,7 @@ export default function Sidebar({
   useEffect(() => {
     const conversationIds = new Set(conversations.map(c => c.id))
     setDeletingIds(prev => {
-      const newSet = new Set<number>()
+      const newSet = new Set<number | 'pending'>()
       for (const id of prev) {
         if (conversationIds.has(id)) {
           newSet.add(id)
@@ -64,11 +77,11 @@ export default function Sidebar({
     })
   }, [conversations])
   
-  const handleSelectConversation = (conversation: Conversation) => {
+  const handleSelectConversation = (conversation: SidebarConversation) => {
     onSelectConversation?.(conversation.id)
   }
   
-  const handleDeleteConversation = async (id: number) => {
+  const handleDeleteConversation = async (id: number | 'pending') => {
     // Start the deletion animation immediately
     setDeletingIds(prev => new Set(prev).add(id))
     setConfirmDelete(null)
@@ -88,7 +101,7 @@ export default function Sidebar({
     }
   }
 
-  const handleDeleteClick = (e: React.MouseEvent, conversation: Conversation) => {
+  const handleDeleteClick = (e: React.MouseEvent, conversation: SidebarConversation) => {
     e.stopPropagation()
     
     // If Command key is held, delete immediately without confirmation
@@ -100,7 +113,7 @@ export default function Sidebar({
     }
   }
 
-  const handleContextMenu = (e: React.MouseEvent, conversation: Conversation) => {
+  const handleContextMenu = (e: React.MouseEvent, conversation: SidebarConversation) => {
     e.preventDefault()
     e.stopPropagation()
     
@@ -111,9 +124,12 @@ export default function Sidebar({
     })
   }
 
-  const handleToggleFavorite = async (conversationId: number) => {
+  const handleToggleFavorite = async (conversationId: number | 'pending') => {
+    if (conversationId === 'pending') return // Can't favorite pending conversations
+    
     try {
-      await toggleConversationFavorite(conversationId)
+      // TODO: Re-implement favorite toggle when needed
+      console.log('Toggle favorite for conversation:', conversationId)
     } catch (err) {
       console.error('Failed to toggle favorite:', err)
     }
@@ -133,8 +149,8 @@ export default function Sidebar({
   // Group conversations by date and favorites
   const getConversationsByDate = () => {
     // Separate conversations by favorite status
-    const favorites = conversations.filter(conv => conv.is_favorite)
-    const regular = conversations.filter(conv => !conv.is_favorite)
+    const favorites = conversations.filter(conv => isPersistentConversation(conv) && conv.is_favorite)
+    const regular = conversations.filter(conv => !isPersistentConversation(conv) || !conv.is_favorite)
     
     // Group regular conversations by date
     const regularByDate = regular.reduce((acc, conv) => {
@@ -155,7 +171,7 @@ export default function Sidebar({
       if (!acc[dateKey]) acc[dateKey] = []
       acc[dateKey].push(conv)
       return acc
-    }, {} as Record<string, Conversation[]>)
+    }, {} as Record<string, SidebarConversation[]>)
     
     return {
       favorites,
@@ -185,7 +201,7 @@ export default function Sidebar({
   const { favorites, regularByDate } = getConversationsByDate()
   
   // Helper function to render a conversation item
-  const renderConversation = (conversation: Conversation) => {
+  const renderConversation = (conversation: SidebarConversation) => {
     const isDeleting = deletingIds.has(conversation.id)
     const isSelected = selectedConversationId === conversation.id
     
@@ -210,7 +226,7 @@ export default function Sidebar({
           className="flex-1 min-w-0 px-4 py-3 text-left transition-all duration-200"
         >
           <div className="flex items-center gap-2 font-medium text-sm pr-8">
-            {conversation.is_favorite && (
+            {isPersistentConversation(conversation) && conversation.is_favorite && (
               <Star className="h-3 w-3 fill-primary text-primary flex-shrink-0 drop-shadow-sm" />
             )}
             <span className="truncate text-foreground/90">{conversation.title}</span>
@@ -295,14 +311,13 @@ export default function Sidebar({
               description="Start a new conversation to begin chatting with AI"
               action={{
                 label: "Start New Chat",
-                onClick: async () => {
-                  // Create a new conversation
-                  const id = await createConversation(
+                onClick: () => {
+                  // Create a new pending conversation
+                  createPendingConversation(
                     "New Conversation",
                     "",
                     ""
                   );
-                  onSelectConversation?.(id || null);
                 },
               }}
               className="h-full"
@@ -449,7 +464,7 @@ export default function Sidebar({
         y={contextMenu?.y || 0}
         isVisible={!!contextMenu}
         onClose={() => setContextMenu(null)}
-        isFavorite={contextMenu?.conversation.is_favorite || false}
+        isFavorite={contextMenu && isPersistentConversation(contextMenu.conversation) ? contextMenu.conversation.is_favorite : false}
         onToggleFavorite={() => {
           if (contextMenu) {
             handleToggleFavorite(contextMenu.conversation.id);
