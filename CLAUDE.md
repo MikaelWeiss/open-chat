@@ -87,3 +87,29 @@ The SQLite database auto-creates tables for:
 
 ## Build Checks
 - When you're done doing anything, run `pnpm build` to make sure there aren't any errors
+
+## Documentation Libraries
+Get documentation using context7 with these library IDs as needed:
+
+### Core Technologies
+- **Tauri**: `/tauri-apps/tauri` - Main framework for desktop/mobile apps
+- **React**: `/reactjs/react.dev` - UI library 
+- **TypeScript**: `/microsoft/typescript` - Language and type system
+- **Tailwind CSS**: `/tailwindlabs/tailwindcss.com` - Utility-first CSS framework
+- **Vite**: `/vitejs/vite` - Build tool and dev server
+
+### iOS/Swift Development  
+- **Swift**: `/swiftlang/swift` - Swift language documentation
+- **SwiftUI**: `/zhangyu1818/swiftui.md` - SwiftUI framework (15k+ snippets)
+
+### Rust Development
+- **Rust**: `/rust-lang/rust` - Rust language documentation
+
+### Tauri Plugins
+- **Tauri Plugins**: `/tauri-apps/plugins-workspace` - All official Tauri plugins
+- **Tauri Plugin SQL**: `/tauri-apps/tauri-plugin-sql` - SQLite plugin
+- **Tauri Plugin Shell**: `/tauri-apps/tauri-plugin-shell` - Shell commands plugin
+
+### Supporting Libraries
+- **React Markdown**: Search for "react-markdown" if needed
+- **Lucide React**: Search for "lucide-react" icons if needed
