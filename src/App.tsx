@@ -8,8 +8,9 @@ import { DEFAULT_SIDEBAR_WIDTH } from './shared/constants'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { MessageInputHandle } from './components/Chat/MessageInput'
 import { useSettings } from './hooks/useSettings'
-import { useConversations } from './hooks/useConversations'
+import { useConversations, useAppStore } from './stores/appStore'
 import { messageStore } from './shared/messageStore'
+import { initializeAppStore } from './stores/appStore'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -17,11 +18,24 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState<'general' | 'models' | 'about'>('general')
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
-  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null)
+  // Use Zustand store for conversations
+  const { 
+    conversations, 
+    selectedConversationId, 
+    setSelectedConversation,
+    createDraftConversation,
+    deleteConversation: deleteConversationFromStore
+  } = useConversations()
   const messageInputRef = useRef<MessageInputHandle>(null)
+  const hasInitialized = useRef(false)
   
   // Initialize settings (theme will be applied in useSettings hook)
   useSettings()
+  
+  // Initialize Zustand store
+  useEffect(() => {
+    initializeAppStore()
+  }, [])
   
   // Listen for custom event to open settings to a specific section
   useEffect(() => {
@@ -44,72 +58,83 @@ function App() {
     }
   }, [])
   
-  // Initialize conversations
-  const { conversations, createConversation } = useConversations()
   
   
-  // Create initial conversation when app starts and no conversation is selected
+  // Create initial draft conversation when app starts and no conversation is selected
   useEffect(() => {
-    const initializeApp = async () => {
-      // Only create a new conversation if there's no selected conversation and no existing conversations
-      if (!selectedConversationId && conversations.length === 0) {
-        try {
-          const id = await createConversation('New Conversation', '', '')
-          setSelectedConversationId(id || null)
-        } catch (err) {
-          console.error('Failed to create initial conversation:', err)
-        }
+    if (hasInitialized.current) return
+    
+    // Only create a new draft conversation if there's no selected conversation and no existing conversations
+    if (!selectedConversationId && conversations.length === 0) {
+      try {
+        hasInitialized.current = true
+        const draftId = createDraftConversation('New Conversation', '', '')
+        setSelectedConversation(draftId)
+      } catch (err) {
+        console.error('Failed to create initial draft conversation:', err)
+        hasInitialized.current = false
       }
     }
-    
-    initializeApp()
-  }, [conversations, selectedConversationId, createConversation])
+  }, [conversations.length, selectedConversationId, createDraftConversation, setSelectedConversation])
 
   // Handle when a conversation is deleted
-  const handleConversationDeleted = async (deletedId: number) => {
-    // If the deleted conversation was the currently selected one, create a new chat
+  const handleConversationDeleted = async (deletedId: number | string) => {
+    // Delete from store
+    await deleteConversationFromStore(deletedId)
+    
+    // If the deleted conversation was the currently selected one, create a new draft chat
     if (selectedConversationId === deletedId) {
       try {
         // Get the last conversation's model to inherit it (if any)
         let provider = ''
         let model = ''
         
-        if (conversations.length > 0) {
+        if (conversations.length > 1) { // More than 1 because we haven't removed the deleted one from the array yet
           const lastConversation = conversations.find(conv => conv.id !== deletedId) || conversations[0]
           provider = lastConversation.provider || ''
           model = lastConversation.model || ''
         }
         
-        // Create a new conversation
-        const id = await createConversation('New Conversation', provider, model)
-        setSelectedConversationId(id || null)
+        // Create a new draft conversation
+        const draftId = createDraftConversation('New Conversation', provider, model)
+        setSelectedConversation(draftId)
         
         // Focus the message input after creating new conversation
         setTimeout(() => {
           messageInputRef.current?.focus()
         }, 100)
       } catch (err) {
-        console.error('Failed to create new conversation after deletion:', err)
+        console.error('Failed to create new draft conversation after deletion:', err)
       }
     }
   }
 
   // Keyboard shortcut handlers
   const handleNewChat = async () => {
-    // Check database directly for message count to avoid stale React state
     if (!selectedConversationId) {
       return
     }
     
-    try {
-      const dbMessages = await messageStore.getMessages(selectedConversationId)
-      
-      if (dbMessages.length < 1) {
+    // For draft conversations (string IDs), check if there are messages in memory
+    if (typeof selectedConversationId === 'string') {
+      // Draft conversation - check messages in Zustand store
+      // If no messages, don't create new chat
+      const messages = useAppStore.getState().getMessages(selectedConversationId)
+      if (messages.length < 1) {
         return
       }
-    } catch (error) {
-      console.error('Failed to check message count:', error)
-      return
+    } else {
+      // Persistent conversation - check database
+      try {
+        const dbMessages = await messageStore.getMessages(selectedConversationId)
+        
+        if (dbMessages.length < 1) {
+          return
+        }
+      } catch (error) {
+        console.error('Failed to check message count:', error)
+        return
+      }
     }
     
     try {
@@ -123,8 +148,9 @@ function App() {
         model = lastConversation.model || ''
       }
       
-      const id = await createConversation('New Conversation', provider, model)
-      setSelectedConversationId(id || null)
+      // Create a new draft conversation
+      const draftId = createDraftConversation('New Conversation', provider, model)
+      setSelectedConversation(draftId)
       
       // Focus the message input after a short delay to ensure the conversation loads
       setTimeout(() => {
@@ -187,7 +213,7 @@ function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenShortcuts={() => setShortcutsOpen(true)}
         selectedConversationId={selectedConversationId}
-        onSelectConversation={setSelectedConversationId}
+        onSelectConversation={setSelectedConversation}
         onDeleteConversation={handleConversationDeleted}
       />
       
@@ -197,7 +223,7 @@ function App() {
             conversationId={selectedConversationId}
             onOpenSettings={() => setSettingsOpen(true)} 
             messageInputRef={messageInputRef}
-            onSelectConversation={setSelectedConversationId}
+            onSelectConversation={setSelectedConversation}
           />
         </div>
       </div>

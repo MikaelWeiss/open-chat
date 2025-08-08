@@ -65,6 +65,9 @@ importers:
       tiktoken:
         specifier: ^1.0.21
         version: 1.0.21
+      zustand:
+        specifier: ^5.0.7
+        version: 5.0.7(@types/react@18.3.23)(react@18.3.1)
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2
@@ -1569,6 +1572,24 @@ packages:
     resolution: {integrity: sha512-4lLa/EcQCB0cJkyts+FpIRx5G/llPxfP6VQU5KByHEhLxY3IJCH0f0Hy1MHI8sClTvsIb8qwRJ6R/ZdlDJ/leQ==}
     engines: {node: '>= 14.6'}
     hasBin: true
+
+  zustand@5.0.7:
+    resolution: {integrity: sha512-Ot6uqHDW/O2VdYsKLLU8GQu8sCOM1LcoE8RwvLv9uuRT9s6SOHCKs0ZEOhxg+I1Ld+A1Q5lwx+UlKXXUoCZITg==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@types/react': '>=18.0.0'
+      immer: '>=9.0.6'
+      react: '>=18.0.0'
+      use-sync-external-store: '>=1.2.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+      use-sync-external-store:
+        optional: true
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
@@ -3206,5 +3227,10 @@ snapshots:
   yallist@3.1.1: {}
 
   yaml@2.8.0: {}
+
+  zustand@5.0.7(@types/react@18.3.23)(react@18.3.1):
+    optionalDependencies:
+      '@types/react': 18.3.23
+      react: 18.3.1
 
   zwitch@2.0.4: {}

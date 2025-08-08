@@ -4,6 +4,7 @@ import { saveApiKey, getApiKey, deleteApiKey, hasApiKey } from '../utils/secureS
 import { Provider, AddProviderRequest, UpdateProviderRequest } from '../types/provider'
 import { applyTheme, setupSystemThemeListener } from '../shared/theme'
 import { modelsService } from '../services/modelsService'
+import { useAppStore } from '../stores/appStore'
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system'
@@ -56,6 +57,7 @@ const settingsManager = new SettingsManager()
 
 export function useSettings() {
   const [, forceUpdate] = useState({})
+  const updateProviders = useAppStore((state) => state.updateProviders)
   
   // Subscribe to settings manager updates
   useEffect(() => {
@@ -126,7 +128,7 @@ export function useSettings() {
         applyTheme(value as string)
       }
       
-      // Debug log for providers updates
+      // Debug log for providers updates and sync with Zustand
       if (key === 'providers') {
         console.log('updateSetting: Setting new providers state')
         console.log('updateSetting: Previous providers keys:', Object.keys(settingsManager.settings.providers || {}))
@@ -136,6 +138,9 @@ export function useSettings() {
         if (newProviders.anthropic) {
           console.log('updateSetting: New anthropic enabled models:', newProviders.anthropic.enabledModels)
         }
+        
+        // Sync with Zustand store for immediate reactivity
+        updateProviders(newProviders || {})
       }
       
       settingsManager.updateSettings(newSettings)

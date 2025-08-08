@@ -32,7 +32,7 @@ interface OpenAIChatCompletionResponse {
 
 
 export interface SendMessageOptions {
-  conversationId: number
+  conversationId: number | string
   userMessage: CreateMessageInput
   systemPrompt?: string
   provider: string
@@ -72,8 +72,10 @@ class ChatService {
     const startTime = Date.now()
 
     try {
-      // Get conversation history
-      const conversationHistory = await messageStore.getMessages(conversationId)
+      // Get conversation history (only for persistent conversations)
+      const conversationHistory = typeof conversationId === 'number' 
+        ? await messageStore.getMessages(conversationId)
+        : [] // Draft conversations have no history in database
       
       // Detect provider type for proper formatting
       const isAnthropic = endpoint.includes('anthropic.com')

@@ -17,9 +17,9 @@ interface SidebarProps {
   onWidthChange: (width: number) => void
   onOpenSettings: () => void
   onOpenShortcuts: () => void
-  selectedConversationId?: number | null
-  onSelectConversation?: (conversationId: number | null) => void
-  onDeleteConversation?: (deletedId: number) => void
+  selectedConversationId?: number | string | null
+  onSelectConversation?: (conversationId: number | string | null) => void
+  onDeleteConversation?: (deletedId: number | string) => void
 }
 
 export default function Sidebar({

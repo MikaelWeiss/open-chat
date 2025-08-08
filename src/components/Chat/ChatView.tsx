@@ -3,20 +3,19 @@ import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
 import { useRef, RefObject, useState, useEffect, useMemo } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { useMessages } from '../../hooks/useMessages'
-import { useConversations } from '../../hooks/useConversations'
 import { useSettings } from '../../hooks/useSettings'
-import { type Conversation } from '../../shared/conversationStore'
+import { useProviders, useMessages, useConversations } from '../../stores/appStore'
+import { type ConversationWithDraft } from '../../stores/appStore'
 import { type CreateMessageInput } from '../../shared/messageStore'
 import { chatService } from '../../services/chatService'
 import clsx from 'clsx'
 import EmptyState from '../EmptyState/EmptyState'
 
 interface ChatViewProps {
-  conversationId?: number | null
+  conversationId?: number | string | null
   onOpenSettings?: () => void
   messageInputRef?: RefObject<MessageInputHandle>
-  onSelectConversation?: (conversationId: number | null) => void
+  onSelectConversation?: (conversationId: number | string | null) => void
 }
 
 interface ModelCapabilityIconsProps {
@@ -81,7 +80,6 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const internalMessageInputRef = useRef<MessageInputHandle>(null)
   const messageInputRef = externalMessageInputRef || internalMessageInputRef
   const [isLoading, setIsLoading] = useState(false)
-  const [streamingMessage, setStreamingMessage] = useState('')
   const [abortController, setAbortController] = useState<AbortController | null>(null)
   
   // Model selector state
@@ -93,26 +91,36 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   
-  const { messages, addMessage } = useMessages(conversationId ?? null)
-  const { getConversation, updateConversation, createConversation } = useConversations()
-  const { settings, getProviderApiKey } = useSettings()
-  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
+  // Use Zustand stores
+  const { 
+    messages, 
+    streamingMessage: zustandStreamingMessage,
+    addMessage: addMessageToStore,
+    loadMessages,
+    setStreamingMessage,
+    clearStreamingMessage
+  } = useMessages(conversationId ?? null)
+  const { 
+    getConversation,
+    updateConversation, 
+    createDraftConversation,
+    promoteToPersistent
+  } = useConversations()
+  const { getProviderApiKey } = useSettings()
+  const { providers } = useProviders()
   
-  // Debug: Log when ChatView's settings change
+  const [currentConversation, setCurrentConversation] = useState<ConversationWithDraft | null>(null)
+  
+  // Debug: Log when ChatView's providers change from Zustand
   useEffect(() => {
-    if (settings?.providers) {
-      console.log('ChatView: useSettings detected providers change')
-      console.log('ChatView: Provider keys:', Object.keys(settings.providers))
-      if (settings.providers.anthropic) {
-        console.log('ChatView: Anthropic enabled models:', settings.providers.anthropic.enabledModels)
+    if (providers) {
+      console.log('ChatView: Zustand providers changed')
+      console.log('ChatView: Provider keys:', Object.keys(providers))
+      if (providers.anthropic) {
+        console.log('ChatView: Anthropic enabled models:', providers.anthropic.enabledModels)
       }
     }
-  }, [settings?.providers])
-  
-  // Debug: Log settings changes
-  useEffect(() => {
-    console.log('Settings changed in ChatView:', Object.keys(settings?.providers || {}))
-  }, [settings?.providers])
+  }, [providers])
   
   // Get current attachments from MessageInput to determine required capabilities
   const [requiredCapabilities, setRequiredCapabilities] = useState<{
@@ -123,18 +131,18 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   
   // Create a stable dependency for enabled models
   const enabledModelsString = useMemo(() => {
-    if (!settings?.providers) return ''
-    return Object.entries(settings.providers)
+    if (!providers) return ''
+    return Object.entries(providers)
       .map(([providerId, provider]) => `${providerId}:${provider.enabledModels?.join(',') || ''}`)
       .join('|')
-  }, [settings?.providers])
+  }, [providers])
 
   // Get available models from providers
   const availableModels = useMemo(() => {
-    if (!settings?.providers) return []
+    if (!providers) return []
     const models: Array<{provider: string, model: string, capabilities?: any}> = []
     
-    Object.entries(settings.providers).forEach(([providerId, provider]) => {
+    Object.entries(providers).forEach(([providerId, provider]) => {
       if (provider.connected && provider.enabledModels) {
         provider.enabledModels.forEach(modelName => {
           models.push({
@@ -149,19 +157,19 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     // Add a debug log to see when this recalculates
     console.log('ChatView: Available models updated:', models.length, 'models found')
     console.log('ChatView: enabledModelsString:', enabledModelsString)
-    console.log('ChatView: Full providers object keys:', Object.keys(settings?.providers || {}))
-    Object.entries(settings?.providers || {}).forEach(([id, provider]) => {
+    console.log('ChatView: Full providers object keys:', Object.keys(providers || {}))
+    Object.entries(providers || {}).forEach(([id, provider]) => {
       console.log(`ChatView: Provider ${id} enabled models:`, provider.enabledModels)
     })
     
     return models
-  }, [settings?.providers, enabledModelsString])
+  }, [providers, enabledModelsString])
   
   // Group models by provider
   const modelsByProvider = useMemo(() => {
     const grouped: Record<string, any[]> = {}
     availableModels.forEach(model => {
-      const providerName = settings?.providers?.[model.provider]?.name || model.provider
+      const providerName = providers?.[model.provider]?.name || model.provider
       if (!grouped[providerName]) {
         grouped[providerName] = []
       }
@@ -174,7 +182,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     })
     
     return grouped
-  }, [availableModels, settings?.providers])
+  }, [availableModels, providers])
 
   // Filter models based on search query
   const filteredModelsByProvider = useMemo(() => {
@@ -210,11 +218,16 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     const loadConversation = async () => {
       if (conversationId) {
         try {
-          const conv = await getConversation(conversationId)
+          const conv = getConversation(conversationId)
           setCurrentConversation(conv)
           // Set selected model from conversation
           if (conv?.provider && conv?.model) {
             setSelectedModel({ provider: conv.provider, model: conv.model })
+          }
+          
+          // Load messages if it's a persistent conversation
+          if (typeof conversationId === 'number') {
+            await loadMessages(conversationId)
           }
         } catch (err) {
           console.error('Failed to load conversation:', err)
@@ -225,7 +238,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       }
     }
     loadConversation()
-  }, [conversationId, getConversation])
+  }, [conversationId, getConversation, loadMessages])
   
   // Reset highlighted index when search query changes or model selector opens/closes
   useEffect(() => {
@@ -406,8 +419,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       const provider = currentConversation?.provider || ''
       const model = currentConversation?.model || ''
       
-      const id = await createConversation('New Conversation', provider, model)
-      onSelectConversation?.(id || null)
+      // Create a draft conversation
+      const draftId = createDraftConversation('New Conversation', provider, model)
+      onSelectConversation?.(draftId)
       
       // Focus the message input after a short delay
       setTimeout(() => {
@@ -422,7 +436,6 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     if (!conversationId || !message.trim() || !currentConversation) return
     
     // Check if we have a configured provider
-    const providers = settings?.providers || {}
     const provider = providers[currentConversation.provider]
     
     if (!provider || !provider.connected || !currentConversation.model) {
@@ -430,9 +443,29 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       return
     }
     
+    let activeConversationId = conversationId
+    
     try {
       setIsLoading(true)
-      setStreamingMessage('')
+      clearStreamingMessage(conversationId)
+      
+      // If this is a draft conversation, promote it to persistent before sending message
+      if (typeof conversationId === 'string') {
+        console.log('Promoting draft conversation to persistent before sending message')
+        const persistentId = await promoteToPersistent(conversationId)
+        if (persistentId) {
+          activeConversationId = persistentId
+          onSelectConversation?.(persistentId)
+          // Update current conversation state
+          const promotedConv = getConversation(persistentId)
+          if (promotedConv) {
+            setCurrentConversation(promotedConv)
+          }
+        } else {
+          console.error('Failed to promote draft conversation')
+          return
+        }
+      }
       
       // Create abort controller for cancellation
       const controller = new AbortController()
@@ -487,15 +520,15 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         }
       }
       
-      // Add user message to database
-      await addMessage(userMessage)
+      // Add user message to store (which handles both draft and persistent)
+      await addMessageToStore(activeConversationId, userMessage)
       
       // Get API key for the provider
       const apiKey = await getProviderApiKey(currentConversation.provider)
       
       // Send to AI provider with streaming
       await chatService.sendMessage({
-        conversationId,
+        conversationId: activeConversationId,
         userMessage,
         systemPrompt: currentConversation.system_prompt || undefined,
         provider: currentConversation.provider,
@@ -505,16 +538,16 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         isLocal: provider.isLocal,
         signal: controller.signal,
         onStreamChunk: (content: string) => {
-          setStreamingMessage(prev => prev + content)
+          setStreamingMessage(activeConversationId, content)
         },
         onStreamComplete: async (message: CreateMessageInput) => {
-          // Add complete assistant message to database
+          // Add complete assistant message to store
           try {
-            await addMessage(message)
+            await addMessageToStore(activeConversationId, message)
           } catch (err) {
             console.error('Failed to save assistant message:', err)
           }
-          setStreamingMessage('')
+          clearStreamingMessage(activeConversationId)
         }
       })
       
@@ -534,24 +567,24 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       }
     } finally {
       setIsLoading(false)
-      setStreamingMessage('')
+      clearStreamingMessage(activeConversationId)
       setAbortController(null)
     }
   }
   
   const handleCancel = async () => {
-    if (abortController) {
+    if (abortController && conversationId) {
       abortController.abort()
       
       // Save partial message if there's content
-      if (streamingMessage.trim()) {
+      if (zustandStreamingMessage.trim()) {
         try {
           const partialMessage: CreateMessageInput = {
             role: 'assistant',
-            text: streamingMessage,
+            text: zustandStreamingMessage,
             processing_time_ms: Date.now() // We don't track start time, so use current time
           }
-          await addMessage(partialMessage)
+          await addMessageToStore(conversationId, partialMessage)
         } catch (err) {
           console.error('Failed to save partial message:', err)
         }
@@ -559,7 +592,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       
       setAbortController(null)
       setIsLoading(false)
-      setStreamingMessage('')
+      clearStreamingMessage(conversationId)
     }
   }
 
@@ -742,7 +775,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       <div className="flex-1 min-h-0">
         <MessageList 
           messages={messages}
-          streamingMessage={streamingMessage}
+          streamingMessage={zustandStreamingMessage}
           isLoading={isLoading}
         />
       </div>
@@ -758,7 +791,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           noProvider={!currentConversation?.model}
           messages={messages}
           modelCapabilities={
-            currentConversation?.model && settings?.providers?.[currentConversation.provider]?.modelCapabilities?.[currentConversation.model] || {
+            currentConversation?.model && providers?.[currentConversation.provider]?.modelCapabilities?.[currentConversation.model] || {
               vision: false,
               audio: false,
               files: false
