@@ -312,6 +312,24 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     }
   }, [availableModels, selectedModel, conversationId, updateConversation, currentConversation?.model])
   
+  // Auto-focus input when app opens and model is ready
+  useEffect(() => {
+    const focusInput = () => {
+      // Only focus if there's a model available and input is not disabled
+      const hasModel = (currentConversation?.model || selectedModel?.model)
+      const isInputEnabled = conversationId && hasModel
+      
+      if (isInputEnabled && messageInputRef.current?.focus) {
+        // Small delay to ensure everything is rendered
+        setTimeout(() => {
+          messageInputRef.current?.focus()
+        }, 150)
+      }
+    }
+    
+    focusInput()
+  }, [conversationId, currentConversation?.model, selectedModel?.model, messageInputRef])
+  
   // Function to check if a model is compatible with current attachments
   const isModelCompatible = (model: any) => {
     if (!model.capabilities) return true // If no capabilities info, allow selection
