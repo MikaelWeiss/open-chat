@@ -243,22 +243,41 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   
   // Reset highlighted index when search query changes or model selector opens/closes
   useEffect(() => {
-    setHighlightedModelIndex(-1) // No model highlighted initially
-  }, [searchQuery, showModelSelector])
+    const compatibleModels = allFilteredModels.filter(m => isModelCompatible(m))
+    setHighlightedModelIndex(compatibleModels.length > 0 ? 0 : -1) // Start with first model if available
+  }, [searchQuery, showModelSelector, allFilteredModels])
   
-  // Clear search when model selector closes
+  // Clear search when model selector closes and auto-focus when it opens
   useEffect(() => {
     if (!showModelSelector) {
       setSearchQuery('')
+    } else {
+      // Auto-focus the search input when model selector opens
+      setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 100)
     }
   }, [showModelSelector])
   
-  // Keyboard shortcut to toggle model selector (Cmd+. or Ctrl+.)
+  // Keyboard shortcuts for model selector
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle model selector (Cmd+. or Ctrl+.)
       if (e.key === '.' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setShowModelSelector(prev => !prev)
+      }
+      
+      // Open model selector and focus search when Cmd+F is pressed
+      if (e.key === 'f' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        if (!showModelSelector) {
+          setShowModelSelector(true)
+          // Focus will be handled by the auto-focus effect when selector opens
+        } else {
+          searchInputRef.current?.focus()
+          searchInputRef.current?.select()
+        }
       }
     }
 
@@ -266,7 +285,24 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [])
+  }, [showModelSelector])
+
+  // Click outside to close model selector
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showModelSelector && dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowModelSelector(false)
+      }
+    }
+
+    if (showModelSelector) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showModelSelector])
   
   // Auto-select model logic: always ensure a model is selected
   useEffect(() => {
@@ -728,6 +764,30 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                         placeholder="Search models..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          const compatibleModels = allFilteredModels.filter(m => isModelCompatible(m))
+                          
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault()
+                            setHighlightedModelIndex(prev => 
+                              prev < compatibleModels.length - 1 ? prev + 1 : 0
+                            )
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault()
+                            setHighlightedModelIndex(prev => 
+                              prev > 0 ? prev - 1 : compatibleModels.length - 1
+                            )
+                          } else if (e.key === 'Enter') {
+                            e.preventDefault()
+                            if (highlightedModelIndex >= 0 && highlightedModelIndex < compatibleModels.length) {
+                              const selectedModel = compatibleModels[highlightedModelIndex]
+                              handleModelSelect({ provider: selectedModel.provider, model: selectedModel.model })
+                            }
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault()
+                            setShowModelSelector(false)
+                          }
+                        }}
                         className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground text-foreground"
                       />
                     </div>
