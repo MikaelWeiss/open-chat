@@ -5,7 +5,9 @@
       "WebFetch(domain:v2.tauri.app)",
       "Bash(pnpm tauri:*)",
       "WebFetch(domain:docs.anthropic.com)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs"
     ],
     "deny": []
   }

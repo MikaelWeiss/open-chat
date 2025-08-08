@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { useSettings } from '../../hooks/useSettings'
 import { open } from '@tauri-apps/plugin-dialog'
 import { readFile } from '@tauri-apps/plugin-fs'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 
 interface FileAttachment {
   path: string
@@ -92,6 +93,153 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
       }
     }, [message])
+
+    // Tauri drag and drop event listener
+    useEffect(() => {
+      let unlisten: (() => void) | null = null
+      
+      const setupListener = async () => {
+        try {
+          const webview = getCurrentWebview()
+          const unlistenFn = await webview.onDragDropEvent(async (event) => {
+            if (disabled || isLoading) return
+            
+            // Handle different drag and drop event types
+            if (event.payload.type === 'over') {
+              // File is being dragged over the webview
+              // Could add visual feedback here in the future
+            } else if (event.payload.type === 'drop') {
+              // Files have been dropped
+              
+              const filePaths: string[] = event.payload.paths || []
+              if (filePaths.length === 0) return
+
+              // Process dropped files
+              const newAttachments: FileAttachment[] = []
+
+              for (const filePath of filePaths) {
+                try {
+                  // Read the file using Tauri's readFile
+                  const fileBytes = await readFile(filePath)
+                  const fileName = filePath.split(/[/\\]/).pop() || 'unknown'
+                  const fileExtension = fileName.split('.').pop()?.toLowerCase() || ''
+                  
+                  // Determine file type and validate against model capabilities
+                  let fileType: 'image' | 'audio' | 'file' = 'file'
+                  let mimeType = 'application/octet-stream'
+                  
+                  // Image types - only allow if model supports vision
+                  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(fileExtension)) {
+                    if (!modelCapabilities?.vision) {
+                      console.error('Model does not support vision - skipping image:', fileName)
+                      continue
+                    }
+                    fileType = 'image'
+                    mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`
+                  }
+                  // SVG is special case for images
+                  else if (fileExtension === 'svg') {
+                    if (!modelCapabilities?.vision) {
+                      console.error('Model does not support vision - skipping SVG image:', fileName)
+                      continue
+                    }
+                    fileType = 'image'
+                    mimeType = 'image/svg+xml'
+                  }
+                  // Audio types - only allow if model supports audio
+                  else if (['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma'].includes(fileExtension)) {
+                    if (!modelCapabilities?.audio) {
+                      console.error('Model does not support audio - skipping audio file:', fileName)
+                      continue
+                    }
+                    fileType = 'audio'
+                    mimeType = fileExtension === 'mp3' ? 'audio/mpeg' : `audio/${fileExtension}`
+                  }
+                  // Document types - only allow if model supports files
+                  else if (['txt', 'md', 'pdf', 'doc', 'docx', 'rtf', 'csv', 'json', 'xml', 'html'].includes(fileExtension)) {
+                    if (!modelCapabilities?.files) {
+                      console.error('Model does not support files - skipping document:', fileName)
+                      continue
+                    }
+                    // Set specific mime types for documents
+                    if (fileExtension === 'txt') {
+                      mimeType = 'text/plain'
+                    } else if (fileExtension === 'md') {
+                      mimeType = 'text/markdown'
+                    } else if (fileExtension === 'pdf') {
+                      mimeType = 'application/pdf'
+                    } else if (fileExtension === 'json') {
+                      mimeType = 'application/json'
+                    } else if (fileExtension === 'xml') {
+                      mimeType = 'application/xml'
+                    } else if (fileExtension === 'html') {
+                      mimeType = 'text/html'
+                    } else if (fileExtension === 'csv') {
+                      mimeType = 'text/csv'
+                    } else {
+                      mimeType = 'application/octet-stream'
+                    }
+                  }
+                  else {
+                    console.error('Unsupported file type:', fileExtension, '- skipping file:', fileName)
+                    continue
+                  }
+                  
+                  // Check file size limits
+                  const fileSizeLimit = 20 * 1024 * 1024 // 20MB limit for attachments
+                  if (fileBytes.length > fileSizeLimit) {
+                    console.error(`File too large: ${fileName} (${(fileBytes.length / 1024 / 1024).toFixed(1)}MB). Maximum size is 20MB.`)
+                    continue
+                  }
+
+                  // Convert to base64 (handle large files by processing in chunks)
+                  let binaryString = ''
+                  const chunkSize = 8192 // Process in 8KB chunks
+                  for (let i = 0; i < fileBytes.length; i += chunkSize) {
+                    const chunk = fileBytes.slice(i, i + chunkSize)
+                    binaryString += String.fromCharCode(...chunk)
+                  }
+                  const base64 = btoa(binaryString)
+                  
+                  // Create attachment object
+                  const attachment: FileAttachment = {
+                    path: filePath,
+                    base64,
+                    mimeType,
+                    name: fileName,
+                    type: fileType
+                  }
+                  
+                  newAttachments.push(attachment)
+                } catch (error) {
+                  console.error('Failed to process dropped file:', filePath, error)
+                }
+              }
+              
+              // Add all new attachments
+              if (newAttachments.length > 0) {
+                setAttachments(prev => [...prev, ...newAttachments])
+              }
+            } else {
+              // Drag operation was cancelled
+              // No action needed
+            }
+          })
+          
+          unlisten = unlistenFn
+        } catch (error) {
+          console.error('Failed to setup Tauri drag drop listener:', error)
+        }
+      }
+      
+      setupListener()
+      
+      return () => {
+        if (unlisten) {
+          unlisten()
+        }
+      }
+    }, [disabled, isLoading, modelCapabilities])
 
     const handlePaste = async (e: React.ClipboardEvent) => {
       if (disabled || isLoading) return
@@ -376,6 +524,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       return isMac ? '⌘' : 'Ctrl'
     }
 
+
     // Calculate real usage stats from messages
     const totalInputTokens = messages?.reduce((sum, msg) => sum + (msg.input_tokens || 0), 0) || 0
     const totalOutputTokens = messages?.reduce((sum, msg) => sum + (msg.output_tokens || 0), 0) || 0
@@ -384,7 +533,10 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const totalCost = messages?.reduce((sum, msg) => sum + (msg.cost || 0), 0) || 0
 
     return (
-      <div className="border-t border-border/10 p-4 w-full glass-nav backdrop-blur-strong">
+      <div 
+        className="message-input-container relative border-t border-border/10 p-4 w-full glass-nav backdrop-blur-strong"
+      >
+        
         {/* File attachments preview */}
         {attachments.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
