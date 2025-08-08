@@ -383,7 +383,7 @@ export default function Sidebar({
         </div>
 
         {/* Bottom Feedback Button - Now positioned absolutely */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/10 glass-nav backdrop-blur-strong shadow-elegant-xl">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/10 glass-nav backdrop-blur-strong shadow-elegant-xl z-50">
           <button
             onClick={() => console.log("Send feedback")}
             className="ml-auto block p-2 elegant-hover rounded-lg transition-all text-muted-foreground hover:text-primary"
