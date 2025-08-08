@@ -1,5 +1,5 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
-import { Send, Paperclip, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings } from 'lucide-react'
+import { ArrowUp, Paperclip, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../../hooks/useSettings'
 
@@ -333,7 +333,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               onClick={handleCancelOrSend}
               disabled={disabled || (!isLoading && (!message.trim() && attachments.length === 0))}
               className={clsx(
-                'elegant-button p-2 rounded-xl transition-all duration-200 flex items-center justify-center',
+                'w-7 h-7 rounded-full transition-all duration-200 flex items-center justify-center bg-primary hover:bg-primary/90',
                 disabled || (!isLoading && (!message.trim() && attachments.length === 0))
                   ? 'opacity-40 cursor-not-allowed'
                   : isLoading
@@ -349,7 +349,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               {isLoading ? (
                 <Square className="h-4 w-4" />
               ) : (
-                <Send className="h-4 w-4" />
+                <ArrowUp className="h-4 w-4" />
               )}
             </button>
           </div>
