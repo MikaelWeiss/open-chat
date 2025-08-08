@@ -303,7 +303,7 @@ export default function Sidebar({
         )}
       >
         {/* Conversations List - Now extends full height behind header */}
-        <div className="absolute inset-0 overflow-y-auto elegant-scrollbar pt-24 pb-20">
+        <div className="absolute inset-0 overflow-y-auto elegant-scrollbar pt-24 pb-20 glass-effect">
           {conversations.length === 0 && (
             <EmptyState
               type="no-conversations"
