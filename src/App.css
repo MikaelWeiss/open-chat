@@ -11,19 +11,19 @@
     --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71.4% 4.1%;
-    --primary: 174 100% 37.5%; /* #00BF9C logo color */
+    --primary: 169 100% 37%; /* #00BF9C logo color */
     --primary-foreground: 210 20% 98%;
     --secondary: 220 14.3% 95.9%;
     --secondary-foreground: 220.9 39.3% 11%;
     --muted: 220 14.3% 95.9%;
     --muted-foreground: 220 8.9% 46.1%;
-    --accent: 174 100% 37.5%;
+    --accent: 169 100% 37%;
     --accent-foreground: 210 20% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 174 100% 37.5%;
+    --ring: 169 100% 37%;
   }
 
   .dark {
@@ -34,25 +34,25 @@
     --card-foreground: 210 20% 98%;
     --popover: 220 13% 8%; /* Matching card */
     --popover-foreground: 210 20% 98%;
-    --primary: 174 100% 37.5%; /* #00BF9C logo color */
+    --primary: 169 100% 37%; /* #00BF9C logo color */
     --primary-foreground: 220.9 39.3% 11%;
     --secondary: 220 43% 7%; /* Deep navy secondary */
     --secondary-foreground: 210 20% 98%;
     --muted: 220 43% 7%; /* Deep navy muted */
     --muted-foreground: 215 20.2% 65.1%; /* Lighter gray text */
-    --accent: 174 100% 37.5%; /* Logo color accent */
+    --accent: 169 100% 37%; /* Logo color accent */
     --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 20% 98%;
     --border: 217.2 32.6% 17.5%; /* Subtle navy border */
     --input: 217.2 32.6% 17.5%; /* Input background */
-    --ring: 174 100% 37.5%; /* Logo color for focus rings */
+    --ring: 169 100% 37%; /* Logo color for focus rings */
     
     /* Additional elegant theme colors */
     --glass: 220 13% 8% / 0.8; /* Glass morphism effect */
     --surface: 220 43% 7%; /* Surface elements */
     --surface-hover: 220 43% 9%; /* Hover states */
-    --gradient-start: 174 100% 37.5%; /* Logo color */
+    --gradient-start: 169 100% 37%; /* Logo color */
     --gradient-end: 259 100% 65%; /* Purple accent */
     --shadow: 222 84% 4.9% / 0.3; /* Enhanced shadows */
   }
