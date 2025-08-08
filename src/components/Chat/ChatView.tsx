@@ -572,7 +572,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             {messages.length >= 1 && (
               <button
                 onClick={handleCopyConversation}
-                className="p-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 shadow-elegant border border-border/20 text-muted-foreground hover:text-primary"
+                className="p-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 shadow-elegant text-muted-foreground hover:text-primary"
                 title="Copy conversation"
               >
                 {copiedConversation ? (
@@ -701,7 +701,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             {messages.length >= 1 && (
               <button
                 onClick={handleNewConversation}
-                className="p-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 shadow-elegant border border-border/20 text-muted-foreground hover:text-primary"
+                className="p-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 shadow-elegant text-muted-foreground hover:text-primary"
                 title="New conversation"
               >
                 <Plus className="h-4 w-4" />
