@@ -433,13 +433,22 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   }
   
   const handleSend = async (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => {
-    if (!conversationId || !message.trim() || !currentConversation) return
+    if (!conversationId || !message.trim()) return
+    
+    // Get effective provider and model (prefer conversation, fallback to selected)
+    const effectiveProvider = currentConversation?.provider || selectedModel?.provider
+    const effectiveModel = currentConversation?.model || selectedModel?.model
+    
+    if (!effectiveProvider || !effectiveModel) {
+      console.error('No provider or model selected')
+      return
+    }
     
     // Check if we have a configured provider
-    const provider = providers[currentConversation.provider]
+    const provider = providers[effectiveProvider]
     
-    if (!provider || !provider.connected || !currentConversation.model) {
-      console.error('No active provider or model configured for this conversation')
+    if (!provider || !provider.connected) {
+      console.error('No active provider configured')
       return
     }
     
@@ -452,6 +461,15 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       // If this is a pending conversation, commit it to persistent before sending message
       if (conversationId === 'pending') {
         console.log('Committing pending conversation to persistent before sending message')
+        
+        // Update the pending conversation with effective provider/model before committing
+        if (!currentConversation?.provider || !currentConversation?.model) {
+          await updateConversation('pending', {
+            provider: effectiveProvider,
+            model: effectiveModel
+          })
+        }
+        
         const persistentId = await commitPendingConversation()
         if (persistentId) {
           activeConversationId = persistentId
@@ -465,6 +483,17 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           console.error('Failed to commit pending conversation')
           return
         }
+      } else if (activeConversationId && (!currentConversation?.provider || !currentConversation?.model)) {
+        // Update existing conversation with effective provider/model
+        await updateConversation(activeConversationId, {
+          provider: effectiveProvider,
+          model: effectiveModel
+        })
+        setCurrentConversation(prev => prev ? {
+          ...prev,
+          provider: effectiveProvider,
+          model: effectiveModel
+        } : null)
       }
       
       // Create abort controller for cancellation
@@ -524,16 +553,16 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       await addMessageToStore(activeConversationId, userMessage)
       
       // Get API key for the provider
-      const apiKey = await getProviderApiKey(currentConversation.provider)
+      const apiKey = await getProviderApiKey(effectiveProvider)
       
       // Send to AI provider with streaming
       await chatService.sendMessage({
         conversationId: activeConversationId,
         userMessage,
-        systemPrompt: currentConversation.system_prompt || undefined,
-        provider: currentConversation.provider,
+        systemPrompt: currentConversation?.system_prompt || undefined,
+        provider: effectiveProvider,
         endpoint: provider.endpoint,
-        model: currentConversation.model,
+        model: effectiveModel,
         apiKey: apiKey || undefined,
         isLocal: provider.isLocal,
         signal: controller.signal,
@@ -622,7 +651,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
               {currentConversation?.title || 'New Conversation'}
             </h2>
             <p className="text-sm text-muted-foreground/80 truncate">
-              {currentConversation?.provider || 'No Provider'} • {currentConversation?.model || 'No Model'}
+              {currentConversation?.provider || selectedModel?.provider || 'No Provider'} • {currentConversation?.model || selectedModel?.model || 'No Model'}
             </p>
           </div>
           
@@ -786,12 +815,13 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           ref={messageInputRef}
           onSend={handleSend}
           onCancel={handleCancel}
-          disabled={!conversationId || !currentConversation?.provider || !currentConversation?.model}
+          disabled={!conversationId || (!currentConversation?.provider && !selectedModel?.provider) || (!currentConversation?.model && !selectedModel?.model)}
           isLoading={isLoading}
-          noProvider={!currentConversation?.model}
+          noProvider={!currentConversation?.model && !selectedModel?.model}
           messages={messages}
           modelCapabilities={
-            currentConversation?.model && providers?.[currentConversation.provider]?.modelCapabilities?.[currentConversation.model] || {
+            (currentConversation?.model && providers?.[currentConversation.provider]?.modelCapabilities?.[currentConversation.model]) ||
+            (selectedModel?.model && providers?.[selectedModel.provider]?.modelCapabilities?.[selectedModel.model]) || {
               vision: false,
               audio: false,
               files: false
