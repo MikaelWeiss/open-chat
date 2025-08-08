@@ -325,7 +325,7 @@ export default function Sidebar({
           )}
           {/* Favorites Section */}
           {favorites.length > 0 && (
-            <div className="mb-4">
+            <div>
               <button
                 onClick={() => setIsFavoritesCollapsed(!isFavoritesCollapsed)}
                 className="w-full px-6 py-3 text-xs font-semibold text-muted-foreground sticky top-0 z-10 glass-nav backdrop-blur-strong border-b border-border/10 flex items-center gap-2 elegant-hover transition-all"
@@ -351,7 +351,7 @@ export default function Sidebar({
 
           {/* Regular Conversations by Date */}
           {regularByDate.map(([dateKey, convs]) => (
-            <div key={dateKey} className="mb-6">
+            <div key={dateKey}>
               <div className="px-6 py-3 text-xs font-semibold text-muted-foreground sticky top-0 z-10 glass-nav backdrop-blur-strong border-b border-border/10 tracking-wide">
                 {dateKey.toUpperCase()}
               </div>
