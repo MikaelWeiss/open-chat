@@ -188,107 +188,168 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       if (disabled) return
       
       try {
-        // Build file filters based on model capabilities
+        // Build file filters based on model capabilities - only include what the model actually supports
         const filters = []
+        const supportedExtensions: string[] = []
         
         if (modelCapabilities?.vision) {
+          const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
+          supportedExtensions.push(...imageExtensions)
           filters.push({
             name: 'Images',
-            extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
+            extensions: imageExtensions
           })
         }
         
         if (modelCapabilities?.audio) {
+          const audioExtensions = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma']
+          supportedExtensions.push(...audioExtensions)
           filters.push({
             name: 'Audio',
-            extensions: ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma']
+            extensions: audioExtensions
           })
         }
         
         if (modelCapabilities?.files) {
+          const documentExtensions = ['txt', 'md', 'pdf', 'doc', 'docx', 'rtf', 'csv', 'json', 'xml', 'html']
+          supportedExtensions.push(...documentExtensions)
           filters.push({
             name: 'Documents',
-            extensions: ['txt', 'md', 'pdf', 'doc', 'docx', 'rtf', 'csv', 'json', 'xml', 'html']
+            extensions: documentExtensions
           })
         }
         
-        // Add "All supported files" filter if multiple types are available
+        // Only show "All supported files" if there are actually multiple types supported
         if (filters.length > 1) {
-          const allExtensions = filters.flatMap(f => f.extensions)
           filters.unshift({
             name: 'All Supported Files',
-            extensions: allExtensions
+            extensions: supportedExtensions
           })
+        }
+        
+        // If no capabilities are supported, don't show file dialog
+        if (filters.length === 0) {
+          console.log('No file capabilities available for this model')
+          return
         }
         
         // Open file dialog
         const selected = await open({
-          multiple: false,
-          filters: filters.length > 0 ? filters : [
-            { name: 'All Files', extensions: ['*'] }
-          ]
+          multiple: true,
+          filters: filters
         })
         
-        if (!selected || Array.isArray(selected)) return
+        if (!selected) return
         
-        // Read the file
-        const fileBytes = await readFile(selected)
-        const fileName = selected.split(/[/\\]/).pop() || 'unknown'
-        const fileExtension = fileName.split('.').pop()?.toLowerCase() || ''
+        // Handle both single file and multiple files
+        const selectedFiles = Array.isArray(selected) ? selected : [selected]
         
-        // Determine file type and mime type
-        let fileType: 'image' | 'audio' | 'file' = 'file'
-        let mimeType = 'application/octet-stream'
+        // Process each selected file
+        const newAttachments: FileAttachment[] = []
         
-        // Image types
-        if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(fileExtension)) {
-          fileType = 'image'
-          mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`
-        }
-        // SVG is special case for images
-        else if (fileExtension === 'svg') {
-          fileType = 'image'
-          mimeType = 'image/svg+xml'
-        }
-        // Audio types
-        else if (['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma'].includes(fileExtension)) {
-          fileType = 'audio'
-          mimeType = fileExtension === 'mp3' ? 'audio/mpeg' : `audio/${fileExtension}`
-        }
-        // Document types
-        else if (['txt'].includes(fileExtension)) {
-          mimeType = 'text/plain'
-        }
-        else if (['md'].includes(fileExtension)) {
-          mimeType = 'text/markdown'
-        }
-        else if (['pdf'].includes(fileExtension)) {
-          mimeType = 'application/pdf'
-        }
-        else if (['json'].includes(fileExtension)) {
-          mimeType = 'application/json'
-        }
-        else if (['xml'].includes(fileExtension)) {
-          mimeType = 'application/xml'
-        }
-        else if (['html'].includes(fileExtension)) {
-          mimeType = 'text/html'
+        for (const filePath of selectedFiles) {
+          try {
+            // Read the file
+            const fileBytes = await readFile(filePath)
+            const fileName = filePath.split(/[/\\]/).pop() || 'unknown'
+            const fileExtension = fileName.split('.').pop()?.toLowerCase() || ''
+            
+            // Determine file type and validate against model capabilities
+            let fileType: 'image' | 'audio' | 'file' = 'file'
+            let mimeType = 'application/octet-stream'
+            
+            // Image types - only allow if model supports vision
+            if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(fileExtension)) {
+              if (!modelCapabilities?.vision) {
+                console.error('Model does not support vision - skipping image:', fileName)
+                continue
+              }
+              fileType = 'image'
+              mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`
+            }
+            // SVG is special case for images
+            else if (fileExtension === 'svg') {
+              if (!modelCapabilities?.vision) {
+                console.error('Model does not support vision - skipping SVG image:', fileName)
+                continue
+              }
+              fileType = 'image'
+              mimeType = 'image/svg+xml'
+            }
+            // Audio types - only allow if model supports audio
+            else if (['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma'].includes(fileExtension)) {
+              if (!modelCapabilities?.audio) {
+                console.error('Model does not support audio - skipping audio file:', fileName)
+                continue
+              }
+              fileType = 'audio'
+              mimeType = fileExtension === 'mp3' ? 'audio/mpeg' : `audio/${fileExtension}`
+            }
+            // Document types - only allow if model supports files
+            else if (['txt', 'md', 'pdf', 'doc', 'docx', 'rtf', 'csv', 'json', 'xml', 'html'].includes(fileExtension)) {
+              if (!modelCapabilities?.files) {
+                console.error('Model does not support files - skipping document:', fileName)
+                continue
+              }
+              // Set specific mime types for documents
+              if (fileExtension === 'txt') {
+                mimeType = 'text/plain'
+              } else if (fileExtension === 'md') {
+                mimeType = 'text/markdown'
+              } else if (fileExtension === 'pdf') {
+                mimeType = 'application/pdf'
+              } else if (fileExtension === 'json') {
+                mimeType = 'application/json'
+              } else if (fileExtension === 'xml') {
+                mimeType = 'application/xml'
+              } else if (fileExtension === 'html') {
+                mimeType = 'text/html'
+              } else if (fileExtension === 'csv') {
+                mimeType = 'text/csv'
+              } else {
+                mimeType = 'application/octet-stream'
+              }
+            }
+            else {
+              console.error('Unsupported file type:', fileExtension, '- skipping file:', fileName)
+              continue
+            }
+            
+            // Check file size limits
+            const fileSizeLimit = 20 * 1024 * 1024 // 20MB limit for attachments
+            if (fileBytes.length > fileSizeLimit) {
+              console.error(`File too large: ${fileName} (${(fileBytes.length / 1024 / 1024).toFixed(1)}MB). Maximum size is 20MB.`)
+              continue
+            }
+
+            // Convert to base64 (handle large files by processing in chunks)
+            let binaryString = ''
+            const chunkSize = 8192 // Process in 8KB chunks
+            for (let i = 0; i < fileBytes.length; i += chunkSize) {
+              const chunk = fileBytes.slice(i, i + chunkSize)
+              binaryString += String.fromCharCode(...chunk)
+            }
+            const base64 = btoa(binaryString)
+            
+            // Create attachment object
+            const attachment: FileAttachment = {
+              path: filePath,
+              base64,
+              mimeType,
+              name: fileName,
+              type: fileType
+            }
+            
+            newAttachments.push(attachment)
+          } catch (error) {
+            console.error('Failed to process file:', filePath, error)
+          }
         }
         
-        // Convert to base64
-        const base64 = btoa(String.fromCharCode(...fileBytes))
-        
-        // Create attachment object
-        const attachment: FileAttachment = {
-          path: selected,
-          base64,
-          mimeType,
-          name: fileName,
-          type: fileType
+        // Add all new attachments
+        if (newAttachments.length > 0) {
+          setAttachments([...attachments, ...newAttachments])
         }
-        
-        // Add to attachments
-        setAttachments([...attachments, attachment])
         
       } catch (error) {
         console.error('Failed to attach file:', error)
@@ -331,7 +392,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               const Icon = getAttachmentIcon(attachment.type)
               return (
                 <div
-                  key={index}
+                  key={`${attachment.name}-${attachment.path}-${index}`}
                   className="flex items-center gap-2 glass-effect border border-border/20 rounded-xl px-3 py-2 text-sm shadow-elegant"
                 >
                   <Icon className="h-4 w-4 text-primary" />

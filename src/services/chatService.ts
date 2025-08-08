@@ -75,7 +75,10 @@ class ChatService {
       // Get conversation history
       const conversationHistory = await messageStore.getMessages(conversationId)
       
-      // Build OpenAI-compatible messages array
+      // Detect provider type for proper formatting
+      const isAnthropic = endpoint.includes('anthropic.com')
+      
+      // Build provider-compatible messages array
       const messages: OpenAIMessage[] = []
       
       // Add system message if provided
@@ -93,8 +96,10 @@ class ChatService {
         const content = this.buildMessageContent({
           role: message.role as 'user' | 'assistant',
           text: message.text || '',
-          images: message.images || undefined
-        })
+          images: message.images || undefined,
+          audio: message.audio || undefined,
+          files: message.files || undefined
+        }, isAnthropic)
         
         messages.push({
           role: message.role as 'user' | 'assistant',
@@ -102,15 +107,14 @@ class ChatService {
         })
       }
 
-      // Convert current user message to OpenAI format and add it
-      const userContent = this.buildMessageContent(userMessage)
+      // Convert current user message to provider format and add it
+      const userContent = this.buildMessageContent(userMessage, isAnthropic)
       messages.push({
         role: 'user',
         content: userContent
       })
 
       // Build request payload based on provider
-      const isAnthropic = endpoint.includes('anthropic.com')
       const requestPayload = isAnthropic ? {
         model,
         messages,
@@ -209,7 +213,19 @@ class ChatService {
         }
       }
       console.error('Chat service error:', error)
-      throw error instanceof Error ? error : new Error('Unknown chat service error')
+      
+      // Provide user-friendly error messages for common issues
+      if (error instanceof Error) {
+        if (error.message.includes('A maximum of 100 PDF pages may be provided')) {
+          throw new Error('PDF file is too large. Anthropic supports a maximum of 100 pages per PDF. Please try a smaller PDF file.')
+        }
+        if (error.message.includes('messages') && error.message.includes('content')) {
+          throw new Error('There was an issue with the file attachment format. Please try again or use a different file.')
+        }
+        throw error
+      }
+      
+      throw new Error('Unknown chat service error')
     }
   }
 
@@ -242,9 +258,9 @@ class ChatService {
   }
 
   /**
-   * Build OpenAI-compatible message content from our message format
+   * Build provider-compatible message content from our message format
    */
-  private buildMessageContent(message: CreateMessageInput): string | Array<any> {
+  private buildMessageContent(message: CreateMessageInput, isAnthropic: boolean = false): string | Array<any> {
     const content: Array<any> = []
 
     // Add text content
@@ -258,12 +274,105 @@ class ChatService {
     // Add images
     if (message.images && message.images.length > 0) {
       for (const image of message.images) {
+        if (isAnthropic) {
+          // Anthropic format
+          content.push({
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: image.mime_type || 'image/png',
+              data: image.file_path || image.url?.split(',')[1] || ''
+            }
+          })
+        } else {
+          // OpenAI format
+          content.push({
+            type: 'image_url',
+            image_url: {
+              url: image.url || `data:${image.mime_type};base64,${image.file_path}`
+            }
+          })
+        }
+      }
+    }
+
+    // Note: Audio files are not directly supported in OpenAI chat completions API
+    // They would need to be transcribed first or handled by specific providers
+    if (message.audio && message.audio.length > 0) {
+      const audioReference = message.audio.map(audio => `[Audio file: ${audio.file_path || 'audio'}.${audio.mime_type?.split('/')[1] || 'audio'}]`).join('\n')
+      
+      // Add audio reference to text content
+      const existingTextIndex = content.findIndex(item => item.type === 'text')
+      if (existingTextIndex >= 0) {
+        content[existingTextIndex].text += '\n\n' + audioReference
+      } else {
         content.push({
-          type: 'image_url',
-          image_url: {
-            url: image.url || `data:${image.mime_type};base64,${image.file_path}`
-          }
+          type: 'text',
+          text: audioReference
         })
+      }
+    }
+
+    // Add document files
+    if (message.files && message.files.length > 0) {
+      for (const file of message.files) {
+        if (isAnthropic && file.content) {
+          // Check Anthropic-specific limits for PDFs
+          if (file.type === 'application/pdf') {
+            // Rough estimate: PDF file size > 10MB might exceed 100 page limit
+            const estimatedSizeMB = (file.content.length * 0.75) / 1024 / 1024 // base64 is ~33% larger
+            if (estimatedSizeMB > 10) {
+              console.warn(`PDF file ${file.name} might be too large for Anthropic (estimated ${estimatedSizeMB.toFixed(1)}MB). Anthropic has a 100-page limit.`)
+            }
+          }
+          
+          // Anthropic format - use document type for PDF and other files
+          content.push({
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: file.type || 'application/octet-stream',
+              data: file.content
+            }
+          })
+        } else {
+          // For other providers or when no content available, include as text
+          let fileContent = ''
+          
+          // Check if we have base64 content for text files that we can decode
+          if (file.content && file.type) {
+            const isTextFile = file.type.startsWith('text/') || 
+                              ['application/json', 'application/xml'].includes(file.type)
+            
+            if (isTextFile) {
+              try {
+                // Decode base64 to text for text-based files
+                const decodedContent = atob(file.content)
+                fileContent = `\n\n--- File: ${file.name} (${file.type}) ---\n${decodedContent}\n--- End of file ---\n`
+              } catch (error) {
+                console.warn('Failed to decode file content for:', file.name)
+                fileContent = `\n\n[File: ${file.name} (${file.type}) - content not readable]\n`
+              }
+            } else {
+              // For non-text files, just reference them
+              fileContent = `\n\n[File attachment: ${file.name} (${file.type})]\n`
+            }
+          } else {
+            // Fallback if no base64 data available
+            fileContent = `\n\n[File: ${file.name} (${file.type})]\n`
+          }
+          
+          // If there's already text content, append to it
+          const existingTextIndex = content.findIndex(item => item.type === 'text')
+          if (existingTextIndex >= 0) {
+            content[existingTextIndex].text += fileContent
+          } else {
+            content.push({
+              type: 'text',
+              text: message.text ? message.text + fileContent : fileContent.trim()
+            })
+          }
+        }
       }
     }
 

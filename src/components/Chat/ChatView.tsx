@@ -444,8 +444,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         text: message,
       }
       
-      // Handle image attachments
+      // Handle attachments
       if (attachments && attachments.length > 0) {
+        // Handle image attachments
         const images = attachments
           .filter(att => att.type === 'image')
           .map(att => ({
@@ -458,7 +459,32 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           userMessage.images = images
         }
         
-        // TODO: Handle audio and file attachments
+        // Handle audio attachments
+        const audioFiles = attachments
+          .filter(att => att.type === 'audio')
+          .map(att => ({
+            file_path: att.base64, // Store base64 data
+            mime_type: att.mimeType,
+            url: `data:${att.mimeType};base64,${att.base64}`
+          }))
+        
+        if (audioFiles.length > 0) {
+          userMessage.audio = audioFiles
+        }
+        
+        // Handle file attachments  
+        const files = attachments
+          .filter(att => att.type === 'file')
+          .map(att => ({
+            path: att.path,
+            name: att.name,
+            type: att.mimeType,
+            content: att.base64 // Store base64 content for sending to providers
+          }))
+        
+        if (files.length > 0) {
+          userMessage.files = files
+        }
       }
       
       // Add user message to database

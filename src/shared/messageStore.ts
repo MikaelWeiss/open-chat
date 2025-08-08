@@ -279,6 +279,7 @@ export interface FileItem {
   name: string
   type: string
   size?: number
+  content?: string // Base64 encoded content for sending to providers
 }
 
 export interface Reference {
