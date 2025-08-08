@@ -338,9 +338,12 @@ export const useAppStore = create<AppState>()(
     },
 
     setStreamingMessage: (conversationId: number | 'pending', content: string) => {
-      set((state) => ({
-        streamingMessages: new Map(state.streamingMessages.set(conversationId, content))
-      }))
+      set((state) => {
+        const currentContent = state.streamingMessages.get(conversationId) || ''
+        return {
+          streamingMessages: new Map(state.streamingMessages.set(conversationId, currentContent + content))
+        }
+      })
     },
 
     clearStreamingMessage: (conversationId: number | 'pending') => {
