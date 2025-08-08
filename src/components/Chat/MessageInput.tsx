@@ -2,6 +2,8 @@ import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 're
 import { ArrowUp, Paperclip, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../../hooks/useSettings'
+import { open } from '@tauri-apps/plugin-dialog'
+import { readFile } from '@tauri-apps/plugin-fs'
 
 interface FileAttachment {
   path: string
@@ -184,8 +186,113 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const handleAttachFile = async () => {
       if (disabled) return
-      console.log('Attach file clicked')
-      // TODO: Implement file attachment
+      
+      try {
+        // Build file filters based on model capabilities
+        const filters = []
+        
+        if (modelCapabilities?.vision) {
+          filters.push({
+            name: 'Images',
+            extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
+          })
+        }
+        
+        if (modelCapabilities?.audio) {
+          filters.push({
+            name: 'Audio',
+            extensions: ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma']
+          })
+        }
+        
+        if (modelCapabilities?.files) {
+          filters.push({
+            name: 'Documents',
+            extensions: ['txt', 'md', 'pdf', 'doc', 'docx', 'rtf', 'csv', 'json', 'xml', 'html']
+          })
+        }
+        
+        // Add "All supported files" filter if multiple types are available
+        if (filters.length > 1) {
+          const allExtensions = filters.flatMap(f => f.extensions)
+          filters.unshift({
+            name: 'All Supported Files',
+            extensions: allExtensions
+          })
+        }
+        
+        // Open file dialog
+        const selected = await open({
+          multiple: false,
+          filters: filters.length > 0 ? filters : [
+            { name: 'All Files', extensions: ['*'] }
+          ]
+        })
+        
+        if (!selected || Array.isArray(selected)) return
+        
+        // Read the file
+        const fileBytes = await readFile(selected)
+        const fileName = selected.split(/[/\\]/).pop() || 'unknown'
+        const fileExtension = fileName.split('.').pop()?.toLowerCase() || ''
+        
+        // Determine file type and mime type
+        let fileType: 'image' | 'audio' | 'file' = 'file'
+        let mimeType = 'application/octet-stream'
+        
+        // Image types
+        if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(fileExtension)) {
+          fileType = 'image'
+          mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`
+        }
+        // SVG is special case for images
+        else if (fileExtension === 'svg') {
+          fileType = 'image'
+          mimeType = 'image/svg+xml'
+        }
+        // Audio types
+        else if (['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma'].includes(fileExtension)) {
+          fileType = 'audio'
+          mimeType = fileExtension === 'mp3' ? 'audio/mpeg' : `audio/${fileExtension}`
+        }
+        // Document types
+        else if (['txt'].includes(fileExtension)) {
+          mimeType = 'text/plain'
+        }
+        else if (['md'].includes(fileExtension)) {
+          mimeType = 'text/markdown'
+        }
+        else if (['pdf'].includes(fileExtension)) {
+          mimeType = 'application/pdf'
+        }
+        else if (['json'].includes(fileExtension)) {
+          mimeType = 'application/json'
+        }
+        else if (['xml'].includes(fileExtension)) {
+          mimeType = 'application/xml'
+        }
+        else if (['html'].includes(fileExtension)) {
+          mimeType = 'text/html'
+        }
+        
+        // Convert to base64
+        const base64 = btoa(String.fromCharCode(...fileBytes))
+        
+        // Create attachment object
+        const attachment: FileAttachment = {
+          path: selected,
+          base64,
+          mimeType,
+          name: fileName,
+          type: fileType
+        }
+        
+        // Add to attachments
+        setAttachments([...attachments, attachment])
+        
+      } catch (error) {
+        console.error('Failed to attach file:', error)
+      }
     }
 
     const removeAttachment = (index: number) => {

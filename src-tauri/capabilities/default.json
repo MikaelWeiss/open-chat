@@ -23,6 +23,10 @@
     "keyring:allow-get-password",
     "keyring:allow-set-password",
     "keyring:allow-delete-password",
+    "dialog:default",
+    "dialog:allow-open",
+    "fs:default",
+    "fs:allow-read-file",
     {
       "identifier": "fs:allow-exists",
       "allow": [{ "path": "$APPDATA/keys.enc" }]
