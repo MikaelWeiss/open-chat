@@ -42,6 +42,7 @@ interface AppState {
   commitPendingConversation: () => Promise<number | null>
   updateConversation: (id: number | 'pending', updates: Partial<Conversation>) => Promise<void>
   deleteConversation: (id: number | 'pending') => Promise<void>
+  toggleConversationFavorite: (id: number) => Promise<void>
   setSelectedConversation: (id: number | 'pending' | null) => void
   
   // Actions - Messages
@@ -260,6 +261,18 @@ export const useAppStore = create<AppState>()(
           console.error('Failed to delete conversation:', error)
           get().setError(id, `Failed to delete conversation: ${error}`)
         }
+      }
+    },
+
+    toggleConversationFavorite: async (id: number) => {
+      try {
+        get().clearError(id)
+        await conversationStore.toggleConversationFavorite(id)
+        await get().loadConversations()
+        get().resetRetryAttempt(id)
+      } catch (error) {
+        console.error('Failed to toggle favorite:', error)
+        get().setError(id, `Failed to toggle favorite: ${error}`)
       }
     },
 
@@ -483,6 +496,7 @@ export const useConversations = () => {
   const commitPendingConversation = useAppStore((state) => state.commitPendingConversation)
   const updateConversation = useAppStore((state) => state.updateConversation)
   const deleteConversation = useAppStore((state) => state.deleteConversation)
+  const toggleConversationFavorite = useAppStore((state) => state.toggleConversationFavorite)
   const setSelectedConversation = useAppStore((state) => state.setSelectedConversation)
   const getConversation = useAppStore((state) => state.getConversation)
 
@@ -507,6 +521,7 @@ export const useConversations = () => {
     commitPendingConversation,
     updateConversation,
     deleteConversation,
+    toggleConversationFavorite,
     setSelectedConversation,
     getConversation
   }

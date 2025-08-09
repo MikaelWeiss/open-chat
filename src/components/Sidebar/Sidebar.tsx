@@ -42,7 +42,7 @@ export default function Sidebar({
   onSelectConversation,
   onDeleteConversation,
 }: SidebarProps) {
-  const { conversations, deleteConversation, createPendingConversation } = useConversations()
+  const { conversations, deleteConversation, toggleConversationFavorite, createPendingConversation } = useConversations()
   
   // For now, disable loading/error states - can be added back later
   const loading = false
@@ -128,8 +128,7 @@ export default function Sidebar({
     if (conversationId === 'pending') return // Can't favorite pending conversations
     
     try {
-      // TODO: Re-implement favorite toggle when needed
-      console.log('Toggle favorite for conversation:', conversationId)
+      await toggleConversationFavorite(conversationId)
     } catch (err) {
       console.error('Failed to toggle favorite:', err)
     }
