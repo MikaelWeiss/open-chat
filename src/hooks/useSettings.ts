@@ -5,6 +5,7 @@ import { Provider, AddProviderRequest, UpdateProviderRequest } from '../types/pr
 import { applyTheme, setupSystemThemeListener } from '../shared/theme'
 import { modelsService } from '../services/modelsService'
 import { useAppStore } from '../stores/appStore'
+import * as windowManager from '../utils/windowManager'
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system'
@@ -94,6 +95,30 @@ export function useSettings() {
     }
   }, [settingsManager.isLoading, Object.keys(settingsManager.settings.providers).length])
 
+  // Register global shortcut when settings load and cleanup on unmount
+  useEffect(() => {
+    let cleanup: (() => Promise<void>) | undefined
+    
+    const registerShortcut = async () => {
+      if (!settingsManager.isLoading && settingsManager.settings.globalHotkey) {
+        try {
+          cleanup = await windowManager.registerGlobalShortcut(settingsManager.settings.globalHotkey)
+        } catch (error) {
+          console.error('Failed to register initial global shortcut:', error)
+        }
+      }
+    }
+    
+    registerShortcut()
+    
+    // Cleanup on unmount
+    return () => {
+      if (cleanup) {
+        cleanup()
+      }
+    }
+  }, [settingsManager.isLoading, settingsManager.settings.globalHotkey])
+
   const loadSettings = async () => {
     settingsManager.setLoading(true)
     try {
@@ -175,6 +200,14 @@ export function useSettings() {
 
   const handleGlobalHotkeyChange = async (newHotkey: string) => {
     await updateSetting('globalHotkey', newHotkey)
+    
+    // Register the global shortcut with Tauri
+    try {
+      await windowManager.registerGlobalShortcut(newHotkey)
+    } catch (error) {
+      console.error('Failed to register global shortcut:', error)
+      // Don't throw error here to prevent UI issues, just log it
+    }
   }
 
   const handleShowPricingChange = async (show: boolean) => {
