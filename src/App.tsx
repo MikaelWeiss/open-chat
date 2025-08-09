@@ -10,6 +10,7 @@ import { MessageInputHandle } from './components/Chat/MessageInput'
 import { useSettings } from './hooks/useSettings'
 import { useConversations, useAppStore } from './stores/appStore'
 import { initializeAppStore } from './stores/appStore'
+import { checkForUpdatesOnStartup } from './utils/updater'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -34,6 +35,11 @@ function App() {
   // Initialize Zustand store
   useEffect(() => {
     initializeAppStore()
+    
+    // Check for updates on startup (desktop only)
+    if (typeof window !== 'undefined' && '__TAURI__' in window) {
+      checkForUpdatesOnStartup()
+    }
   }, [])
   
   // Listen for custom event to open settings to a specific section
