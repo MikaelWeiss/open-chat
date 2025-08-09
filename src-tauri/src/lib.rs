@@ -47,10 +47,30 @@ async fn toggle_mini_window(app: tauri::AppHandle) -> Result<bool, String> {
         .build()
         .map_err(|e| format!("Failed to create mini window: {}", e))?;
 
-        // Position window with error handling
-        if let Err(e) = mini_window.set_position(Position::Logical(LogicalPosition { x: 100.0, y: 100.0 })) {
-            eprintln!("Warning: Failed to set mini window position: {}", e);
-            // Don't fail the whole operation for positioning issues
+        // Position window in bottom right corner with error handling
+        if let Ok(monitor) = mini_window.primary_monitor() {
+            if let Some(monitor) = monitor {
+                let screen_size = monitor.size();
+                let window_size = mini_window.inner_size().unwrap_or(tauri::PhysicalSize { width: 400, height: 600 });
+                
+                // Position with some padding from the edges (80px)
+                let x = screen_size.width as f64 - window_size.width as f64 - 80.0;
+                let y = screen_size.height as f64 - window_size.height as f64 - 80.0; // Extra padding for taskbar/dock
+                
+                if let Err(e) = mini_window.set_position(Position::Physical(tauri::PhysicalPosition { x: x as i32, y: y as i32 })) {
+                    eprintln!("Warning: Failed to set mini window position: {}", e);
+                }
+            } else {
+                // Fallback position if monitor detection fails
+                if let Err(e) = mini_window.set_position(Position::Logical(LogicalPosition { x: 100.0, y: 100.0 })) {
+                    eprintln!("Warning: Failed to set fallback mini window position: {}", e);
+                }
+            }
+        } else {
+            // Fallback position if monitor access fails
+            if let Err(e) = mini_window.set_position(Position::Logical(LogicalPosition { x: 100.0, y: 100.0 })) {
+                eprintln!("Warning: Failed to set fallback mini window position: {}", e);
+            }
         }
         
         Ok(true)
