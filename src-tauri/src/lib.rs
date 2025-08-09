@@ -154,14 +154,18 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, _event| {
-                    // Handle global shortcut events by triggering the mini window toggle
-                    let app_handle = app.clone();
-                    tauri::async_runtime::spawn(async move {
-                        if let Err(e) = toggle_mini_window(app_handle).await {
-                            eprintln!("Failed to toggle mini window from global shortcut: {}", e);
-                        }
-                    });
+                .with_handler(|app, _shortcut, event| {
+                    // Only handle key press events, ignore key release
+                    use tauri_plugin_global_shortcut::ShortcutState;
+                    if event.state == ShortcutState::Pressed {
+                        // Handle global shortcut events by triggering the mini window toggle
+                        let app_handle = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            if let Err(e) = toggle_mini_window(app_handle).await {
+                                eprintln!("Failed to toggle mini window from global shortcut: {}", e);
+                            }
+                        });
+                    }
                 })
                 .build()
         )
