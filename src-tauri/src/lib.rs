@@ -17,12 +17,16 @@ async fn toggle_mini_window(app: tauri::AppHandle) -> Result<bool, String> {
     if let Some(window) = app.get_webview_window("mini-chat") {
         let is_visible = window.is_visible()
             .map_err(|e| format!("Failed to check window visibility: {}", e))?;
+        let is_focused = window.is_focused()
+            .map_err(|e| format!("Failed to check window focus: {}", e))?;
         
-        if is_visible {
+        if is_visible && is_focused {
+            // Window is visible and focused, hide it
             window.hide()
                 .map_err(|e| format!("Failed to hide mini window: {}", e))?;
             Ok(false)
         } else {
+            // Window is either hidden or not focused, show and focus it
             window.show()
                 .map_err(|e| format!("Failed to show mini window: {}", e))?;
             window.set_focus()
@@ -47,6 +51,11 @@ async fn toggle_mini_window(app: tauri::AppHandle) -> Result<bool, String> {
         .decorations(true)
         .build()
         .map_err(|e| format!("Failed to create mini window: {}", e))?;
+
+        // Set window to appear on all workspaces (macOS)
+        if let Err(e) = mini_window.set_visible_on_all_workspaces(true) {
+            eprintln!("Warning: Failed to set mini window on all workspaces: {}", e);
+        }
 
         // Position window in bottom right corner with error handling
         if let Ok(monitor) = mini_window.primary_monitor() {
