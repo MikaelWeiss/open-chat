@@ -5,6 +5,8 @@
   "windows": ["main", "mini-chat"],
   "permissions": [
     "core:default",
+    "core:event:allow-emit",
+    "core:event:allow-listen",
     "core:window:allow-start-dragging",
     "opener:default",
     "shell:default",

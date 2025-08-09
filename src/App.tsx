@@ -10,6 +10,7 @@ import { MessageInputHandle } from './components/Chat/MessageInput'
 import { useSettings } from './hooks/useSettings'
 import { useConversations, useAppStore } from './stores/appStore'
 import { initializeAppStore } from './stores/appStore'
+import { messageSync } from './utils/messageSync'
 
 function App() {
   // Check if we're in mini window mode
@@ -34,14 +35,25 @@ function App() {
   // Initialize settings (theme will be applied in useSettings hook)
   const { handleThemeChange, theme } = useSettings()
   
-  // Initialize Zustand store
+  // Initialize Zustand store and message sync
   useEffect(() => {
     const initialize = async () => {
       // Initialize store
       await initializeAppStore()
+      
+      // Set up message sync listener
+      await messageSync.setupListener((conversationId) => {
+        // Reload messages for the updated conversation
+        useAppStore.getState().loadMessages(conversationId)
+      })
     }
     
     initialize()
+    
+    // Cleanup on unmount
+    return () => {
+      messageSync.cleanup()
+    }
   }, [])
   
   // Reload state when window gains focus

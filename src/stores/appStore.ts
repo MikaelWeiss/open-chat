@@ -343,6 +343,11 @@ export const useAppStore = create<AppState>()(
           await messageStore.addMessage(conversationId, message)
           await get().loadMessages(conversationId)
           get().resetRetryAttempt(conversationId)
+          
+          // Notify other windows to reload this conversation's messages
+          import('../utils/messageSync').then(({ messageSync }) => {
+            messageSync.notifyMessageUpdate(conversationId)
+          }).catch(() => {})
         } catch (error) {
           console.error('Failed to add message:', error)
           get().setError(conversationId, `Failed to save message: ${error}`)
