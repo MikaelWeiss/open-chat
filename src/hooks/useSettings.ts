@@ -77,6 +77,18 @@ export function useSettings() {
     }
   }, [])
 
+  // Listen for reload settings events from other windows
+  useEffect(() => {
+    const handleReloadSettings = () => {
+      loadSettings()
+    }
+    
+    window.addEventListener('reloadSettings', handleReloadSettings)
+    return () => {
+      window.removeEventListener('reloadSettings', handleReloadSettings)
+    }
+  }, [])
+
   // Apply theme when settings finish loading and set up system listener
   useEffect(() => {
     if (!settingsManager.isLoading && settingsManager.settings.theme) {
@@ -159,6 +171,11 @@ export function useSettings() {
       }
       
       settingsManager.updateSettings(newSettings)
+      
+      // Notify other windows about settings changes
+      import('../utils/messageSync').then(({ messageSync }) => {
+        messageSync.notifySettingsUpdate()
+      }).catch(() => {})
     } catch (error) {
       console.error(`Failed to update setting ${key}:`, error)
       throw error

@@ -41,11 +41,21 @@ function App() {
       // Initialize store
       await initializeAppStore()
       
-      // Set up message sync listener
-      await messageSync.setupListener((conversationId) => {
-        // Reload messages for the updated conversation
-        useAppStore.getState().loadMessages(conversationId)
-      })
+      // Set up sync listeners
+      await messageSync.setupListeners(
+        (conversationId) => {
+          // Reload messages for the updated conversation
+          useAppStore.getState().loadMessages(conversationId)
+        },
+        () => {
+          // Reload all settings when settings change
+          const store = useAppStore.getState()
+          store.loadProviders()
+          
+          // Also reload settings from the hook (this will apply theme)
+          window.dispatchEvent(new CustomEvent('reloadSettings'))
+        }
+      )
     }
     
     initialize()
