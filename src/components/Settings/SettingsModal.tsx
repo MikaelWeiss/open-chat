@@ -580,7 +580,7 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, se
             <div className="flex-1">
               <label className="text-sm font-medium">Global Hotkey</label>
               <p className="text-xs text-muted-foreground mt-1">
-                System-wide hotkey to open app and start new chat. Click to set, use X to clear.
+                System-wide hotkey to open app and toggle mini window. Click to set, use X to clear.
               </p>
             </div>
             <div className="ml-4">

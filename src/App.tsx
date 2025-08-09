@@ -10,9 +10,13 @@ import { MessageInputHandle } from './components/Chat/MessageInput'
 import { useSettings } from './hooks/useSettings'
 import { useConversations, useAppStore } from './stores/appStore'
 import { initializeAppStore } from './stores/appStore'
+import { messageSync } from './utils/messageSync'
 
 function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  // Check if we're in mini window mode
+  const isMiniWindow = new URLSearchParams(window.location.search).get('window') === 'mini'
+  
+  const [sidebarOpen, setSidebarOpen] = useState(!isMiniWindow) // Hide sidebar in mini window
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState<'general' | 'models' | 'about'>('general')
@@ -31,9 +35,62 @@ function App() {
   // Initialize settings (theme will be applied in useSettings hook)
   const { handleThemeChange, theme } = useSettings()
   
-  // Initialize Zustand store
+  // Initialize Zustand store and message sync
   useEffect(() => {
-    initializeAppStore()
+    const initialize = async () => {
+      // Initialize store
+      await initializeAppStore()
+      
+      // Set up sync listeners
+      await messageSync.setupListeners(
+        (conversationId) => {
+          // Reload messages for the updated conversation
+          useAppStore.getState().loadMessages(conversationId)
+        },
+        () => {
+          // Reload all settings when settings change
+          const store = useAppStore.getState()
+          store.loadProviders()
+          
+          // Also reload settings from the hook (this will apply theme)
+          window.dispatchEvent(new CustomEvent('reloadSettings'))
+        }
+      )
+    }
+    
+    initialize()
+    
+    // Cleanup on unmount
+    return () => {
+      messageSync.cleanup()
+    }
+  }, [])
+  
+  // Reload state when window gains focus
+  useEffect(() => {
+    const handleFocus = async () => {
+      const store = useAppStore.getState()
+      
+      // Reload providers from settings.json
+      await store.loadProviders()
+      
+      // Reload conversations from SQLite
+      await store.loadConversations()
+    }
+    
+    // Load on focus
+    window.addEventListener('focus', handleFocus)
+    
+    // Also reload when window becomes visible (for mini window toggle)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        handleFocus()
+      }
+    })
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+    }
   }, [])
   
   // Listen for custom event to open settings to a specific section
@@ -168,12 +225,25 @@ function App() {
     handleThemeChange(newTheme)
   }
 
-  // Initialize keyboard shortcuts
+  // Add escape key handler for mini window
+  useEffect(() => {
+    if (isMiniWindow) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          window.close()
+        }
+      }
+      window.addEventListener('keydown', handleKeyDown)
+      return () => window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isMiniWindow])
+  
+  // Initialize keyboard shortcuts (disabled in mini window for certain shortcuts)
   useKeyboardShortcuts({
     onNewChat: handleNewChat,
-    onToggleSidebar: handleToggleSidebar,
-    onToggleSettings: handleToggleSettings,
-    onToggleShortcuts: handleToggleShortcuts,
+    onToggleSidebar: isMiniWindow ? () => {} : handleToggleSidebar,
+    onToggleSettings: isMiniWindow ? () => {} : handleToggleSettings,
+    onToggleShortcuts: isMiniWindow ? () => {} : handleToggleShortcuts,
     onSendFeedback: handleSendFeedback,
     onFocusInput: handleFocusInput,
     onCloseModal: handleCloseModal,
@@ -183,40 +253,46 @@ function App() {
   })
 
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
-      <Sidebar
-        isOpen={sidebarOpen}
-        width={sidebarWidth}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-        onWidthChange={setSidebarWidth}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onOpenShortcuts={() => setShortcutsOpen(true)}
-        selectedConversationId={selectedConversationId}
-        onSelectConversation={setSelectedConversation}
-        onDeleteConversation={handleConversationDeleted}
-      />
+    <div className={`flex h-screen bg-background text-foreground overflow-hidden ${isMiniWindow ? 'mini-window' : ''}`}>
+      {!isMiniWindow && (
+        <Sidebar
+          isOpen={sidebarOpen}
+          width={sidebarWidth}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          onWidthChange={setSidebarWidth}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenShortcuts={() => setShortcutsOpen(true)}
+          selectedConversationId={selectedConversationId}
+          onSelectConversation={setSelectedConversation}
+          onDeleteConversation={handleConversationDeleted}
+        />
+      )}
       
       <div className={`flex-1 min-w-0 flex ${!sidebarOpen ? '' : ''}`}>
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden w-full">
           <ChatView 
             conversationId={selectedConversationId}
-            onOpenSettings={() => setSettingsOpen(true)} 
+            onOpenSettings={isMiniWindow ? () => {} : () => setSettingsOpen(true)} 
             messageInputRef={messageInputRef}
             onSelectConversation={setSelectedConversation}
           />
         </div>
       </div>
       
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        initialSection={settingsSection}
-      />
-      
-      <ShortcutsModal
-        isOpen={shortcutsOpen}
-        onClose={() => setShortcutsOpen(false)}
-      />
+      {!isMiniWindow && (
+        <>
+          <SettingsModal
+            isOpen={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            initialSection={settingsSection}
+          />
+          
+          <ShortcutsModal
+            isOpen={shortcutsOpen}
+            onClose={() => setShortcutsOpen(false)}
+          />
+        </>
+      )}
 
       <ToastContainer />
     </div>
