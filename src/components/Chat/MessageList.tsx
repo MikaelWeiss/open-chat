@@ -330,19 +330,13 @@ export default function MessageList({ messages = [], isLoading = false, streamin
               
               <button
                 onClick={() => copyToClipboard(message.text || '', message.id.toString())}
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
                 title="Copy message"
               >
               {copiedMessageId === message.id.toString() ? (
-                <>
-                  <Check className="h-3 w-3" />
-                  Copied
-                </>
+                <Check className="h-3 w-3" />
               ) : (
-                <>
-                  <Copy className="h-3 w-3" />
-                  Copy
-                </>
+                <Copy className="h-3 w-3" />
               )}
               </button>
             </div>
@@ -376,19 +370,13 @@ export default function MessageList({ messages = [], isLoading = false, streamin
               
               <button
                 onClick={() => copyToClipboard(streamingMessage, 'streaming')}
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
                 title="Copy message"
               >
                 {copiedMessageId === 'streaming' ? (
-                  <>
-                    <Check className="h-3 w-3" />
-                    Copied
-                  </>
+                  <Check className="h-3 w-3" />
                 ) : (
-                  <>
-                    <Copy className="h-3 w-3" />
-                    Copy
-                  </>
+                  <Copy className="h-3 w-3" />
                 )}
               </button>
             </div>
