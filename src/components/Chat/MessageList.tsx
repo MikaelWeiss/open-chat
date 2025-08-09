@@ -111,20 +111,47 @@ function AttachmentDisplay({ attachments }: { attachments: { type: string; path:
 }
 
 
-// Replace plain text citations like [1] with markdown links [1](url "domain")
+// Replace plain text citations like [1] or grouped like [1,2] with markdown links
+// Examples:
+//   "see [1] and [2]" => "see [1](url "domain") and [2](url "domain")"
+//   "sources [1,2]"   => "sources [1](url1 "dom1") [2](url2 "dom2")"
 function linkifyCitations(text: string, refs: Array<{ url?: string; title?: string; domain?: string }>): string {
   if (!text || !Array.isArray(refs) || refs.length === 0) return text
   if (text.length > 20000) return text
+
   const byIndex: Record<string, { url?: string; domain?: string }> = {}
   refs.forEach((r, idx) => {
     byIndex[String(idx + 1)] = { url: r.url, domain: r.domain }
   })
-  return text.replace(/\[(\d+)\](?!\()/g, (match, num: string) => {
+
+  // First, expand grouped citations like [1,2] or [1, 2, 3] into separate linked badges
+  // Avoid touching existing markdown links (negative lookahead for opening paren)
+  let output = text.replace(/\[((?:\d+\s*,\s*)+\d+)\](?!\()/g, (match, group: string) => {
+    const numbers = group
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+
+    const mapped = numbers.map((num) => {
+      const ref = byIndex[num]
+      if (!ref || !ref.url) return `[${num}]`
+      const title = ref.domain || ref.url
+      return `[${num}](${ref.url} "${title}")`
+    })
+
+    // Join with a space so each badge renders separately
+    return mapped.join(' ')
+  })
+
+  // Then, linkify single citations like [1] that are not already linked
+  output = output.replace(/\[(\d+)\](?!\()/g, (match, num: string) => {
     const ref = byIndex[num]
     if (!ref || !ref.url) return match
     const title = ref.domain || ref.url
     return `[${num}](${ref.url} "${title}")`
   })
+
+  return output
 }
 
 
@@ -330,19 +357,13 @@ export default function MessageList({ messages = [], isLoading = false, streamin
               
               <button
                 onClick={() => copyToClipboard(message.text || '', message.id.toString())}
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
                 title="Copy message"
               >
               {copiedMessageId === message.id.toString() ? (
-                <>
-                  <Check className="h-3 w-3" />
-                  Copied
-                </>
+                <Check className="h-3 w-3" />
               ) : (
-                <>
-                  <Copy className="h-3 w-3" />
-                  Copy
-                </>
+                <Copy className="h-3 w-3" />
               )}
               </button>
             </div>
@@ -376,19 +397,13 @@ export default function MessageList({ messages = [], isLoading = false, streamin
               
               <button
                 onClick={() => copyToClipboard(streamingMessage, 'streaming')}
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
                 title="Copy message"
               >
                 {copiedMessageId === 'streaming' ? (
-                  <>
-                    <Check className="h-3 w-3" />
-                    Copied
-                  </>
+                  <Check className="h-3 w-3" />
                 ) : (
-                  <>
-                    <Copy className="h-3 w-3" />
-                    Copy
-                  </>
+                  <Copy className="h-3 w-3" />
                 )}
               </button>
             </div>
