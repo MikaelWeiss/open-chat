@@ -65,7 +65,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
   }
 
   const globalShortcutDescription = globalHotkey && globalHotkey.trim() 
-    ? 'Open app & start new chat (system-wide)'
+    ? 'Open app & toggle mini window (system-wide)'
     : 'No global shortcut set'
 
   const shortcutCategories: ShortcutCategory[] = [

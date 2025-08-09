@@ -714,8 +714,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             {messages.length >= 1 && (
               <button
                 onClick={handleCopyConversation}
-                className="p-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 shadow-elegant text-muted-foreground hover:text-primary"
+                className="copy-conversation-btn p-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 shadow-elegant text-muted-foreground hover:text-primary"
                 title="Copy conversation"
+                aria-label="Copy conversation to clipboard"
               >
                 {copiedConversation ? (
                   <Check className="h-4 w-4 text-primary" />
@@ -736,6 +737,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                     window.dispatchEvent(event)
                   }}
                   className="elegant-button flex items-center gap-2 px-4 py-2 text-white rounded-xl text-sm font-medium"
+                  aria-label="Add AI provider"
                 >
                   <Plus className="h-4 w-4" />
                   <span>Add Provider</span>
@@ -745,6 +747,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                   <button
                     onClick={() => setShowModelSelector(!showModelSelector)}
                     className="flex items-center gap-2 px-4 py-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 text-sm shadow-elegant border border-border/20 text-muted-foreground hover:text-primary hover:border-primary/30"
+                    aria-label={selectedModel && selectedModel.model ? `Selected model: ${selectedModel.model}` : 'Select AI model'}
+                    aria-expanded={showModelSelector}
+                    aria-haspopup="listbox"
                   >
                     <span className={!selectedModel || !selectedModel.model ? 'text-muted-foreground' : 'text-foreground/90'}>
                       {selectedModel && selectedModel.model ? selectedModel.model : 'Select Model'}
@@ -867,8 +872,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             {messages.length >= 1 && (
               <button
                 onClick={handleNewConversation}
-                className="p-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 shadow-elegant text-muted-foreground hover:text-primary"
+                className="new-conversation-btn p-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 shadow-elegant text-muted-foreground hover:text-primary"
                 title="New conversation"
+                aria-label="Start new conversation"
               >
                 <Plus className="h-4 w-4" />
               </button>
