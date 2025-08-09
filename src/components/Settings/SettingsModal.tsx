@@ -6,11 +6,12 @@ import AboutSettings from './AboutSettings'
 import SegmentedControl from './SegmentedControl'
 import { useSettings } from '../../hooks/useSettings'
 import { Provider, ProviderPreset, ModelCapabilities } from '../../types/provider'
+import { saveApiKey as saveKey, deleteApiKey as deleteKey, getApiKey as readKey } from '../../utils/secureStorage'
 
 interface SettingsModalProps {
   isOpen: boolean
   onClose: () => void
-  initialSection?: 'general' | 'models' | 'about'
+  initialSection?: 'general' | 'models' | 'search' | 'about'
 }
 
 interface ModelCapabilityIconsProps {
@@ -172,6 +173,7 @@ export default function SettingsModal({ isOpen, onClose, initialSection = 'gener
   const tabs = [
     { id: 'general', label: 'General' },
     { id: 'models', label: 'Models' },
+    { id: 'search', label: 'Search' },
     { id: 'about', label: 'About' },
   ]
 
@@ -219,6 +221,7 @@ export default function SettingsModal({ isOpen, onClose, initialSection = 'gener
           <div className="flex-1 p-6 overflow-y-auto min-h-0">
             {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} showPricing={showPricing} setShowPricing={handleShowPricingChange} showConversationSettings={showConversationSettings} setShowConversationSettings={handleShowConversationSettingsChange} globalHotkey={globalHotkey} setGlobalHotkey={handleGlobalHotkeyChange} />}
             {activeTab === 'models' && <ModelsSettings providers={providers} onToggleModel={handleToggleModel} onCapabilityToggle={handleCapabilityToggle} onAddProvider={async (name, endpoint, apiKey, isLocal) => await addProvider({ name, endpoint, apiKey, isLocal })} onUpdateProvider={async (providerId, updates) => await updateProvider(providerId, updates)} onRemoveProvider={removeProvider} onRefreshModels={refreshProviderModels} />}
+            {activeTab === 'search' && <SearchSettings />}
             {activeTab === 'about' && <AboutSettings />}
           </div>
         </div>
@@ -373,6 +376,113 @@ function HotkeyCapture({ value, onChange, onClear }: { value: string, onChange: 
           Cancel
         </button>
       )}
+    </div>
+  )
+}
+
+function SearchSettings() {
+  const [tavilyKey, setTavilyKey] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [connected, setConnected] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const existing = await readKey('search-tavily')
+        if (existing) {
+          setTavilyKey(existing)
+          setConnected(true)
+        } else {
+          setConnected(false)
+        }
+      } catch {
+        setConnected(false)
+      }
+    }
+    load()
+  }, [])
+
+  const handleOpenKeyLink = async () => {
+    const url = 'https://app.tavily.com/'
+    try {
+      await open(url)
+    } catch (err) {
+      console.error('Failed to open URL:', err)
+      window.open(url, '_blank')
+    }
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      if (tavilyKey && tavilyKey.trim()) {
+        await saveKey('search-tavily', tavilyKey.trim())
+        setConnected(true)
+        ;(window as any).showToast?.({ type: 'success', title: 'Saved', message: 'Tavily API key saved' })
+      } else {
+        await deleteKey('search-tavily')
+        setConnected(false)
+        ;(window as any).showToast?.({ type: 'success', title: 'Removed', message: 'Tavily API key removed' })
+      }
+    } catch (e) {
+      ;(window as any).showToast?.({ type: 'error', title: 'Error', message: e instanceof Error ? e.message : 'Failed to save key' })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium mb-2">Web Search</h3>
+        <p className="text-sm text-muted-foreground">When enabled, web results are prefixed to your prompt. If no key is set, the app falls back to DuckDuckGo Instant Answers.</p>
+      </div>
+
+      <div className="glass-effect border border-border/20 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className="font-medium">Tavily</div>
+            <div className="text-xs text-muted-foreground">LLM-friendly search API</div>
+          </div>
+          <div className={clsx('text-xs px-2 py-1 rounded-full', connected ? 'bg-green-500/10 text-green-600' : 'bg-yellow-500/10 text-yellow-600')}>
+            {connected ? 'Connected' : 'Not connected'}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">API Key</label>
+            <button onClick={handleOpenKeyLink} className="text-xs text-primary hover:underline focus:outline-none">Get API Key →</button>
+          </div>
+          <input
+            type="password"
+            value={tavilyKey}
+            onChange={(e) => setTavilyKey(e.target.value)}
+            placeholder="tvly_..."
+            className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <div className="flex items-center gap-2 pt-2">
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="elegant-button px-4 py-2 rounded-xl text-sm font-medium"
+            >
+              {tavilyKey.trim() ? 'Save Key' : 'Remove Key'}
+            </button>
+            {!!tavilyKey.trim() && (
+              <button
+                onClick={() => setTavilyKey('')}
+                className="px-3 py-2 rounded-xl text-sm border border-border/30 hover:bg-accent"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="text-xs text-muted-foreground">
+        Tip: Use the globe icon next to the chat input to toggle web search per message.
+      </div>
     </div>
   )
 }

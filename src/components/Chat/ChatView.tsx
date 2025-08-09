@@ -9,6 +9,7 @@ import { type PendingConversation } from '../../stores/appStore'
 import { type Conversation } from '../../shared/conversationStore'
 import { type CreateMessageInput } from '../../shared/messageStore'
 import { chatService } from '../../services/chatService'
+import { getDefaultSearchProvider, formatResultsForPrompt } from '../../services/search/index'
 import clsx from 'clsx'
 import EmptyState from '../EmptyState/EmptyState'
 
@@ -89,6 +90,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const [highlightedModelIndex, setHighlightedModelIndex] = useState(0)
   const [selectedModel, setSelectedModel] = useState<{provider: string, model: string} | null>(null)
   const [copiedConversation, setCopiedConversation] = useState(false)
+  const [searchEnabled, setSearchEnabled] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   
@@ -554,10 +556,49 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       const controller = new AbortController()
       setAbortController(controller)
       
-      // Build user message with attachments
+      // Option 1: Prepend web results if search is toggled on
+      let effectiveText = message
+      let searchReferences: CreateMessageInput['references'] | undefined
+      if (searchEnabled) {
+        try {
+          const provider = await getDefaultSearchProvider()
+          const results = await provider.search(message, { count: 5 })
+          if (results && results.length > 0) {
+            const preamble = formatResultsForPrompt(results)
+            effectiveText = `${preamble}\n\nUser question: ${message}`
+            // Build references array for citations mapping
+            searchReferences = results.map((r) => ({
+              type: 'citation',
+              url: r.url,
+              title: r.title,
+              snippet: r.snippet,
+              source_type: 'web',
+              domain: (() => {
+                try { return new URL(r.url).hostname } catch { return undefined }
+              })()
+            }))
+          }
+        } catch (err) {
+          console.error('Web search failed, continuing without augmentation:', err)
+          if ((window as any).showToast) {
+            (window as any).showToast({
+              type: 'error',
+              title: 'Web search failed',
+              message: err instanceof Error ? err.message : 'Unknown error'
+            })
+          }
+        }
+      }
+
+      // Build user message to display/store (original), and a separate payload for sending
       const userMessage: CreateMessageInput = {
         role: 'user',
         text: message,
+        ...(searchReferences ? { references: searchReferences } : {})
+      }
+      const sendUserMessage: CreateMessageInput = {
+        role: 'user',
+        text: effectiveText,
       }
       
       // Handle attachments
@@ -612,7 +653,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       // Send to AI provider with streaming
       await chatService.sendMessage({
         conversationId: activeConversationId,
-        userMessage,
+        userMessage: sendUserMessage,
         systemPrompt: currentConversation?.system_prompt || undefined,
         provider: effectiveProvider,
         endpoint: provider.endpoint,
@@ -626,7 +667,10 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         onStreamComplete: async (message: CreateMessageInput) => {
           // Add complete assistant message to store
           try {
-            await addMessageToStore(activeConversationId, message)
+            const assistantWithRefs: CreateMessageInput = searchEnabled && searchReferences
+              ? { ...message, references: searchReferences }
+              : message
+            await addMessageToStore(activeConversationId, assistantWithRefs)
           } catch (err) {
             console.error('Failed to save assistant message:', err)
           }
@@ -907,6 +951,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           }
           onOpenConversationSettings={() => console.log('Open conversation settings')}
           onAttachmentsChange={setRequiredCapabilities}
+          searchEnabled={searchEnabled}
+          onToggleSearch={() => setSearchEnabled(prev => !prev)}
         />
       </div>
       </div>

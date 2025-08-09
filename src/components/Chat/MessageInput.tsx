@@ -1,5 +1,5 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
-import { ArrowUp, Paperclip, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings } from 'lucide-react'
+import { ArrowUp, Paperclip, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings, Globe2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../../hooks/useSettings'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -28,6 +28,8 @@ interface MessageInputProps {
   noProvider?: boolean
   onOpenConversationSettings?: () => void
   onAttachmentsChange?: (capabilities: { vision: boolean; audio: boolean; files: boolean }) => void
+  searchEnabled?: boolean
+  onToggleSearch?: () => void
 }
 
 export interface MessageInputHandle {
@@ -37,7 +39,7 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ onSend, onCancel, disabled = false, isLoading = false, messages = [], modelCapabilities, noProvider = false, onOpenConversationSettings, onAttachmentsChange }, ref) => {
+  ({ onSend, onCancel, disabled = false, isLoading = false, messages = [], modelCapabilities, noProvider = false, onOpenConversationSettings, onAttachmentsChange, searchEnabled = false, onToggleSearch }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const [message, setMessage] = useState('')
     const [attachments, setAttachments] = useState<FileAttachment[]>([])
@@ -595,6 +597,23 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               </button>
             )}
             
+            {/* Search toggle button */}
+            <button
+              onClick={onToggleSearch}
+              className={clsx(
+                'p-2 rounded-xl transition-all duration-200 hover:scale-105',
+                disabled 
+                  ? 'text-muted-foreground cursor-not-allowed' 
+                  : searchEnabled
+                    ? 'elegant-hover text-primary'
+                    : 'elegant-hover text-muted-foreground hover:text-primary'
+              )}
+              title={searchEnabled ? 'Web search enabled' : 'Enable web search'}
+              disabled={disabled}
+            >
+              <Globe2 className="h-4 w-4" />
+            </button>
+
             {/* Conversation settings button - only show if enabled in settings */}
             {appSettings?.showConversationSettings && (
               <button

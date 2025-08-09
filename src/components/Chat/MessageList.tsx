@@ -111,6 +111,23 @@ function AttachmentDisplay({ attachments }: { attachments: { type: string; path:
 }
 
 
+// Replace plain text citations like [1] with markdown links [1](url "domain")
+function linkifyCitations(text: string, refs: Array<{ url?: string; title?: string; domain?: string }>): string {
+  if (!text || !Array.isArray(refs) || refs.length === 0) return text
+  if (text.length > 20000) return text
+  const byIndex: Record<string, { url?: string; domain?: string }> = {}
+  refs.forEach((r, idx) => {
+    byIndex[String(idx + 1)] = { url: r.url, domain: r.domain }
+  })
+  return text.replace(/\[(\d+)\](?!\()/g, (match, num: string) => {
+    const ref = byIndex[num]
+    if (!ref || !ref.url) return match
+    const title = ref.domain || ref.url
+    return `[${num}](${ref.url} "${title}")`
+  })
+}
+
+
 export default function MessageList({ messages = [], isLoading = false, streamingMessage = '' }: MessageListProps) {
   const [loadingMessage, setLoadingMessage] = useState('Assembling')
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
@@ -167,6 +184,29 @@ export default function MessageList({ messages = [], isLoading = false, streamin
       )
     },
     // Enhanced styling for other markdown elements
+    a: ({ href, children }: any) => {
+      // Detect numeric-only link text (citation), e.g. 1 or [1]
+      const textContent = Array.isArray(children)
+        ? children.map((c: any) => (typeof c === 'string' ? c : '')).join('').trim()
+        : (typeof children === 'string' ? children : '').toString().trim()
+      const isCitationNumber = /^\[?\d+\]?$/.test(textContent)
+      const domain = (() => { try { return href ? new URL(href).hostname : undefined } catch { return undefined } })() || undefined
+      const className = isCitationNumber
+        ? 'inline-flex items-center justify-center align-middle rounded-md bg-secondary text-foreground/80 border border-border/30 text-[11px] leading-none px-1.5 py-[3px] mr-1 no-underline hover:bg-accent hover:text-foreground'
+        : 'text-primary/80 hover:text-primary underline decoration-dotted'
+      const displayText = isCitationNumber ? textContent.replace(/\[|\]/g, '') : textContent
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={className}
+          title={domain}
+        >
+          {displayText}
+        </a>
+      )
+    },
     h1: ({ children }: any) => (
       <h1 className="text-2xl font-bold mb-4 pb-2 border-b border-border">{children}</h1>
     ),
@@ -265,8 +305,28 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                 remarkPlugins={[remarkGfm]}
                 components={markdownComponents}
               >
-                {message.text || ''}
+                {(message.role !== 'user' && Array.isArray(message.references) && message.references.length > 0)
+                  ? linkifyCitations(message.text || '', message.references as any)
+                  : (message.text || '')}
               </ReactMarkdown>
+
+              {/* Citations renderer: show [n] → link if references exist */}
+              {message.role !== 'user' && Array.isArray(message.references) && message.references.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-border/20 text-xs text-muted-foreground/90 flex flex-wrap gap-3">
+                  {message.references.map((ref, idx) => (
+                    <a
+                      key={`${message.id}-ref-${idx}`}
+                      href={ref.url || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-accent hover:text-foreground transition-colors border border-border/20"
+                      title={ref.title || ref.url}
+                    >
+                      [{idx + 1}] {ref.domain || ref.url}
+                    </a>
+                  ))}
+                </div>
+              )}
               
               <button
                 onClick={() => copyToClipboard(message.text || '', message.id.toString())}
