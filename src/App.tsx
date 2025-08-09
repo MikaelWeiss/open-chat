@@ -36,7 +36,39 @@ function App() {
   
   // Initialize Zustand store
   useEffect(() => {
-    initializeAppStore()
+    const initialize = async () => {
+      // Initialize store
+      await initializeAppStore()
+    }
+    
+    initialize()
+  }, [])
+  
+  // Reload state when window gains focus
+  useEffect(() => {
+    const handleFocus = async () => {
+      const store = useAppStore.getState()
+      
+      // Reload providers from settings.json
+      await store.loadProviders()
+      
+      // Reload conversations from SQLite
+      await store.loadConversations()
+    }
+    
+    // Load on focus
+    window.addEventListener('focus', handleFocus)
+    
+    // Also reload when window becomes visible (for mini window toggle)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        handleFocus()
+      }
+    })
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+    }
   }, [])
   
   // Listen for custom event to open settings to a specific section
