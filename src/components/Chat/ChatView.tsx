@@ -1,6 +1,7 @@
 import { ChevronDown, Copy, Eye, Volume2, FileText, Search, Plus, Check } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
+import ConversationSettingsModal, { ConversationSettings, defaultSettings } from './ConversationSettingsModal'
 import { useRef, RefObject, useState, useEffect, useMemo } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useSettings } from '../../hooks/useSettings'
@@ -90,6 +91,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const [highlightedModelIndex, setHighlightedModelIndex] = useState(0)
   const [selectedModel, setSelectedModel] = useState<{provider: string, model: string} | null>(null)
   const [copiedConversation, setCopiedConversation] = useState(false)
+  const [showConversationSettings, setShowConversationSettings] = useState(false)
+  const [conversationSettings, setConversationSettings] = useState<ConversationSettings>(defaultSettings)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   
@@ -227,6 +230,19 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             setSelectedModel({ provider: conv.provider, model: conv.model })
           }
           
+          // Load conversation settings
+          if (conv?.settings) {
+            try {
+              const parsedSettings = JSON.parse(conv.settings)
+              setConversationSettings({ ...defaultSettings, ...parsedSettings })
+            } catch (err) {
+              console.error('Failed to parse conversation settings:', err)
+              setConversationSettings(defaultSettings)
+            }
+          } else {
+            setConversationSettings(defaultSettings)
+          }
+          
           // Load messages if it's a persistent conversation
           if (typeof conversationId === 'number') {
             await loadMessages(conversationId)
@@ -237,6 +253,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       } else {
         setCurrentConversation(null)
         setSelectedModel(null)
+        setConversationSettings(defaultSettings)
       }
     }
     loadConversation()
@@ -486,6 +503,25 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       console.error('Failed to create new conversation:', err)
     }
   }
+
+  // Handle conversation settings save
+  const handleSaveConversationSettings = async (newSettings: ConversationSettings) => {
+    if (!conversationId) return
+    
+    try {
+      const settingsJson = JSON.stringify(newSettings)
+      await updateConversation(conversationId, { settings: settingsJson })
+      setConversationSettings(newSettings)
+      
+      // Update local state immediately to reflect the change
+      setCurrentConversation((prev) => prev ? {
+        ...prev,
+        settings: settingsJson
+      } : null)
+    } catch (err) {
+      console.error('Failed to save conversation settings:', err)
+    }
+  }
   
   const handleSend = async (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>, reasoningEffort?: 'none' | 'low' | 'medium' | 'high') => {
     if (!conversationId || !message.trim()) return
@@ -625,6 +661,15 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         isLocal: provider.isLocal,
         reasoningEffort,
         signal: controller.signal,
+        // Pass conversation settings
+        temperature: conversationSettings.temperature,
+        maxTokens: conversationSettings.max_tokens,
+        topP: conversationSettings.top_p,
+        frequencyPenalty: conversationSettings.frequency_penalty,
+        presencePenalty: conversationSettings.presence_penalty,
+        stop: conversationSettings.stop.length > 0 ? conversationSettings.stop : undefined,
+        n: conversationSettings.n,
+        seed: conversationSettings.seed,
         onStreamChunk: (content: string) => {
           setStreamingMessage(activeConversationId, content)
         },
@@ -920,11 +965,20 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
               thinking: false
             }
           }
-          onOpenConversationSettings={() => console.log('Open conversation settings')}
+          onOpenConversationSettings={() => setShowConversationSettings(true)}
           onAttachmentsChange={setRequiredCapabilities}
         />
       </div>
       </div>
+
+      {/* Conversation Settings Modal */}
+      <ConversationSettingsModal
+        isOpen={showConversationSettings}
+        onClose={() => setShowConversationSettings(false)}
+        settings={conversationSettings}
+        onSave={handleSaveConversationSettings}
+        conversationId={conversationId || null}
+      />
     </div>
   )
 }

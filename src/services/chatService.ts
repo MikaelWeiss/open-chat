@@ -45,6 +45,11 @@ export interface SendMessageOptions {
   topP?: number
   topK?: number
   reasoningEffort?: 'none' | 'low' | 'medium' | 'high'
+  frequencyPenalty?: number
+  presencePenalty?: number
+  stop?: string[]
+  n?: number
+  seed?: number
   onStreamChunk?: (content: string) => void
   onStreamComplete?: (assistantMessage: CreateMessageInput) => void
   signal?: AbortSignal
@@ -67,6 +72,11 @@ class ChatService {
     topP,
     topK,
     reasoningEffort,
+    frequencyPenalty,
+    presencePenalty,
+    stop,
+    n,
+    seed,
     onStreamChunk,
     onStreamComplete,
     signal
@@ -126,8 +136,7 @@ class ChatService {
         max_tokens: maxTokens || 1024,
         ...(temperature !== undefined && { temperature }),
         ...(topP !== undefined && { top_p: topP }),
-        ...(topK !== undefined && { top_k: topK }),
-        ...(reasoningEffort && reasoningEffort !== 'none' && { reasoning_effort: reasoningEffort }),
+        // Note: Anthropic may not support all OpenAI parameters
       } : {
         model,
         messages,
@@ -135,7 +144,11 @@ class ChatService {
         ...(temperature !== undefined && { temperature }),
         ...(maxTokens !== undefined && { max_tokens: maxTokens }),
         ...(topP !== undefined && { top_p: topP }),
-        ...(topK !== undefined && { top_k: topK }),
+        ...(frequencyPenalty !== undefined && { frequency_penalty: frequencyPenalty }),
+        ...(presencePenalty !== undefined && { presence_penalty: presencePenalty }),
+        ...(stop !== undefined && stop.length > 0 && { stop }),
+        ...(n !== undefined && { n }),
+        ...(seed !== undefined && { seed }),
       }
 
       // Build headers
