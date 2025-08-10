@@ -27,6 +27,13 @@
     "keyring:allow-delete-password",
     "dialog:default",
     "dialog:allow-open",
+    "dialog:allow-ask",
+    "dialog:allow-message",
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download-and-install",
+    "process:default",
+    "process:allow-restart",
     "fs:default",
     "fs:allow-read-file",
     {

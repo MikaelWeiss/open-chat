@@ -76,7 +76,7 @@ export default function AboutSettings() {
 
       <div className="border-t border-border pt-6">
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>Open Chat v1.0.0</p>
+          <p>Open Chat v0.1.0</p>
           <p>Contact: contact@weisssolutions.org</p>
         </div>
       </div>

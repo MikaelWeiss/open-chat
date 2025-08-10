@@ -30,11 +30,20 @@
   "plugins": {
     "sql": {
       "preload": ["sqlite:open_chat.db"]
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://api.github.com/repos/mikaelweiss/open-chat/releases/latest"
+      ],
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgxOTE2MDMyQUM3N0FCMApSV1N3ZXNjcUF4WVpDTFpZSUprdWhWYXZxVG8wQVgvVityV2tRSXVmdlZjS3U0RjF5bGZDeUJjNQo="
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

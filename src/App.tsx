@@ -11,6 +11,7 @@ import { MessageInputHandle } from './components/Chat/MessageInput'
 import { useSettings } from './hooks/useSettings'
 import { useConversations, useAppStore } from './stores/appStore'
 import { initializeAppStore } from './stores/appStore'
+import { checkForUpdatesOnStartup } from './utils/updater'
 import { messageSync } from './utils/messageSync'
 
 function App() {
@@ -42,6 +43,11 @@ function App() {
     const initialize = async () => {
       // Initialize store
       await initializeAppStore()
+      
+      // Check for updates on startup (desktop only)
+      if (typeof window !== 'undefined' && '__TAURI__' in window) {
+          checkForUpdatesOnStartup()
+      }
       
       // Set up sync listeners
       await messageSync.setupListeners(
