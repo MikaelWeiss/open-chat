@@ -44,6 +44,7 @@ export interface SendMessageOptions {
   maxTokens?: number
   topP?: number
   topK?: number
+  reasoningEffort?: 'none' | 'low' | 'medium' | 'high'
   onStreamChunk?: (content: string) => void
   onStreamComplete?: (assistantMessage: CreateMessageInput) => void
   signal?: AbortSignal
@@ -65,6 +66,7 @@ class ChatService {
     maxTokens,
     topP,
     topK,
+    reasoningEffort,
     onStreamChunk,
     onStreamComplete,
     signal
@@ -125,6 +127,7 @@ class ChatService {
         ...(temperature !== undefined && { temperature }),
         ...(topP !== undefined && { top_p: topP }),
         ...(topK !== undefined && { top_k: topK }),
+        ...(reasoningEffort && reasoningEffort !== 'none' && { reasoning_effort: reasoningEffort }),
       } : {
         model,
         messages,

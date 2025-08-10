@@ -487,7 +487,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     }
   }
   
-  const handleSend = async (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => {
+  const handleSend = async (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>, reasoningEffort?: 'none' | 'low' | 'medium' | 'high') => {
     if (!conversationId || !message.trim()) return
     
     // Get effective provider and model (prefer conversation, fallback to selected)
@@ -623,6 +623,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         model: effectiveModel,
         apiKey: apiKey || undefined,
         isLocal: provider.isLocal,
+        reasoningEffort,
         signal: controller.signal,
         onStreamChunk: (content: string) => {
           setStreamingMessage(activeConversationId, content)
@@ -915,7 +916,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             (selectedModel?.model && providers?.[selectedModel.provider]?.modelCapabilities?.[selectedModel.model]) || {
               vision: false,
               audio: false,
-              files: false
+              files: false,
+              thinking: false
             }
           }
           onOpenConversationSettings={() => console.log('Open conversation settings')}

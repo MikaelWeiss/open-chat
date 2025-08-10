@@ -1,5 +1,5 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
-import { ArrowUp, Paperclip, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings } from 'lucide-react'
+import { ArrowUp, Paperclip, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings, Brain } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../../hooks/useSettings'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -15,7 +15,7 @@ interface FileAttachment {
 }
 
 interface MessageInputProps {
-  onSend: (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => void
+  onSend: (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>, reasoningEffort?: 'none' | 'low' | 'medium' | 'high') => void
   onCancel?: () => void
   disabled?: boolean
   isLoading?: boolean
@@ -24,6 +24,7 @@ interface MessageInputProps {
     vision?: boolean
     audio?: boolean
     files?: boolean
+    thinking?: boolean
   }
   noProvider?: boolean
   onOpenConversationSettings?: () => void
@@ -41,6 +42,8 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const [message, setMessage] = useState('')
     const [attachments, setAttachments] = useState<FileAttachment[]>([])
+    const [reasoningEffort, setReasoningEffort] = useState<'none' | 'low' | 'medium' | 'high'>('medium')
+    const [isReasoningDropdownOpen, setIsReasoningDropdownOpen] = useState(false)
     
     // Use refs to access current values in event handlers
     const disabledRef = useRef(disabled)
@@ -53,6 +56,21 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     disabledRef.current = disabled
     isLoadingRef.current = isLoading
     modelCapabilitiesRef.current = modelCapabilities
+
+    // Close reasoning dropdown on click outside
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as HTMLElement
+        if (!target.closest('.reasoning-dropdown')) {
+          setIsReasoningDropdownOpen(false)
+        }
+      }
+      
+      if (isReasoningDropdownOpen) {
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }, [isReasoningDropdownOpen])
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -310,8 +328,8 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       if (isLoading) {
         onCancel?.()
       } else {
-        console.log('Sending message:', message, attachments)
-        onSend(message, attachments.length > 0 ? attachments : undefined)
+        console.log('Sending message:', message, attachments, 'reasoning effort:', reasoningEffort)
+        onSend(message, attachments.length > 0 ? attachments : undefined, reasoningEffort)
         setMessage('')
         setAttachments([])
       }
@@ -593,6 +611,55 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               >
                 <Paperclip className="h-4 w-4" />
               </button>
+            )}
+            
+            {/* Reasoning effort button - only show if model supports thinking */}
+            {modelCapabilities?.thinking && (
+              <div className="relative reasoning-dropdown">
+                <button
+                  onClick={() => setIsReasoningDropdownOpen(!isReasoningDropdownOpen)}
+                  className={clsx(
+                    'p-2 rounded-xl transition-all duration-200 hover:scale-105 flex items-center gap-1',
+                    disabled 
+                      ? 'text-muted-foreground cursor-not-allowed' 
+                      : reasoningEffort !== 'none'
+                        ? 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50'
+                        : 'elegant-hover text-muted-foreground hover:text-purple-600 hover:bg-purple-100 dark:hover:text-purple-400 dark:hover:bg-purple-900/30'
+                  )}
+                  title={`Reasoning effort: ${reasoningEffort}`}
+                  disabled={disabled}
+                >
+                  <Brain className="h-4 w-4" />
+                  {reasoningEffort !== 'none' && (
+                    <span className="text-xs font-semibold">
+                      {reasoningEffort === 'low' ? 'L' : reasoningEffort === 'medium' ? 'M' : 'H'}
+                    </span>
+                  )}
+                </button>
+                
+                {/* Reasoning effort dropdown */}
+                {isReasoningDropdownOpen && (
+                  <div className="absolute bottom-full left-0 mb-2 w-32 glass-effect border border-border/20 rounded-xl p-1 shadow-elegant z-50">
+                    {['none', 'low', 'medium', 'high'].map((effort) => (
+                      <button
+                        key={effort}
+                        onClick={() => {
+                          setReasoningEffort(effort as 'none' | 'low' | 'medium' | 'high')
+                          setIsReasoningDropdownOpen(false)
+                        }}
+                        className={clsx(
+                          'w-full text-left px-3 py-2 rounded-lg transition-all text-sm capitalize',
+                          reasoningEffort === effort
+                            ? 'bg-primary text-white'
+                            : 'text-foreground/90 hover:bg-accent'
+                        )}
+                      >
+                        {effort}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             
             {/* Conversation settings button - only show if enabled in settings */}
