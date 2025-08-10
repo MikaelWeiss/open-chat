@@ -5,7 +5,7 @@ import SettingsModal from './components/Settings/SettingsModal'
 import ShortcutsModal from './components/Shortcuts/ShortcutsModal'
 import ToastContainer from './components/Toast/Toast'
 import OnboardingModal from './components/Onboarding/OnboardingModal'
-import { DEFAULT_SIDEBAR_WIDTH } from './shared/constants'
+import { DEFAULT_SIDEBAR_WIDTH, TELEMETRY_CONFIG } from './shared/constants'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { MessageInputHandle } from './components/Chat/MessageInput'
 import { useSettings } from './hooks/useSettings'
@@ -13,6 +13,7 @@ import { useConversations, useAppStore } from './stores/appStore'
 import { initializeAppStore } from './stores/appStore'
 import { checkForUpdatesOnStartup } from './utils/updater'
 import { messageSync } from './utils/messageSync'
+import { telemetryService } from './services/telemetryService'
 
 function App() {
   // Check if we're in mini window mode
@@ -41,6 +42,15 @@ function App() {
   // Initialize Zustand store and message sync
   useEffect(() => {
     const initialize = async () => {
+      // Initialize TelemetryDeck
+      await telemetryService.initialize({
+        appID: TELEMETRY_CONFIG.APP_ID,
+        testMode: TELEMETRY_CONFIG.TEST_MODE,
+      })
+      
+      // Track app launch
+      await telemetryService.trackAppLaunched()
+      
       // Initialize store
       await initializeAppStore()
       
@@ -108,11 +118,14 @@ function App() {
       if (section === 'providers') {
         setSettingsSection('models')
         setSettingsOpen(true)
+        telemetryService.trackSettingsOpened('models')
       } else if (section === 'general' || section === 'models' || section === 'about') {
         setSettingsSection(section)
         setSettingsOpen(true)
+        telemetryService.trackSettingsOpened(section)
       } else {
         setSettingsOpen(true)
+        telemetryService.trackSettingsOpened('general')
       }
     }
     
@@ -221,6 +234,9 @@ function App() {
 
   const handleToggleSettings = () => {
     setSettingsOpen(!settingsOpen)
+    if (!settingsOpen) {
+      telemetryService.trackSettingsOpened('general')
+    }
   }
 
   const handleToggleShortcuts = () => {
@@ -248,6 +264,7 @@ function App() {
     // Toggle between light and dark only
     const newTheme = theme === 'light' ? 'dark' : 'light'
     handleThemeChange(newTheme)
+    telemetryService.trackThemeChanged(newTheme)
   }
 
   // Add escape key handler for mini window

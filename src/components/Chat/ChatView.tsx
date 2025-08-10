@@ -9,6 +9,7 @@ import { type PendingConversation } from '../../stores/appStore'
 import { type Conversation } from '../../shared/conversationStore'
 import { type CreateMessageInput } from '../../shared/messageStore'
 import { chatService } from '../../services/chatService'
+import { telemetryService } from '../../services/telemetryService'
 import clsx from 'clsx'
 import EmptyState from '../EmptyState/EmptyState'
 
@@ -606,6 +607,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       // Add user message to store (which handles both draft and persistent)
       await addMessageToStore(activeConversationId, userMessage)
       
+      // Track message sent event
+      telemetryService.trackMessageSent(effectiveProvider, effectiveModel, message.length)
+      
       // Get API key for the provider
       const apiKey = await getProviderApiKey(effectiveProvider)
       
@@ -627,6 +631,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           // Add complete assistant message to store
           try {
             await addMessageToStore(activeConversationId, message)
+            
+            // Track message received event
+            telemetryService.trackMessageReceived(effectiveProvider, effectiveModel, message.text?.length || 0)
           } catch (err) {
             console.error('Failed to save assistant message:', err)
           }

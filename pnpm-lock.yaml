@@ -38,6 +38,9 @@ importers:
       '@tauri-apps/plugin-updater':
         specifier: ^2
         version: 2.9.0
+      '@telemetrydeck/sdk':
+        specifier: ^2.0.4
+        version: 2.0.4
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -595,6 +598,10 @@ packages:
 
   '@tauri-apps/plugin-updater@2.9.0':
     resolution: {integrity: sha512-j++sgY8XpeDvzImTrzWA08OqqGqgkNyxczLD7FjNJJx/uXxMZFz5nDcfkyoI/rCjYuj2101Tci/r/HFmOmoxCg==}
+
+  '@telemetrydeck/sdk@2.0.4':
+    resolution: {integrity: sha512-x4S83AqSo6wvLJ6nRYdyJEqd9qmblUdBgsTRrjH5z++b9pnf2NMc8NpVAa48KIB1pRuP/GTGzXxVYdNoie/DVg==}
+    engines: {node: '>=18'}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -1992,6 +1999,8 @@ snapshots:
   '@tauri-apps/plugin-updater@2.9.0':
     dependencies:
       '@tauri-apps/api': 2.7.0
+
+  '@telemetrydeck/sdk@2.0.4': {}
 
   '@types/babel__core@7.20.5':
     dependencies:
