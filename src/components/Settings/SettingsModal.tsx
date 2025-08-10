@@ -400,7 +400,7 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, se
 
   const handleCheckForUpdatesManually = async () => {
     // Only check for updates in built app (not dev mode)
-    if (typeof window === 'undefined' || !('__TAURI__' in window)) {
+    if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
       ;(window as any).showToast?.({
         type: 'info',
         title: 'Updates not available',
@@ -451,7 +451,7 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, se
   }
 
   const handleInstallUpdate = async () => {
-    if (typeof window === 'undefined' || !('__TAURI__' in window)) {
+    if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
       return
     }
 
