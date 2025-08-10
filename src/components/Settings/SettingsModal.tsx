@@ -1,4 +1,4 @@
-import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search, Brain, Hammer, ImageIcon, Globe, Sun, Moon, Monitor, Download, CheckCircle2 } from 'lucide-react'
+import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search, Brain, Hammer, ImageIcon, Globe, Sun, Moon, Monitor } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { open } from '@tauri-apps/plugin-shell'
 import clsx from 'clsx'
@@ -6,7 +6,6 @@ import AboutSettings from './AboutSettings'
 import SegmentedControl from './SegmentedControl'
 import { useSettings } from '../../hooks/useSettings'
 import { Provider, ProviderPreset, ModelCapabilities } from '../../types/provider'
-import { checkForUpdates as checkForUpdatesUtil, promptAndInstallUpdate } from '../../utils/updater'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -154,16 +153,12 @@ export default function SettingsModal({ isOpen, onClose, initialSection = 'gener
     globalHotkey,
     showPricing,
     showConversationSettings,
-    autoUpdate,
-    checkForUpdates,
     providers,
     handleThemeChange,
     handleSendKeyChange,
     handleGlobalHotkeyChange,
     handleShowPricingChange,
     handleShowConversationSettingsChange,
-    handleAutoUpdateChange,
-    handleCheckForUpdatesChange,
     handleToggleModel,
     handleCapabilityToggle,
     handleOnboardingCompletion,
@@ -230,7 +225,7 @@ export default function SettingsModal({ isOpen, onClose, initialSection = 'gener
 
           {/* Tab Content */}
           <div className="flex-1 p-6 overflow-y-auto min-h-0">
-            {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} showPricing={showPricing} setShowPricing={handleShowPricingChange} showConversationSettings={showConversationSettings} setShowConversationSettings={handleShowConversationSettingsChange} autoUpdate={autoUpdate} setAutoUpdate={handleAutoUpdateChange} checkForUpdates={checkForUpdates} setCheckForUpdates={handleCheckForUpdatesChange} globalHotkey={globalHotkey} setGlobalHotkey={handleGlobalHotkeyChange} onRestartOnboarding={handleRestartOnboarding} />}
+            {activeTab === 'general' && <GeneralSettings theme={theme} setTheme={handleThemeChange} sendKey={sendKey} setSendKey={handleSendKeyChange} showPricing={showPricing} setShowPricing={handleShowPricingChange} showConversationSettings={showConversationSettings} setShowConversationSettings={handleShowConversationSettingsChange} globalHotkey={globalHotkey} setGlobalHotkey={handleGlobalHotkeyChange} onRestartOnboarding={handleRestartOnboarding} />}
             {activeTab === 'models' && <ModelsSettings providers={providers} onToggleModel={handleToggleModel} onCapabilityToggle={handleCapabilityToggle} onAddProvider={async (name, endpoint, apiKey, isLocal) => await addProvider({ name, endpoint, apiKey, isLocal })} onUpdateProvider={async (providerId, updates) => await updateProvider(providerId, updates)} onRemoveProvider={removeProvider} onRefreshModels={refreshProviderModels} />}
             {activeTab === 'about' && <AboutSettings />}
           </div>
@@ -390,87 +385,9 @@ function HotkeyCapture({ value, onChange, onClear }: { value: string, onChange: 
   )
 }
 
-function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, setShowPricing, showConversationSettings, setShowConversationSettings, autoUpdate, setAutoUpdate, checkForUpdates, setCheckForUpdates, globalHotkey, setGlobalHotkey, onRestartOnboarding }: any) {
-  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false)
-  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'none' | 'error'>('idle')
-
+function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, setShowPricing, showConversationSettings, setShowConversationSettings, globalHotkey, setGlobalHotkey, onRestartOnboarding }: any) {
   const handleClearHotkey = () => {
     setGlobalHotkey('')
-  }
-
-  const handleCheckForUpdatesManually = async () => {
-    // Only check for updates in built app (not dev mode)
-    if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
-      ;(window as any).showToast?.({
-        type: 'info',
-        title: 'Updates not available',
-        message: 'Auto-updates are disabled in development mode'
-      })
-      return
-    }
-
-    setIsCheckingUpdates(true)
-    setUpdateStatus('checking')
-
-    try {
-      const updateInfo = await checkForUpdatesUtil()
-      
-      if (updateInfo) {
-        setUpdateStatus('available')
-        ;(window as any).showToast?.({
-          type: 'info',
-          title: 'Update available!',
-          message: `Version ${updateInfo.version} is ready to install`
-        })
-      } else {
-        setUpdateStatus('none')
-        ;(window as any).showToast?.({
-          type: 'success',
-          title: 'You\'re up to date!',
-          message: 'You\'re running the latest version of Open Chat'
-        })
-      }
-    } catch (error) {
-      console.error('Error checking for updates:', error)
-      setUpdateStatus('error')
-      ;(window as any).showToast?.({
-        type: 'error',
-        title: 'Failed to check for updates',
-        message: 'Please check your internet connection and try again'
-      })
-    } finally {
-      setIsCheckingUpdates(false)
-      
-      // Reset status after a few seconds if no update available
-      setTimeout(() => {
-        if (updateStatus !== 'available') {
-          setUpdateStatus('idle')
-        }
-      }, 3000)
-    }
-  }
-
-  const handleInstallUpdate = async () => {
-    if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
-      return
-    }
-
-    try {
-      ;(window as any).showToast?.({
-        type: 'info',
-        title: 'Starting update...',
-        message: 'The app will restart after the update is installed'
-      })
-      
-      await promptAndInstallUpdate()
-    } catch (error) {
-      console.error('Error installing update:', error)
-      ;(window as any).showToast?.({
-        type: 'error',
-        title: 'Update failed',
-        message: 'Please try again or download the update manually'
-      })
-    }
   }
 
   return (
@@ -553,94 +470,6 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, se
         </div>
       </div>
 
-      <div>
-        <h3 className="text-lg font-medium mb-4">Updates</h3>
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              id="checkForUpdates"
-              checked={checkForUpdates}
-              onChange={(e) => setCheckForUpdates(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <div className="flex-1">
-              <label htmlFor="checkForUpdates" className="text-sm font-medium cursor-pointer">
-                Check for updates on startup
-              </label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Automatically check for new versions when the app starts
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              id="autoUpdate"
-              checked={autoUpdate}
-              onChange={(e) => setAutoUpdate(e.target.checked)}
-              disabled={!checkForUpdates}
-              className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
-            />
-            <div className="flex-1">
-              <label htmlFor="autoUpdate" className="text-sm font-medium cursor-pointer">
-                Automatically install updates
-              </label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Download and install updates without prompting (app will restart)
-              </p>
-            </div>
-          </div>
-          
-          <div className="pt-2 border-b border-border pb-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Manual Update Check</p>
-                <p className="text-xs text-muted-foreground">
-                  Check for updates now or install available updates
-                </p>
-                {updateStatus === 'none' && (
-                  <p className="text-xs text-green-600">You're running the latest version</p>
-                )}
-                {updateStatus === 'available' && (
-                  <p className="text-xs text-blue-600">New update available!</p>
-                )}
-                {updateStatus === 'error' && (
-                  <p className="text-xs text-red-600">Failed to check for updates</p>
-                )}
-              </div>
-              
-              <div className="flex gap-2">
-                {updateStatus === 'available' && (
-                  <button
-                    onClick={handleInstallUpdate}
-                    className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
-                  >
-                    <Download className="h-3 w-3" />
-                    Install Update
-                  </button>
-                )}
-                
-                <button
-                  onClick={handleCheckForUpdatesManually}
-                  disabled={isCheckingUpdates}
-                  className="px-3 py-1.5 bg-secondary text-secondary-foreground text-sm rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                  {updateStatus === 'checking' ? (
-                    <div className="h-3 w-3 border border-current border-t-transparent rounded-full animate-spin" />
-                  ) : updateStatus === 'none' ? (
-                    <CheckCircle2 className="h-3 w-3 text-green-600" />
-                  ) : (
-                    <Download className="h-3 w-3" />
-                  )}
-                  {updateStatus === 'checking' ? 'Checking...' : 'Check for Updates'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div>
         <h3 className="text-lg font-medium mb-4">Keyboard Shortcuts</h3>

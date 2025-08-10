@@ -17,8 +17,6 @@ export interface AppSettings {
   providers: Record<string, Provider>
   hasCompletedOnboarding: boolean
   userName: string
-  autoUpdate: boolean
-  checkForUpdates: boolean
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -29,9 +27,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   showConversationSettings: false,
   hasCompletedOnboarding: false,
   userName: '',
-  providers: {},
-  autoUpdate: false,
-  checkForUpdates: true
+  providers: {}
 }
 
 // Singleton settings manager to ensure all hook instances share the same state
@@ -244,13 +240,6 @@ export function useSettings() {
     await updateSetting('showConversationSettings', show)
   }
 
-  const handleAutoUpdateChange = async (enabled: boolean) => {
-    await updateSetting('autoUpdate', enabled)
-  }
-
-  const handleCheckForUpdatesChange = async (enabled: boolean) => {
-    await updateSetting('checkForUpdates', enabled)
-  }
 
   const handleToggleModel = async (providerId: string, modelName: string, enabled: boolean) => {
     const provider = settingsManager.settings.providers[providerId]
@@ -553,8 +542,6 @@ export function useSettings() {
     globalHotkey: settingsManager.settings.globalHotkey,
     showPricing: settingsManager.settings.showPricing,
     showConversationSettings: settingsManager.settings.showConversationSettings,
-    autoUpdate: settingsManager.settings.autoUpdate,
-    checkForUpdates: settingsManager.settings.checkForUpdates,
     providers: settingsManager.settings.providers,
     hasCompletedOnboarding: settingsManager.settings.hasCompletedOnboarding,
     userName: settingsManager.settings.userName,
@@ -575,8 +562,6 @@ export function useSettings() {
     handleGlobalHotkeyChange,
     handleShowPricingChange,
     handleShowConversationSettingsChange,
-    handleAutoUpdateChange,
-    handleCheckForUpdatesChange,
     handleToggleModel,
     handleCapabilityToggle,
     handleUserNameChange,
