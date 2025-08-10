@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-shell'
 import PrivacyPolicyModal from './PrivacyPolicyModal'
+import packageJson from '../../../package.json'
 
 export default function AboutSettings() {
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false)
@@ -88,7 +89,7 @@ export default function AboutSettings() {
 
       <div className="border-t border-border pt-6">
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>Open Chat v0.1.0</p>
+          <p>Open Chat v{packageJson.version}</p>
           <p>
             Contact: 
             <button
