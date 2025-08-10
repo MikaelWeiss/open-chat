@@ -27,7 +27,7 @@ export const defaultSettings: ConversationSettings = {
 interface ConversationSettingsModalProps {
   isOpen: boolean
   onClose: () => void
-  settings: ConversationSettings
+  settings: ConversationSettings | null
   onSave: (settings: ConversationSettings) => void
   conversationId: number | 'pending' | null
 }
@@ -38,13 +38,13 @@ export default function ConversationSettingsModal({
   settings, 
   onSave
 }: ConversationSettingsModalProps) {
-  const [formSettings, setFormSettings] = useState<ConversationSettings>(settings)
-  const [stopSequences, setStopSequences] = useState<string>(settings.stop.join('\n'))
+  const [formSettings, setFormSettings] = useState<ConversationSettings>(settings || defaultSettings)
+  const [stopSequences, setStopSequences] = useState<string>((settings?.stop || []).join('\n'))
 
   useEffect(() => {
     if (isOpen) {
-      setFormSettings(settings)
-      setStopSequences(settings.stop.join('\n'))
+      setFormSettings(settings || defaultSettings)
+      setStopSequences((settings?.stop || []).join('\n'))
     }
   }, [isOpen, settings])
 

@@ -1,7 +1,7 @@
 import { ChevronDown, Copy, Eye, Volume2, FileText, Search, Plus, Check } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
-import ConversationSettingsModal, { ConversationSettings, defaultSettings } from './ConversationSettingsModal'
+import ConversationSettingsModal, { ConversationSettings } from './ConversationSettingsModal'
 import { useRef, RefObject, useState, useEffect, useMemo } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useSettings } from '../../hooks/useSettings'
@@ -92,7 +92,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const [selectedModel, setSelectedModel] = useState<{provider: string, model: string} | null>(null)
   const [copiedConversation, setCopiedConversation] = useState(false)
   const [showConversationSettings, setShowConversationSettings] = useState(false)
-  const [conversationSettings, setConversationSettings] = useState<ConversationSettings>(defaultSettings)
+  const [conversationSettings, setConversationSettings] = useState<ConversationSettings | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   
@@ -234,13 +234,13 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           if (conv?.settings) {
             try {
               const parsedSettings = JSON.parse(conv.settings)
-              setConversationSettings({ ...defaultSettings, ...parsedSettings })
+              setConversationSettings(parsedSettings)
             } catch (err) {
               console.error('Failed to parse conversation settings:', err)
-              setConversationSettings(defaultSettings)
+              setConversationSettings(null)
             }
           } else {
-            setConversationSettings(defaultSettings)
+            setConversationSettings(null)
           }
           
           // Load messages if it's a persistent conversation
@@ -253,7 +253,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       } else {
         setCurrentConversation(null)
         setSelectedModel(null)
-        setConversationSettings(defaultSettings)
+        setConversationSettings(null)
       }
     }
     loadConversation()
@@ -661,15 +661,17 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         isLocal: provider.isLocal,
         reasoningEffort,
         signal: controller.signal,
-        // Pass conversation settings
-        temperature: conversationSettings.temperature,
-        maxTokens: conversationSettings.max_tokens,
-        topP: conversationSettings.top_p,
-        frequencyPenalty: conversationSettings.frequency_penalty,
-        presencePenalty: conversationSettings.presence_penalty,
-        stop: conversationSettings.stop.length > 0 ? conversationSettings.stop : undefined,
-        n: conversationSettings.n,
-        seed: conversationSettings.seed,
+        // Pass conversation settings only if they exist
+        ...(conversationSettings && {
+          temperature: conversationSettings.temperature,
+          maxTokens: conversationSettings.max_tokens,
+          topP: conversationSettings.top_p,
+          frequencyPenalty: conversationSettings.frequency_penalty,
+          presencePenalty: conversationSettings.presence_penalty,
+          stop: conversationSettings.stop.length > 0 ? conversationSettings.stop : undefined,
+          n: conversationSettings.n,
+          seed: conversationSettings.seed,
+        }),
         onStreamChunk: (content: string) => {
           setStreamingMessage(activeConversationId, content)
         },
