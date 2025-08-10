@@ -4,6 +4,7 @@ import ChatView from './components/Chat/ChatView'
 import SettingsModal from './components/Settings/SettingsModal'
 import ShortcutsModal from './components/Shortcuts/ShortcutsModal'
 import ToastContainer from './components/Toast/Toast'
+import OnboardingModal from './components/Onboarding/OnboardingModal'
 import { DEFAULT_SIDEBAR_WIDTH } from './shared/constants'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { MessageInputHandle } from './components/Chat/MessageInput'
@@ -21,6 +22,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState<'general' | 'models' | 'about'>('general')
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
   
   // Use Zustand store for conversations
   const { 
@@ -33,7 +35,7 @@ function App() {
   const messageInputRef = useRef<MessageInputHandle>(null)
   
   // Initialize settings (theme will be applied in useSettings hook)
-  const { handleThemeChange, theme } = useSettings()
+  const { handleThemeChange, theme, hasCompletedOnboarding, isLoading: settingsLoading } = useSettings()
   
   // Initialize Zustand store and message sync
   useEffect(() => {
@@ -114,7 +116,24 @@ function App() {
     }
   }, [])
   
-  
+  // Show onboarding if not completed
+  useEffect(() => {
+    if (!settingsLoading && !hasCompletedOnboarding && !isMiniWindow) {
+      setOnboardingOpen(true)
+    }
+  }, [settingsLoading, hasCompletedOnboarding, isMiniWindow])
+
+  // Listen for restart onboarding event
+  useEffect(() => {
+    const handleRestartOnboarding = () => {
+      setOnboardingOpen(true)
+    }
+    
+    window.addEventListener('restartOnboarding', handleRestartOnboarding)
+    return () => {
+      window.removeEventListener('restartOnboarding', handleRestartOnboarding)
+    }
+  }, [])
   
   // Create initial pending conversation when app starts and no conversation is selected
   useEffect(() => {
@@ -290,6 +309,11 @@ function App() {
           <ShortcutsModal
             isOpen={shortcutsOpen}
             onClose={() => setShortcutsOpen(false)}
+          />
+          
+          <OnboardingModal
+            isOpen={onboardingOpen}
+            onClose={() => setOnboardingOpen(false)}
           />
         </>
       )}

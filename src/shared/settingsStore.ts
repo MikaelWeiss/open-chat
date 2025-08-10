@@ -53,4 +53,6 @@ export const SETTINGS_KEYS = {
   SHOW_PRICING: 'showPricing',
   SHOW_CONVERSATION_SETTINGS: 'showConversationSettings',
   PROVIDERS: 'providers',
+  HAS_COMPLETED_ONBOARDING: 'hasCompletedOnboarding',
+  USER_NAME: 'userName',
 } as const

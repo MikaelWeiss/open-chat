@@ -7,6 +7,7 @@ import { User, Bot, Copy, Check, FileText, Image, Volume2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
 import { type Message } from '../../shared/messageStore'
+import { useSettings } from '../../hooks/useSettings'
 import Lottie from 'lottie-react'
 import spinnerAnimation from '../../assets/spinner.json'
 import EmptyState from '../EmptyState/EmptyState'
@@ -114,6 +115,7 @@ function AttachmentDisplay({ attachments }: { attachments: { type: string; path:
 export default function MessageList({ messages = [], isLoading = false, streamingMessage = '' }: MessageListProps) {
   const [loadingMessage, setLoadingMessage] = useState('Assembling')
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+  const { userName } = useSettings()
   
   const copyToClipboard = async (text: string, messageId: string) => {
     try {
@@ -242,7 +244,7 @@ export default function MessageList({ messages = [], isLoading = false, streamin
           <div className="flex-1 space-y-3 min-w-0">
             <div className="flex items-baseline gap-3">
               <span className="font-semibold text-foreground/95">
-                {message.role === 'user' ? 'You' : 'Assistant'}
+                {message.role === 'user' ? (userName || 'You') : 'Assistant'}
               </span>
               <span className="text-xs text-muted-foreground/70 font-medium">
                 {format(new Date(message.created_at), 'h:mm a')}

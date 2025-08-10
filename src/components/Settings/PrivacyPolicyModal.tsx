@@ -15,7 +15,7 @@ export default function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyMod
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={onClose}
     >
       <div 

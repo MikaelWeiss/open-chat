@@ -14,6 +14,8 @@ export interface AppSettings {
   showPricing: boolean
   showConversationSettings: boolean
   providers: Record<string, Provider>
+  hasCompletedOnboarding: boolean
+  userName: string
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -22,7 +24,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   globalHotkey: '',
   showPricing: false,
   showConversationSettings: false,
-  providers: {}
+  providers: {},
+  hasCompletedOnboarding: false,
+  userName: ''
 }
 
 // Singleton settings manager to ensure all hook instances share the same state
@@ -509,6 +513,14 @@ export function useSettings() {
     }
   }
 
+  const handleUserNameChange = async (newUserName: string) => {
+    await updateSetting('userName', newUserName)
+  }
+
+  const handleOnboardingCompletion = async (completed: boolean = true) => {
+    await updateSetting('hasCompletedOnboarding', completed)
+  }
+
   return {
     // Settings data (for direct access)
     settings: settingsManager.settings,
@@ -520,6 +532,8 @@ export function useSettings() {
     showPricing: settingsManager.settings.showPricing,
     showConversationSettings: settingsManager.settings.showConversationSettings,
     providers: settingsManager.settings.providers,
+    hasCompletedOnboarding: settingsManager.settings.hasCompletedOnboarding,
+    userName: settingsManager.settings.userName,
     
     // State
     isLoading: settingsManager.isLoading,
@@ -539,6 +553,8 @@ export function useSettings() {
     handleShowConversationSettingsChange,
     handleToggleModel,
     handleCapabilityToggle,
+    handleUserNameChange,
+    handleOnboardingCompletion,
     
     // Provider management
     addProvider,
