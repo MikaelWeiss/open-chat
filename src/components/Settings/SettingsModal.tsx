@@ -593,7 +593,7 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, se
             </div>
           </div>
           
-          <div className="pt-4 border-t border-border">
+          <div className="pt-2 border-b border-border pb-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-medium">Manual Update Check</p>

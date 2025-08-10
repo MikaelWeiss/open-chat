@@ -26,9 +26,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   globalHotkey: '',
   showPricing: false,
   showConversationSettings: false,
-  providers: {},
   hasCompletedOnboarding: false,
-  userName: ''
+  userName: '',
   providers: {},
   autoUpdate: false,
   checkForUpdates: true
