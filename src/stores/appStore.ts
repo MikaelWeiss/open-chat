@@ -5,6 +5,7 @@ import { conversationStore, type Conversation } from '../shared/conversationStor
 import { messageStore, type Message, type CreateMessageInput } from '../shared/messageStore'
 import { settings, SETTINGS_KEYS } from '../shared/settingsStore'
 import { type Provider } from '../types/provider'
+import { telemetryService } from '../services/telemetryService'
 
 // Pending conversation type (exists only in memory until first message)
 export interface PendingConversation {
@@ -118,6 +119,11 @@ export const useAppStore = create<AppState>()(
         pendingConversation: pending,
         selectedConversationId: 'pending'
       })
+      
+      // Track new conversation creation
+      if (provider && model) {
+        telemetryService.trackNewConversation(provider, model)
+      }
     },
 
     commitPendingConversation: async () => {

@@ -6,6 +6,7 @@ import { applyTheme, setupSystemThemeListener } from '../shared/theme'
 import { modelsService } from '../services/modelsService'
 import { useAppStore } from '../stores/appStore'
 import * as windowManager from '../utils/windowManager'
+import { telemetryService } from '../services/telemetryService'
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system'
@@ -349,6 +350,10 @@ export function useSettings() {
           modelCapabilities,
           connected: true
         })
+        
+        // Track provider configuration with first enabled model
+        const defaultModel = enabledModels[0] || 'unknown'
+        await telemetryService.trackProviderConfigured(provider.name, defaultModel)
       } catch (error) {
         // Don't fail the provider creation if model fetching fails
         console.warn(`Failed to fetch models for new provider ${providerId}:`, error)
@@ -531,6 +536,11 @@ export function useSettings() {
 
   const handleOnboardingCompletion = async (completed: boolean = true) => {
     await updateSetting('hasCompletedOnboarding', completed)
+    
+    // Track onboarding completion
+    if (completed) {
+      await telemetryService.trackOnboardingCompleted()
+    }
   }
 
   return {
