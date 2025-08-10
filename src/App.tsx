@@ -41,14 +41,16 @@ function App() {
   // Initialize Zustand store and message sync
   useEffect(() => {
     const initialize = async () => {
-      // Initialize TelemetryDeck
-      await telemetryService.initialize({
+      // Initialize TelemetryDeck (non-blocking)
+      telemetryService.initialize({
         appID: TELEMETRY_CONFIG.APP_ID,
         testMode: TELEMETRY_CONFIG.TEST_MODE,
+      }).then(() => {
+        // Track app launch after initialization
+        telemetryService.trackAppLaunched()
+      }).catch(error => {
+        console.warn('Telemetry initialization failed:', error)
       })
-      
-      // Track app launch
-      await telemetryService.trackAppLaunched()
       
       // Initialize store
       await initializeAppStore()
