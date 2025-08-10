@@ -2,6 +2,7 @@ import { check } from '@tauri-apps/plugin-updater'
 import { ask, message } from '@tauri-apps/plugin-dialog'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { settings } from '../shared/settingsStore'
+import { AppSettings } from '../hooks/useSettings'
 
 export interface UpdateInfo {
   version: string
@@ -83,7 +84,7 @@ export async function checkForUpdatesOnStartup(): Promise<void> {
   setTimeout(async () => {
     try {
       // Check if auto-update is enabled in settings
-      const appSettings = await settings.get('settings')
+      const appSettings = await settings.get<AppSettings>('settings')
       if (!appSettings?.checkForUpdates) {
         console.log('Update check disabled in settings')
         return

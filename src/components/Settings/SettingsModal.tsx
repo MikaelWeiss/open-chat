@@ -6,7 +6,7 @@ import AboutSettings from './AboutSettings'
 import SegmentedControl from './SegmentedControl'
 import { useSettings } from '../../hooks/useSettings'
 import { Provider, ProviderPreset, ModelCapabilities } from '../../types/provider'
-import { checkForUpdates, promptAndInstallUpdate } from '../../utils/updater'
+import { checkForUpdates as checkForUpdatesUtil, promptAndInstallUpdate } from '../../utils/updater'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -413,7 +413,7 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, se
     setUpdateStatus('checking')
 
     try {
-      const updateInfo = await checkForUpdates()
+      const updateInfo = await checkForUpdatesUtil()
       
       if (updateInfo) {
         setUpdateStatus('available')
