@@ -88,6 +88,11 @@ The SQLite database auto-creates tables for:
 ## Build Checks
 - When you're done doing anything, run `pnpm build` to make sure there aren't any errors
 
+## Changelog Maintenance
+- After every significant change (new features, bug fixes, breaking changes), add an entry to CHANGELOG.md under the current version section
+- Use the format: `- Description of change` under the appropriate category (Added/Changed/Fixed)
+- Update the TBD date when preparing for release
+
 ## Documentation Libraries
 Get documentation using context7 with these library IDs as needed:
 
