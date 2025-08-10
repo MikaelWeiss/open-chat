@@ -348,14 +348,14 @@ function HotkeyCapture({ value, onChange, onClear }: { value: string, onChange: 
         className={clsx(
           "flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all min-w-[120px]",
           isCapturing 
-            ? "bg-orange-500/10 border-orange-500 text-orange-600" 
+            ? "bg-primary/10 border-primary text-primary" 
             : isCleared
             ? "bg-secondary border-border text-muted-foreground hover:bg-accent"
-            : "bg-secondary border-orange-500 text-foreground hover:bg-accent"
+            : "bg-secondary border-primary text-foreground hover:bg-accent"
         )}
       >
         {isCapturing ? (
-          <span className="text-orange-600 text-sm">
+          <span className="text-primary text-sm">
             {capturedKeys.length > 0 ? capturedKeys.join(' + ') : 'Press keys...'}
           </span>
         ) : (

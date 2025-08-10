@@ -6,6 +6,7 @@ All notable changes to Open Chat will be documented in this file.
 
 ### Changed
 - Updated settings modal to use actual version number
+- Updated keyboard shortcut input colors to match theme instead of hard-coded orange
 
 ## [0.1.1] - 2025-08-10
 
