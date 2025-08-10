@@ -2,6 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mini window styles - compact UI */
+.mini-window .glass-nav {
+  @apply py-2 min-h-[3rem];
+}
+
+.mini-window .glass-nav h2 {
+  @apply text-base;
+}
+
+.mini-window .glass-nav p {
+  @apply text-xs;
+}
+
+.mini-window .message-item {
+  @apply p-3;
+}
+
+.mini-window .elegant-input-container {
+  @apply min-h-[2.5rem] p-2;
+}
+
+.mini-window .copy-conversation-btn,
+.mini-window .new-conversation-btn {
+  @apply hidden;
+}
+
+.mini-window .avatar-assistant,
+.mini-window .avatar-user {
+  @apply w-7 h-7;
+}
+
+.mini-window .message-bubble-assistant,
+.mini-window .message-bubble-user {
+  @apply rounded-xl mb-2;
+}
+
 @layer base {
   :root {
     /* Light theme (fallback) */
