@@ -73,7 +73,7 @@ export default function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyMod
               </div>
               
               <p className="pt-4 border-t border-border text-xs text-muted-foreground">
-                Last updated: {new Date().toLocaleDateString()}
+                Last updated: 8/10/25
               </p>
             </div>
           </div>
