@@ -1,6 +1,7 @@
 import { check } from '@tauri-apps/plugin-updater'
 import { ask, message } from '@tauri-apps/plugin-dialog'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { settings } from '../shared/settingsStore'
 
 export interface UpdateInfo {
   version: string
@@ -23,8 +24,8 @@ export async function checkForUpdates(): Promise<UpdateInfo | null> {
     return null
   } catch (error) {
     console.error('Error checking for updates:', error)
-    // Re-throw the error so the UI can handle it properly
-    throw new Error(`Update check failed: ${error}`)
+    // Return null instead of throwing to handle network errors gracefully
+    return null
   }
 }
 
@@ -80,6 +81,37 @@ export async function promptAndInstallUpdate(): Promise<boolean> {
 export async function checkForUpdatesOnStartup(): Promise<void> {
   // Wait a bit after startup to check for updates
   setTimeout(async () => {
-    await promptAndInstallUpdate()
+    try {
+      // Check if auto-update is enabled in settings
+      const appSettings = await settings.get('settings')
+      if (!appSettings?.checkForUpdates) {
+        console.log('Update check disabled in settings')
+        return
+      }
+
+      const update = await check()
+      
+      if (update?.available) {
+        if (appSettings?.autoUpdate) {
+          // Auto-install update if enabled
+          await message(
+            `Downloading and installing update to version ${update.version}...`,
+            {
+              title: 'Auto-Update',
+              kind: 'info'
+            }
+          )
+          
+          await update.downloadAndInstall()
+          await relaunch()
+        } else {
+          // Just prompt the user if auto-update is disabled
+          await promptAndInstallUpdate()
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check for updates on startup:', error)
+      // Don't show error dialogs on startup - fail silently
+    }
   }, 3000) // 3 second delay
 }
