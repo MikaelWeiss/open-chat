@@ -30,8 +30,6 @@
     "dialog:allow-ask",
     "dialog:allow-message",
     "updater:default",
-    "updater:allow-check",
-    "updater:allow-download-and-install",
     "process:default",
     "process:allow-restart",
     "fs:default",

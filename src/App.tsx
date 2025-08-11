@@ -91,31 +91,36 @@ function App() {
     }
 
     const checkForUpdates = async () => {
-      try {
-        const update = await check()
-        if (update?.available) {
-          console.log(`Update available: v${update.version}`)
-          // Since dialog: true is set in tauri.conf.json, this will show a native dialog
-          const yes = window.confirm(
-            `Update available: v${update.version}\n\nWould you like to download and install it now?`
-          )
-          
-          if (yes) {
-            console.log('Starting update download and installation...')
-            await update.downloadAndInstall()
-            await relaunch()
+      const update = await check();
+      if (update) {
+        console.log(
+          `found update ${update.version} from ${update.date} with notes ${update.body}`
+        );
+        let downloaded = 0;
+        let contentLength = 0;
+        // alternatively we could also call update.download() and update.install() separately
+        await update.downloadAndInstall((event) => {
+          switch (event.event) {
+            case 'Started':
+              contentLength = event.data.contentLength || 0;
+              console.log(`started downloading ${event.data.contentLength || 0} bytes`);
+              break;
+            case 'Progress':
+              downloaded += event.data.chunkLength || 0;
+              console.log(`downloaded ${downloaded} from ${contentLength}`);
+              break;
+            case 'Finished':
+              console.log('download finished');
+              break;
           }
-        } else {
-          console.log('App is up to date')
-        }
-      } catch (error) {
-        console.error('Failed to check for updates:', error)
+        });
+      
+        console.log('update installed');
+        await relaunch();
       }
     }
 
-    // Check for updates after a brief delay to let the app finish initializing
-    const timer = setTimeout(checkForUpdates, 2000)
-    return () => clearTimeout(timer)
+    checkForUpdates();
   }, [isMiniWindow])
   
   // Reload state when window gains focus
