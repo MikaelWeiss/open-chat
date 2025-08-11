@@ -2,6 +2,11 @@
 
 All notable changes to Open Chat will be documented in this file.
 
+## [0.1.7] - TBD
+### Changed
+- Simplified chat interface by removing avatar icons and redundant user/assistant bubbles
+- Message bubbles now have a maximum width of 950px and center themselves in the chat area
+
 ## [0.1.7] - 2025-08-11
 ### Fixed
 - Fixed get api key link in onboarding flow

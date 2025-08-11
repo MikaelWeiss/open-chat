@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { User, Bot, Copy, Check, FileText, Image, Volume2 } from 'lucide-react'
+import { Copy, Check, FileText, Image, Volume2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
 import { type Message } from '../../shared/messageStore'
@@ -225,23 +225,8 @@ export default function MessageList({ messages = [], isLoading = false, streamin
   return (
     <div className="h-full overflow-y-auto p-6 space-y-8 min-w-0 elegant-scrollbar">
       {messages.map((message) => (
-        <div key={message.id} className="flex gap-4 min-w-0 elegant-fade-in">
-          <div
-            className={clsx(
-              'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-elegant border relative overflow-hidden',
-              message.role === 'user'
-                ? 'avatar-assistant'
-                : 'avatar-user'
-            )}
-          >
-            {message.role === 'user' ? (
-              <User className="h-5 w-5 text-white" />
-            ) : (
-              <Bot className="h-5 w-5 text-foreground/90" />
-            )}
-          </div>
-          
-          <div className="flex-1 space-y-3 min-w-0">
+        <div key={message.id} className="w-full max-w-[950px] mx-auto elegant-fade-in">
+          <div className="space-y-3">
             <div className="flex items-baseline gap-3">
               <span className="font-semibold text-foreground/95">
                 {message.role === 'user' ? (userName || 'You') : 'Assistant'}
@@ -294,12 +279,8 @@ export default function MessageList({ messages = [], isLoading = false, streamin
       
       {/* Streaming message */}
       {streamingMessage && (
-        <div className="flex gap-4 min-w-0 elegant-fade-in">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-elegant border relative overflow-hidden avatar-user">
-            <Bot className="h-5 w-5 text-foreground/90" />
-          </div>
-          
-          <div className="flex-1 space-y-3 min-w-0">
+        <div className="w-full max-w-[950px] mx-auto elegant-fade-in">
+          <div className="space-y-3">
             <div className="flex items-baseline gap-3">
               <span className="font-semibold text-foreground/95">Assistant</span>
               <span className="text-xs text-muted-foreground/70 font-medium">
@@ -340,12 +321,8 @@ export default function MessageList({ messages = [], isLoading = false, streamin
       
       {/* Loading indicator - show when loading and no streaming started yet */}
       {isLoading && !streamingMessage && (
-        <div className="flex gap-4 min-w-0 elegant-fade-in">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-elegant border relative overflow-hidden avatar-user">
-            <Bot className="h-5 w-5 text-foreground/90" />
-          </div>
-          
-          <div className="flex-1 space-y-3 min-w-0">
+        <div className="w-full max-w-[950px] mx-auto elegant-fade-in">
+          <div className="space-y-3">
             <div className="flex items-baseline gap-3">
               <span className="font-semibold text-foreground/95">Assistant</span>
             </div>
