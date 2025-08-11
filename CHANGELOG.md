@@ -3,6 +3,9 @@
 All notable changes to Open Chat will be documented in this file.
 
 ## [0.1.7] - 2025-08-11
+### Changed
+- Users can now type in the input field while the assistant is responding
+
 ### Fixed
 - Fixed get api key link in onboarding flow
 
