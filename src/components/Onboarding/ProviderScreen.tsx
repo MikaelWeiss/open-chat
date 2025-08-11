@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ArrowLeft, Check, ExternalLink, Key, Server } from 'lucide-react'
+import { open } from '@tauri-apps/plugin-shell'
 import { useSettings } from '../../hooks/useSettings'
 import { ProviderPreset } from '../../types/provider'
 
@@ -76,9 +77,12 @@ export default function ProviderScreen({ onComplete, onBack }: ProviderScreenPro
     onComplete()
   }
 
-  const openApiKeyUrl = (url: string) => {
-    // Using window.open for web compatibility
-    window.open(url, '_blank')
+  const openApiKeyUrl = async (url: string) => {
+    try {
+      await open(url)
+    } catch (error) {
+      console.error('Failed to open URL:', error)
+    }
   }
 
   const canContinue = selectedPreset && (selectedPreset.isLocal || apiKey.trim())

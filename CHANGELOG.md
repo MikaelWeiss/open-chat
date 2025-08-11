@@ -2,9 +2,16 @@
 
 All notable changes to Open Chat will be documented in this file.
 
-## [0.1.6] - TBD
+## [1.1.7] - 2025-08-11
+### Fixed
+- Fixed get api key link in onboarding flow
+
+## [0.1.6] - 2025-08-11
 ### Changed  
 - Added keyboard navigation support to EmptyState action buttons
+
+### Fixed
+- Fixed get API key button in onboarding flow not working (now uses Tauri shell plugin instead of window.open)
 
 ## [0.1.5] - 2025-08-11
 ### Fixed
