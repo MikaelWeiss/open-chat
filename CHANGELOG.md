@@ -2,6 +2,11 @@
 
 All notable changes to Open Chat will be documented in this file.
 
+## [0.1.4] - TBD
+
+### Added
+- Random placeholder text in message input (25 different variations)
+
 ## [0.1.3] - 2025-08-10
 
 ### Added
