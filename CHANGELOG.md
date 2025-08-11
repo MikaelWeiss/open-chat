@@ -2,6 +2,11 @@
 
 All notable changes to Open Chat will be documented in this file.
 
+## [0.1.3] - 2025-08-10
+
+### Added
+- App now checks for updates on startup
+
 ## [0.1.2] - 2025-08-10
 
 ### Changed
