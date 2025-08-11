@@ -2,7 +2,7 @@
 
 All notable changes to Open Chat will be documented in this file.
 
-## [1.1.7] - 2025-08-11
+## [0.1.7] - 2025-08-11
 ### Fixed
 - Fixed get api key link in onboarding flow
 
