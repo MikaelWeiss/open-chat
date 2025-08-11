@@ -12,7 +12,10 @@
       "Bash(gh pr diff:*)",
       "Bash(gh pr view:*)",
       "Bash(cat:*)",
-      "Bash(gh release list:*)"
+      "Bash(gh release list:*)",
+      "Bash(gh release view:*)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   }
