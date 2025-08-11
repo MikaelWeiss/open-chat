@@ -3,6 +3,7 @@
 All notable changes to Open Chat will be documented in this file.
 
 ## [0.1.5] - 2025-08-11
+### Fixed
 - Hopefully fixed auto update
 
 ## [0.1.4] - 2025-08-10
