@@ -13,6 +13,8 @@ import { useConversations, useAppStore } from './stores/appStore'
 import { initializeAppStore } from './stores/appStore'
 import { messageSync } from './utils/messageSync'
 import { telemetryService } from './services/telemetryService'
+import { check } from '@tauri-apps/plugin-updater'
+import { relaunch } from '@tauri-apps/plugin-process'
 
 function App() {
   // Check if we're in mini window mode
@@ -80,6 +82,41 @@ function App() {
       messageSync.cleanup()
     }
   }, [])
+
+  // Check for app updates on startup
+  useEffect(() => {
+    // Don't check for updates in mini window mode
+    if (isMiniWindow) {
+      return
+    }
+
+    const checkForUpdates = async () => {
+      try {
+        const update = await check()
+        if (update?.available) {
+          console.log(`Update available: v${update.version}`)
+          // Since dialog: true is set in tauri.conf.json, this will show a native dialog
+          const yes = window.confirm(
+            `Update available: v${update.version}\n\nWould you like to download and install it now?`
+          )
+          
+          if (yes) {
+            console.log('Starting update download and installation...')
+            await update.downloadAndInstall()
+            await relaunch()
+          }
+        } else {
+          console.log('App is up to date')
+        }
+      } catch (error) {
+        console.error('Failed to check for updates:', error)
+      }
+    }
+
+    // Check for updates after a brief delay to let the app finish initializing
+    const timer = setTimeout(checkForUpdates, 2000)
+    return () => clearTimeout(timer)
+  }, [isMiniWindow])
   
   // Reload state when window gains focus
   useEffect(() => {
