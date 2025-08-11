@@ -189,6 +189,12 @@ export default function EmptyState({ type, title, description, action, className
       {action && (
         <button
           onClick={action.onClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              action.onClick()
+            }
+          }}
           className={clsx(
             'px-4 py-2 rounded-lg font-medium text-sm',
             'bg-primary text-primary-foreground',
