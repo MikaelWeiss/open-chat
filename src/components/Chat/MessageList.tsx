@@ -562,12 +562,15 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                 ) : (
                   /* Fallback: original streaming display if no expected models provided */
                   streamingMessagesByModel && Array.from(streamingMessagesByModel.entries()).map(([modelId, content]) => {
-                    const [provider, model] = modelId.split(':')
+                    const [provider, modelWithSuffix] = modelId.split(':')
+                    // Handle both format: 'provider:model' and 'provider:model#2'
+                    const model = modelWithSuffix?.includes('#') ? modelWithSuffix.split('#')[0] : modelWithSuffix
+                    const suffix = modelWithSuffix?.includes('#') ? modelWithSuffix.split('#')[1] : ''
                     return (
                       <div key={modelId} className="comparison-response min-w-0">
                         <div className="flex items-center justify-between p-3 pb-0 group">
                           <span className="model-badge truncate">
-                            {provider}/{model}
+                            {provider}/{model}{suffix ? `#${suffix}` : ''}
                           </span>
                           <button
                             onClick={() => copyToClipboard(content, `streaming-${modelId}`)}

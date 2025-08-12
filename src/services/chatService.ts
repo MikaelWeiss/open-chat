@@ -198,8 +198,16 @@ class ChatService {
     startTime: number
   }): Promise<CreateMessageInput[]> {
     
-    const modelPromises = models.map(async (modelConfig, index) => {
-      const modelId = `${modelConfig.provider}:${modelConfig.model}:${index}`
+    // Track occurrence count for each model config to disambiguate duplicates
+    const modelConfigCounts = new Map<string, number>();
+    const modelPromises = models.map(async (modelConfig) => {
+      const modelKey = JSON.stringify({ provider: modelConfig.provider, model: modelConfig.model });
+      const count = modelConfigCounts.get(modelKey) ?? 0;
+      modelConfigCounts.set(modelKey, count + 1);
+      // If the same model appears multiple times, append occurrence count
+      const modelId = count === 0
+        ? `${modelConfig.provider}:${modelConfig.model}`
+        : `${modelConfig.provider}:${modelConfig.model}#${count + 1}`;
       
       try {
         onModelStreamStart?.(modelId)

@@ -369,7 +369,7 @@ export const useAppStore = create<AppState>()(
         } catch (error) {
           console.error('Failed to add message:', error)
           get().setError(conversationId, `Failed to save message: ${error}`)
-          throw error
+          return Promise.reject(error)
         }
       }
     },

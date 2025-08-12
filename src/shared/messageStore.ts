@@ -165,7 +165,7 @@ class MessageDatabase {
     }
   }
 
-  async addMessage(conversationId: number, message: CreateMessageInput) {
+  async addMessage(conversationId: number, message: CreateMessageInput): Promise<number> {
     const db = await this.init()
     const now = new Date().toISOString()
     
@@ -219,7 +219,7 @@ class MessageDatabase {
       }
     }
     
-    return result.lastInsertId
+    return result.lastInsertId as number
   }
 
   async getMessages(conversationId: number) {

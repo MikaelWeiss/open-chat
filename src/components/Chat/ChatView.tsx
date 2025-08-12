@@ -693,7 +693,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           // Add complete assistant message to store
           try {
             // Store model info for display in UI
-            const [provider, model] = modelId.split(':')
+            const [provider, modelWithSuffix] = modelId.split(':')
+            // Handle both format: 'provider:model' and 'provider:model#2'
+            const model = modelWithSuffix?.includes('#') ? modelWithSuffix.split('#')[0] : modelWithSuffix
             message.metadata = {
               ...message.metadata,
               modelId: `${provider}/${model}`
@@ -714,10 +716,13 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           console.error(`Model ${modelId} error:`, error)
           // Show error toast for individual model failures
           if ((window as any).showToast) {
-            const [provider, model] = modelId.split(':')
+            const [provider, modelWithSuffix] = modelId.split(':')
+            // Handle both format: 'provider:model' and 'provider:model#2'
+            const model = modelWithSuffix?.includes('#') ? modelWithSuffix.split('#')[0] : modelWithSuffix
+            const suffix = modelWithSuffix?.includes('#') ? modelWithSuffix.split('#')[1] : ''
             ;(window as any).showToast({
               type: 'error',
-              title: `${provider}/${model} failed`,
+              title: `${provider}/${model}${suffix ? `#${suffix}` : ''} failed`,
               message: error.message
             })
           }
