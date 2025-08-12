@@ -1,9 +1,10 @@
-import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search, Brain, Hammer, ImageIcon, Globe, Sun, Moon, Monitor } from 'lucide-react'
+import { X, RefreshCw, ExternalLink, Plus, Settings, ChevronDown, ChevronUp, Eye, Volume2, FileText, Search, Brain, Hammer, ImageIcon, Globe, Sun, Moon, Monitor, Wrench } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { open } from '@tauri-apps/plugin-shell'
 import clsx from 'clsx'
 import AboutSettings from './AboutSettings'
 import SegmentedControl from './SegmentedControl'
+import LocalProviderSettings from './LocalProviderSettings'
 import { useSettings } from '../../hooks/useSettings'
 import { Provider, ProviderPreset, ModelCapabilities } from '../../types/provider'
 
@@ -679,17 +680,10 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
       apiKeyUrl: 'https://dashboard.cohere.ai/api-keys'
     },
     {
-      id: 'ollama',
-      name: 'Ollama',
-      endpoint: 'http://localhost:11434/v1',
-      description: 'User-friendly local LLM runner',
-      isLocal: true
-    },
-    {
-      id: 'vllm',
-      name: 'vLLM',
-      endpoint: 'http://localhost:8000/v1',
-      description: 'High-performance inference server',
+      id: 'local',
+      name: 'Local',
+      endpoint: 'http://localhost:11434',
+      description: 'Local models via Ollama - auto-detects installation and manages models',
       isLocal: true
     }
   ]

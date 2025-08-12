@@ -32,10 +32,10 @@ const providerPresets: ProviderPreset[] = [
     apiKeyUrl: 'https://console.groq.com/keys'
   },
   {
-    id: 'ollama',
-    name: 'Ollama',
-    endpoint: 'http://localhost:11434/v1',
-    description: 'User-friendly local LLM runner',
+    id: 'local',
+    name: 'Local',
+    endpoint: 'http://localhost:11434',
+    description: 'Local models via Ollama - no API key required',
     isLocal: true
   }
 ]
