@@ -1,4 +1,5 @@
 mod ollama;
+mod system_info;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -211,7 +212,9 @@ pub fn run() {
             register_global_shortcut,
             unregister_global_shortcut,
             ollama::detect_ollama,
-            ollama::discover_models
+            ollama::discover_models,
+            system_info::get_system_info,
+            system_info::validate_model_system_compatibility
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
