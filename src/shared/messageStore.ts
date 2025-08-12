@@ -4,17 +4,19 @@ import { conversationStore } from './conversationStore'
 // Message Database
 class MessageDatabase {
   private db: Database | null = null
+  private readonly SCHEMA_VERSION = 2
 
   async init() {
     if (!this.db) {
       this.db = await Database.load('sqlite:open_chat.db')
       await this.createTable()
+      await this.runMigrations()
     }
     return this.db
   }
 
   private async createTable() {
-    const db = await this.init()
+    const db = this.db!
     
     await db.execute(`
       CREATE TABLE IF NOT EXISTS messages (
@@ -45,6 +47,57 @@ class MessageDatabase {
         FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE
       )
     `)
+
+    // Create schema version table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS schema_version (
+        version INTEGER PRIMARY KEY
+      )
+    `)
+  }
+
+  private async runMigrations() {
+    const db = this.db!
+    
+    // Get current schema version
+    const result = await db.select('SELECT version FROM schema_version ORDER BY version DESC LIMIT 1') as { version: number }[]
+    const currentVersion = result.length > 0 ? result[0].version : 0
+
+    // Run migrations in sequence
+    if (currentVersion < 1) {
+      await this.migrate_v1()
+    }
+    if (currentVersion < 2) {
+      await this.migrate_v2_add_sort_order()
+    }
+
+    // Update schema version
+    if (currentVersion < this.SCHEMA_VERSION) {
+      await db.execute('DELETE FROM schema_version')
+      await db.execute('INSERT INTO schema_version (version) VALUES ($1)', [this.SCHEMA_VERSION])
+    }
+  }
+
+  private async migrate_v1() {
+    // This is the initial migration - table already created by createTable()
+    console.log('Migration v1: Initial schema - already handled by createTable()')
+  }
+
+  private async migrate_v2_add_sort_order() {
+    const db = this.db!
+    console.log('Migration v2: Adding sortOrder column to messages table')
+    
+    try {
+      // Add sortOrder column with default NULL for existing messages
+      await db.execute(`
+        ALTER TABLE messages 
+        ADD COLUMN sort_order INTEGER DEFAULT NULL
+      `)
+      console.log('Migration v2: sortOrder column added successfully')
+    } catch (error) {
+      // If column already exists, this will fail - that's okay
+      console.log('Migration v2: sortOrder column may already exist, continuing...', error)
+    }
   }
 
   async addMessage(conversationId: number, message: CreateMessageInput) {
@@ -55,8 +108,8 @@ class MessageDatabase {
       INSERT INTO messages (
         conversation_id, role, text, thinking, images, audio, files, [references],
         input_tokens, output_tokens, reasoning_tokens, cached_tokens, cost,
-        temperature, max_tokens, top_p, top_k, processing_time_ms, metadata, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        temperature, max_tokens, top_p, top_k, processing_time_ms, metadata, sort_order, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
     `, [
       conversationId,
       message.role,
@@ -77,6 +130,7 @@ class MessageDatabase {
       message.top_k || null,
       message.processing_time_ms || null,
       message.metadata ? JSON.stringify(message.metadata) : null,
+      message.sortOrder || null,
       now
     ])
     
@@ -100,10 +154,16 @@ class MessageDatabase {
     return result.lastInsertId
   }
 
-  async getMessages(conversationId: number) {
+  async getMessages(conversationId: number, orderBySortOrder: boolean = false) {
     const db = await this.init()
+    
+    // Order by sortOrder when available and requested, otherwise by created_at
+    const orderBy = orderBySortOrder 
+      ? 'ORDER BY CASE WHEN sort_order IS NULL THEN created_at ELSE sort_order END ASC, created_at ASC'
+      : 'ORDER BY created_at ASC'
+    
     const messages = await db.select(
-      'SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC',
+      `SELECT * FROM messages WHERE conversation_id = $1 ${orderBy}`,
       [conversationId]
     ) as RawMessage[]
     
@@ -154,6 +214,10 @@ class MessageDatabase {
       fields.push('metadata = $' + (values.length + 1))
       values.push(updates.metadata ? JSON.stringify(updates.metadata) : null)
     }
+    if (updates.sortOrder !== undefined) {
+      fields.push('sort_order = $' + (values.length + 1))
+      values.push(updates.sortOrder)
+    }
 
     values.push(id)
 
@@ -171,6 +235,20 @@ class MessageDatabase {
   async deleteMessagesFromConversation(conversationId: number) {
     const db = await this.init()
     return await db.execute('DELETE FROM messages WHERE conversation_id = $1', [conversationId])
+  }
+
+  async updateMessageSortOrder(id: number, sortOrder: number) {
+    const db = await this.init()
+    return await db.execute('UPDATE messages SET sort_order = $1 WHERE id = $2', [sortOrder, id])
+  }
+
+  async updateMessagesSortOrder(updates: Array<{id: number, sortOrder: number}>) {
+    const db = await this.init()
+    
+    // Use a transaction for bulk updates
+    for (const update of updates) {
+      await db.execute('UPDATE messages SET sort_order = $1 WHERE id = $2', [update.sortOrder, update.id])
+    }
   }
 
   private parseMessage(raw: RawMessage): Message {
@@ -213,6 +291,7 @@ export interface Message {
   processing_time_ms?: number | null
   
   metadata?: Record<string, any> | null
+  sort_order?: number | null
   created_at: string
 }
 
@@ -235,6 +314,7 @@ export interface CreateMessageInput {
   top_k?: number
   processing_time_ms?: number
   metadata?: Record<string, any>
+  sortOrder?: number
 }
 
 interface RawMessage {
@@ -258,6 +338,7 @@ interface RawMessage {
   top_k: number | null
   processing_time_ms: number | null
   metadata: string | null
+  sort_order: number | null
   created_at: string
 }
 

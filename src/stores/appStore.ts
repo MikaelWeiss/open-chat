@@ -301,7 +301,7 @@ export const useAppStore = create<AppState>()(
         set({ loadingConversations: newLoadingConversations })
 
         get().clearError(conversationId)
-        const messages = await messageStore.getMessages(conversationId)
+        const messages = await messageStore.getMessages(conversationId, true) // Use sortOrder for proper multi-model display
         
         set((state) => ({
           messagesByConversation: new Map(state.messagesByConversation.set(conversationId, messages)),

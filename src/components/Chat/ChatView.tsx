@@ -8,7 +8,7 @@ import { useSettings } from '../../hooks/useSettings'
 import { useProviders, useMessages, useConversations } from '../../stores/appStore'
 import { type PendingConversation } from '../../stores/appStore'
 import { type Conversation } from '../../shared/conversationStore'
-import { type CreateMessageInput } from '../../shared/messageStore'
+import { type CreateMessageInput, messageStore } from '../../shared/messageStore'
 import { chatService } from '../../services/chatService'
 import { telemetryService } from '../../services/telemetryService'
 import clsx from 'clsx'
@@ -646,52 +646,99 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         }
       }
       
+      // Calculate next sortOrder for this message pair (user + assistant responses)
+      let nextSortOrder = 1
+      let assistantSortOrder = 2
+      
+      if (typeof activeConversationId === 'number') {
+        const currentMessages = await messageStore.getMessages(activeConversationId)
+        const maxSortOrder = Math.max(0, ...currentMessages.map(m => m.sort_order || 0))
+        nextSortOrder = maxSortOrder + 1
+        assistantSortOrder = nextSortOrder + 1
+      } else {
+        // For pending conversations, start from 1
+        nextSortOrder = 1
+        assistantSortOrder = 2
+      }
+      
+      // Set sortOrder for user message
+      userMessage.sortOrder = nextSortOrder
+      
       // Add user message to store (which handles both draft and persistent)
       await addMessageToStore(activeConversationId, userMessage)
       
       // Track message sent event
       telemetryService.trackMessageSent(effectiveProvider, effectiveModel, message.length)
       
-      // Get API key for the provider
-      const apiKey = await getProviderApiKey(effectiveProvider)
-      
-      // Send to AI provider with streaming
+      // Create model configurations for the new interface
+      const modelConfigs = await chatService.createModelConfigs(
+        isMultiSelectMode && selectedModels.length > 0
+          ? selectedModels
+          : [{ provider: effectiveProvider, model: effectiveModel }],
+        providers,
+        getProviderApiKey,
+        {
+          ...(conversationSettings && {
+            temperature: conversationSettings.temperature,
+            maxTokens: conversationSettings.max_tokens,
+            topP: conversationSettings.top_p,
+            frequencyPenalty: conversationSettings.frequency_penalty,
+            presencePenalty: conversationSettings.presence_penalty,
+            stop: conversationSettings.stop.length > 0 ? conversationSettings.stop : undefined,
+            n: conversationSettings.n,
+            seed: conversationSettings.seed,
+          }),
+          reasoningEffort
+        }
+      )
+
+      // Send to AI provider(s) with streaming
       await chatService.sendMessage({
         conversationId: activeConversationId,
         userMessage,
         systemPrompt: currentConversation?.system_prompt || undefined,
-        provider: effectiveProvider,
-        endpoint: provider.endpoint,
-        model: effectiveModel,
-        apiKey: apiKey || undefined,
-        isLocal: provider.isLocal,
-        reasoningEffort,
+        models: modelConfigs,
         signal: controller.signal,
-        // Pass conversation settings only if they exist
-        ...(conversationSettings && {
-          temperature: conversationSettings.temperature,
-          maxTokens: conversationSettings.max_tokens,
-          topP: conversationSettings.top_p,
-          frequencyPenalty: conversationSettings.frequency_penalty,
-          presencePenalty: conversationSettings.presence_penalty,
-          stop: conversationSettings.stop.length > 0 ? conversationSettings.stop : undefined,
-          n: conversationSettings.n,
-          seed: conversationSettings.seed,
-        }),
-        onStreamChunk: (content: string) => {
+        onStreamChunk: (content: string, modelId: string) => {
+          // For now, combine all model streams into one UI stream
+          // TODO: Handle multiple concurrent streams in UI
           setStreamingMessage(activeConversationId, content)
+          console.log(`Streaming from ${modelId}: ${content.slice(0, 50)}...`)
         },
-        onStreamComplete: async (message: CreateMessageInput) => {
-          // Add complete assistant message to store
+        onStreamComplete: async (message: CreateMessageInput, modelId: string) => {
+          // Add complete assistant message to store with sortOrder
           try {
+            // All assistant messages from this multi-query get the same sortOrder
+            message.sortOrder = assistantSortOrder
+            // Store model info for display in UI
+            const [provider, model] = modelId.split(':')
+            message.metadata = {
+              ...message.metadata,
+              modelId: `${provider}/${model}`
+            }
             await addMessageToStore(activeConversationId, message)
             
             // Track message received event
-            telemetryService.trackMessageReceived(effectiveProvider, effectiveModel, message.text?.length || 0)
+            telemetryService.trackMessageReceived(provider, model, message.text?.length || 0)
           } catch (err) {
             console.error('Failed to save assistant message:', err)
           }
           clearStreamingMessage(activeConversationId)
+        },
+        onModelStreamStart: (modelId: string) => {
+          console.log(`Model ${modelId} started streaming`)
+        },
+        onModelError: (error: Error, modelId: string) => {
+          console.error(`Model ${modelId} error:`, error)
+          // Show error toast for individual model failures
+          if ((window as any).showToast) {
+            const [provider, model] = modelId.split(':')
+            ;(window as any).showToast({
+              type: 'error',
+              title: `${provider}/${model} failed`,
+              message: error.message
+            })
+          }
         }
       })
       
