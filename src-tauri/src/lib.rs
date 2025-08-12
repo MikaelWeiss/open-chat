@@ -1,3 +1,5 @@
+mod ollama;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -207,7 +209,9 @@ pub fn run() {
             toggle_mini_window,
             close_mini_window,
             register_global_shortcut,
-            unregister_global_shortcut
+            unregister_global_shortcut,
+            ollama::detect_ollama,
+            ollama::discover_models
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
