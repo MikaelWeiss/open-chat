@@ -290,8 +290,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         setShowModelSelector(prev => !prev)
       }
       
-      // Open model selector and focus search when Cmd+F is pressed
-      if (e.key === 'f' && (e.metaKey || e.ctrlKey)) {
+      // Open model selector and focus search when Shift+Cmd+M is pressed
+      if (e.key === 'm' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
         e.preventDefault()
         if (!showModelSelector) {
           setShowModelSelector(true)
