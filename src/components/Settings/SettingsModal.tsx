@@ -568,6 +568,7 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchHovered, setIsSearchHovered] = useState(false)
   const [latestOnly, setLatestOnly] = useState(false)
+  const [showLocalProviderSettings, setShowLocalProviderSettings] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -1254,16 +1255,26 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
                       <RefreshCw className={`h-4 w-4 ${refreshingProvider === providerId ? 'animate-spin' : ''}`} />
                     </button>
 
-                    <button
-                      onClick={() => {
-                        setShowApiKeyModal(providerId)
-                        setNewApiKey('')
-                      }}
-                      className="p-2 hover:bg-accent rounded transition-colors"
-                      title="Manage API key"
-                    >
-                      <Settings className="h-4 w-4" />
-                    </button>
+                    {providerData?.isLocal ? (
+                      <button
+                        onClick={() => setShowLocalProviderSettings(providerId)}
+                        className="p-2 hover:bg-accent rounded transition-colors"
+                        title="Manage local models"
+                      >
+                        <Wrench className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setShowApiKeyModal(providerId)
+                          setNewApiKey('')
+                        }}
+                        className="p-2 hover:bg-accent rounded transition-colors"
+                        title="Manage API key"
+                      >
+                        <Settings className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1475,6 +1486,15 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
             </div>
           </div>
         </div>
+      )}
+
+      {/* Local Provider Settings Modal */}
+      {showLocalProviderSettings && (
+        <LocalProviderSettings
+          providerId={showLocalProviderSettings}
+          isOpen={true}
+          onClose={() => setShowLocalProviderSettings(null)}
+        />
       )}
     </div>
   )

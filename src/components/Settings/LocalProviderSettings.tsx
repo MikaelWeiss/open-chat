@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Download, 
   Trash2, 
@@ -7,8 +7,6 @@ import {
   AlertTriangle, 
   CheckCircle, 
   XCircle, 
-  Play, 
-  Square, 
   HardDrive,
   Cpu,
   MemoryStick,
@@ -57,15 +55,6 @@ interface SystemResources {
   cpu_cores: number;
 }
 
-interface ModelCompatibility {
-  is_compatible: boolean;
-  confidence_level: number;
-  required_memory_gb: number;
-  available_memory_gb: number;
-  memory_sufficient: boolean;
-  storage_sufficient: boolean;
-  warnings: string[];
-}
 
 interface DownloadProgress {
   modelName: string;
@@ -74,7 +63,7 @@ interface DownloadProgress {
   error?: string;
 }
 
-export default function LocalProviderSettings({ providerId, isOpen, onClose }: LocalProviderSettingsProps) {
+export default function LocalProviderSettings({ isOpen, onClose }: LocalProviderSettingsProps) {
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
   const [installedModels, setInstalledModels] = useState<OllamaModel[]>([]);
   const [discoveredModels, setDiscoveredModels] = useState<LocalModel[]>([]);
@@ -208,17 +197,6 @@ export default function LocalProviderSettings({ providerId, isOpen, onClose }: L
     }
   };
 
-  const validateModelCompatibility = async (modelName: string, sizeBytes: number): Promise<ModelCompatibility | null> => {
-    try {
-      return await invoke<ModelCompatibility>('validate_model_system_compatibility', {
-        modelSizeBytes: sizeBytes,
-        modelName,
-      });
-    } catch (err) {
-      console.error('Failed to validate model compatibility:', err);
-      return null;
-    }
-  };
 
   const formatSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
