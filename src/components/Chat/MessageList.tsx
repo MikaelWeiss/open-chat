@@ -324,11 +324,6 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                   <span className="font-semibold text-foreground/95">
                     {message.role === 'user' ? (userName || 'You') : 'Assistant'}
                   </span>
-                  {message.provider && message.model && message.role === 'assistant' && (
-                    <span className="text-xs px-2 py-1 glass-effect border border-border/20 rounded-lg text-muted-foreground font-medium">
-                      {message.provider}/{message.model}
-                    </span>
-                  )}
                   <span className="text-xs text-muted-foreground/70 font-medium">
                     {format(new Date(message.created_at), 'h:mm a')}
                   </span>
