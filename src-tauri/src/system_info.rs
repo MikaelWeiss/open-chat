@@ -167,7 +167,8 @@ fn calculate_confidence_level(memory_ratio: f64, storage_ratio: f64) -> f64 {
     };
     
     // Weighted average (memory is more important than storage)
-    (memory_score * 0.7 + storage_score * 0.3).min(1.0).max(0.0)
+    let result: f64 = memory_score * 0.7 + storage_score * 0.3;
+    result.min(1.0).max(0.0)
 }
 
 fn bytes_to_gb(bytes: u64) -> f64 {

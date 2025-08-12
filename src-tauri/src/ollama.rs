@@ -3,7 +3,6 @@ use std::process::Command;
 use std::time::Duration;
 use std::path::Path;
 use std::fs;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
