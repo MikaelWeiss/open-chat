@@ -356,6 +356,7 @@ function App() {
             onOpenSettings={isMiniWindow ? () => {} : () => setSettingsOpen(true)} 
             messageInputRef={messageInputRef}
             onSelectConversation={setSelectedConversation}
+            isMiniWindow={isMiniWindow}
           />
         </div>
       </div>

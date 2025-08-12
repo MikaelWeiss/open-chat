@@ -19,6 +19,7 @@ interface ChatViewProps {
   onOpenSettings?: () => void
   messageInputRef?: RefObject<MessageInputHandle>
   onSelectConversation?: (conversationId: number | 'pending' | null) => void
+  isMiniWindow?: boolean
 }
 
 interface ModelCapabilityIconsProps {
@@ -79,7 +80,7 @@ function ModelCapabilityIcons({ capabilities, className = '' }: ModelCapabilityI
   )
 }
 
-export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef, onSelectConversation }: ChatViewProps) {
+export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef, onSelectConversation, isMiniWindow = false }: ChatViewProps) {
   const internalMessageInputRef = useRef<MessageInputHandle>(null)
   const messageInputRef = externalMessageInputRef || internalMessageInputRef
   const [isLoading, setIsLoading] = useState(false)
@@ -865,50 +866,52 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                     </div>
                   </div>
                   
-                  {/* Multi-Select option at top */}
-                  <div className="border-b border-border/10">
-                    <button
-                      onClick={() => {
-                        setIsMultiSelectMode(!isMultiSelectMode)
-                        if (!isMultiSelectMode && selectedModel) {
-                          // When entering multi-select, add current model to selection
-                          setSelectedModels([selectedModel])
-                        } else if (isMultiSelectMode) {
-                          // When exiting multi-select, clear selections and use first selected model
-                          if (selectedModels.length > 0) {
-                            setSelectedModel(selectedModels[0])
-                          }
-                          setSelectedModels([])
-                        }
-                      }}
-                      className={clsx(
-                        'w-full text-left px-4 py-3 transition-all duration-200 elegant-hover flex items-center justify-between',
-                        isMultiSelectMode 
-                          ? 'bg-gradient-subtle border-l-2 border-l-primary text-primary' 
-                          : 'text-foreground/90 hover:bg-surface-hover'
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={clsx(
-                          "w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200",
-                          isMultiSelectMode 
-                            ? "bg-primary border-primary" 
-                            : "border-border hover:border-primary/50"
-                        )}>
-                          {isMultiSelectMode && <Check className="w-3 h-3 text-primary-foreground" />}
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm">Multi-Select</div>
-                          <div className="text-xs text-muted-foreground">
-                            {isMultiSelectMode 
-                              ? `${selectedModels.length}/5 model${selectedModels.length !== 1 ? 's' : ''} selected`
-                              : 'Message multiple models at once (max 5)'
+                  {/* Multi-Select option at top - hidden in mini window */}
+                  {!isMiniWindow && (
+                    <div className="border-b border-border/10">
+                      <button
+                        onClick={() => {
+                          setIsMultiSelectMode(!isMultiSelectMode)
+                          if (!isMultiSelectMode && selectedModel) {
+                            // When entering multi-select, add current model to selection
+                            setSelectedModels([selectedModel])
+                          } else if (isMultiSelectMode) {
+                            // When exiting multi-select, clear selections and use first selected model
+                            if (selectedModels.length > 0) {
+                              setSelectedModel(selectedModels[0])
                             }
+                            setSelectedModels([])
+                          }
+                        }}
+                        className={clsx(
+                          'w-full text-left px-4 py-3 transition-all duration-200 elegant-hover flex items-center justify-between',
+                          isMultiSelectMode 
+                            ? 'bg-gradient-subtle border-l-2 border-l-primary text-primary' 
+                            : 'text-foreground/90 hover:bg-surface-hover'
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={clsx(
+                            "w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200",
+                            isMultiSelectMode 
+                              ? "bg-primary border-primary" 
+                              : "border-border hover:border-primary/50"
+                          )}>
+                            {isMultiSelectMode && <Check className="w-3 h-3 text-primary-foreground" />}
+                          </div>
+                          <div>
+                            <div className="font-medium text-sm">Multi-Select</div>
+                            <div className="text-xs text-muted-foreground">
+                              {isMultiSelectMode 
+                                ? `${selectedModels.length}/5 model${selectedModels.length !== 1 ? 's' : ''} selected`
+                                : 'Message multiple models at once (max 5)'
+                              }
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </button>
-                  </div>
+                      </button>
+                    </div>
+                  )}
                   
                   {Object.entries(filteredModelsByProvider).length === 0 ? (
                     <div className="py-4">
