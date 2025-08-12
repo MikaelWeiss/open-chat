@@ -17,6 +17,7 @@ interface MessageListProps {
   isLoading?: boolean
   streamingMessage?: string
   streamingMessagesByModel?: Map<string, string>
+  expectedModels?: Array<{provider: string, model: string}>
 }
 
 interface CodeBlockProps {
@@ -113,15 +114,43 @@ function AttachmentDisplay({ attachments }: { attachments: { type: string; path:
 }
 
 
-export default function MessageList({ messages = [], isLoading = false, streamingMessage = '', streamingMessagesByModel }: MessageListProps) {
+export default function MessageList({ messages = [], isLoading = false, streamingMessage = '', streamingMessagesByModel, expectedModels = [] }: MessageListProps) {
   const [loadingMessage, setLoadingMessage] = useState('Assembling')
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const { userName } = useSettings()
+  
+  // Helper function to check if a model has completed
+  const hasModelCompleted = (expectedModel: {provider: string, model: string}) => {
+    return messages.some(msg => 
+      msg.role === 'assistant' && 
+      msg.provider === expectedModel.provider && 
+      msg.model === expectedModel.model &&
+      msg.previous_message_id === messages.filter(m => m.role === 'user').slice(-1)[0]?.id
+    )
+  }
+  
+  // Helper function to check if a model is currently streaming
+  const isModelStreaming = (expectedModel: {provider: string, model: string}) => {
+    const modelKey = `${expectedModel.provider}:${expectedModel.model}`
+    return streamingMessagesByModel ? 
+      Array.from(streamingMessagesByModel.entries())
+        .some(([id]) => id.startsWith(modelKey)) : false
+  }
+  
+  // Get active models (streaming or waiting to start)
+  const activeModels = expectedModels.filter(model => 
+    isModelStreaming(model) || !hasModelCompleted(model)
+  )
   
   // Group messages by their relationships for side-by-side display
   const groupedMessages = React.useMemo(() => {
     const groups: Array<{ type: 'single' | 'parallel', messages: Message[], timestamp: string }> = []
     const processedIds = new Set<number>()
+    
+    // If we have expected models and are currently in a multi-model scenario,
+    // we need to be more careful about grouping the most recent messages
+    const hasActiveMultiModelSession = expectedModels.length > 1 && 
+                                       ((streamingMessagesByModel?.size || 0) > 0 || isLoading)
     
     for (const message of messages) {
       if (processedIds.has(message.id)) continue
@@ -142,6 +171,48 @@ export default function MessageList({ messages = [], isLoading = false, streamin
           timestamp: sortedSiblings[0].created_at
         })
         siblings.forEach(sibling => processedIds.add(sibling.id))
+      } else if (hasActiveMultiModelSession && message.role === 'assistant') {
+        // If we're in an active multi-model session and this is the most recent assistant message,
+        // check if it's part of an ongoing parallel response by looking at timing
+        const messageTime = new Date(message.created_at).getTime()
+        const now = Date.now()
+        const isRecent = (now - messageTime) < 10000 // Within last 10 seconds
+        
+        if (isRecent) {
+          // This might be part of a parallel response - check for other recent assistant messages
+          const recentAssistantMessages = messages.filter(m => 
+            m.role === 'assistant' && 
+            Math.abs(new Date(m.created_at).getTime() - messageTime) < 5000 && // Within 5 second window
+            !processedIds.has(m.id)
+          )
+          
+          if (recentAssistantMessages.length > 1) {
+            // Multiple recent messages - group as parallel
+            const sortedRecent = recentAssistantMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+            groups.push({
+              type: 'parallel',
+              messages: sortedRecent,
+              timestamp: sortedRecent[0].created_at
+            })
+            recentAssistantMessages.forEach(m => processedIds.add(m.id))
+          } else {
+            // Single recent message - but if we're expecting more models, wait
+            groups.push({
+              type: 'single',
+              messages: [message],
+              timestamp: message.created_at
+            })
+            processedIds.add(message.id)
+          }
+        } else {
+          // Older message - treat as single
+          groups.push({
+            type: 'single',
+            messages: [message],
+            timestamp: message.created_at
+          })
+          processedIds.add(message.id)
+        }
       } else {
         // This is a single message
         groups.push({
@@ -155,7 +226,7 @@ export default function MessageList({ messages = [], isLoading = false, streamin
     
     // Sort groups by timestamp to maintain chronological order
     return groups.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-  }, [messages])
+  }, [messages, expectedModels, streamingMessagesByModel, isLoading])
   
   const copyToClipboard = async (text: string, messageId: string) => {
     try {
@@ -385,64 +456,180 @@ export default function MessageList({ messages = [], isLoading = false, streamin
       })}
       
       {/* Streaming messages */}
-      {streamingMessagesByModel && streamingMessagesByModel.size > 0 && (
+      {((streamingMessagesByModel && streamingMessagesByModel.size > 0) || (expectedModels.length > 1 && isLoading)) && (
         <div className="w-full max-w-[1200px] mx-auto elegant-fade-in">
           <div className="space-y-3">
             <div className="parallel-responses-header">
               <span className="font-semibold text-foreground/95">Assistant</span>
               <span className="parallel-count-badge">
-                {streamingMessagesByModel.size} {streamingMessagesByModel.size === 1 ? 'model' : 'models'}
+                {(() => {
+                  if (expectedModels.length > 0) {
+                    // Count only models that haven't completed yet
+                    const activeModels = expectedModels.filter(expectedModel => {
+                      const modelKey = `${expectedModel.provider}:${expectedModel.model}`
+                      const isStreaming = streamingMessagesByModel ? 
+                        Array.from(streamingMessagesByModel.entries())
+                          .some(([id]) => id.startsWith(modelKey)) : false
+                      const hasCompleted = messages.some(msg => 
+                        msg.role === 'assistant' && 
+                        msg.provider === expectedModel.provider && 
+                        msg.model === expectedModel.model &&
+                        msg.previous_message_id === messages.filter(m => m.role === 'user').slice(-1)[0]?.id
+                      )
+                      return isStreaming || !hasCompleted
+                    })
+                    return activeModels.length
+                  }
+                  return streamingMessagesByModel?.size || 1
+                })()} {(() => {
+                  const count = expectedModels.length > 0 ? 
+                    expectedModels.filter(expectedModel => {
+                      const modelKey = `${expectedModel.provider}:${expectedModel.model}`
+                      const isStreaming = streamingMessagesByModel ? 
+                        Array.from(streamingMessagesByModel.entries())
+                          .some(([id]) => id.startsWith(modelKey)) : false
+                      const hasCompleted = messages.some(msg => 
+                        msg.role === 'assistant' && 
+                        msg.provider === expectedModel.provider && 
+                        msg.model === expectedModel.model &&
+                        msg.previous_message_id === messages.filter(m => m.role === 'user').slice(-1)[0]?.id
+                      )
+                      return isStreaming || !hasCompleted
+                    }).length : streamingMessagesByModel?.size || 1
+                  return count === 1 ? 'model' : 'models'
+                })()}
               </span>
               <span className="text-xs text-muted-foreground/70 font-medium ml-auto">
                 {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
             
-            {streamingMessagesByModel.size > 1 ? (
-              /* Multiple streaming responses - display side by side */
+            {(expectedModels.length > 1 || (streamingMessagesByModel && streamingMessagesByModel.size > 1)) ? (
+              /* Multiple responses - display side by side */
               <div className="comparison-grid">
-                {Array.from(streamingMessagesByModel.entries()).map(([modelId, content]) => {
-                  const [provider, model] = modelId.split(':')
-                  return (
-                    <div key={modelId} className="comparison-response min-w-0">
-                      <div className="flex items-center justify-between p-3 pb-0 group">
-                        <span className="model-badge truncate">
-                          {provider}/{model}
-                        </span>
-                        <button
-                          onClick={() => copyToClipboard(content, `streaming-${modelId}`)}
-                          className="opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
-                          title="Copy message"
-                        >
-                        {copiedMessageId === `streaming-${modelId}` ? (
-                          <>
-                            <Check className="h-3 w-3" />
-                            Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3 w-3" />
-                            Copy
-                          </>
-                        )}
-                        </button>
+                {expectedModels.length > 0 ? (
+                  /* Show expected models with loading states for those not streaming yet */
+                  expectedModels.map((expectedModel, index) => {
+                    const modelKey = `${expectedModel.provider}:${expectedModel.model}`
+                    const streamingContent = streamingMessagesByModel ? 
+                      Array.from(streamingMessagesByModel.entries())
+                        .find(([id]) => id.startsWith(modelKey))?.[1] : undefined
+                    const isStreaming = streamingContent !== undefined
+                    
+                    // Check if this model has already completed (saved as a message)
+                    const hasCompleted = messages.some(msg => 
+                      msg.role === 'assistant' && 
+                      msg.provider === expectedModel.provider && 
+                      msg.model === expectedModel.model &&
+                      msg.previous_message_id === messages.filter(m => m.role === 'user').slice(-1)[0]?.id
+                    )
+                    
+                    // Only show loading if the model hasn't started streaming AND hasn't completed
+                    const shouldShowLoading = !isStreaming && !hasCompleted
+                    
+                    // If the model has completed, don't show it in the streaming section at all
+                    if (hasCompleted && !isStreaming) {
+                      return null
+                    }
+                    
+                    return (
+                      <div key={`${modelKey}:${index}`} className="comparison-response min-w-0">
+                        <div className="flex items-center justify-between p-3 pb-0 group">
+                          <span className="model-badge truncate">
+                            {expectedModel.provider}/{expectedModel.model}
+                          </span>
+                          {isStreaming && (
+                            <button
+                              onClick={() => copyToClipboard(streamingContent, `streaming-${modelKey}`)}
+                              className="opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                              title="Copy message"
+                            >
+                            {copiedMessageId === `streaming-${modelKey}` ? (
+                              <>
+                                <Check className="h-3 w-3" />
+                                Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3 w-3" />
+                                Copy
+                              </>
+                            )}
+                            </button>
+                          )}
+                        </div>
+                        <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-3 pt-2">
+                          {isStreaming ? (
+                            <>
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={markdownComponents}
+                              >
+                                {streamingContent}
+                              </ReactMarkdown>
+                              <div className="inline-block w-2 h-4 bg-primary animate-pulse ml-1 rounded-full" />
+                            </>
+                          ) : shouldShowLoading ? (
+                            /* Show loading state only for models that haven't started yet */
+                            <div className="flex items-center gap-3">
+                              <Lottie
+                                animationData={spinnerAnimation}
+                                loop
+                                autoplay
+                                style={{ width: 22, height: 22 }}
+                              />
+                              <span className="text-sm text-foreground/80 animate-pulse font-medium">{loadingMessage}...</span>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-3 pt-2">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={markdownComponents}
-                        >
-                          {content}
-                        </ReactMarkdown>
-                        <div className="inline-block w-2 h-4 bg-primary animate-pulse ml-1 rounded-full" />
+                    )
+                  }).filter(Boolean)
+                ) : (
+                  /* Fallback: original streaming display if no expected models provided */
+                  streamingMessagesByModel && Array.from(streamingMessagesByModel.entries()).map(([modelId, content]) => {
+                    const [provider, model] = modelId.split(':')
+                    return (
+                      <div key={modelId} className="comparison-response min-w-0">
+                        <div className="flex items-center justify-between p-3 pb-0 group">
+                          <span className="model-badge truncate">
+                            {provider}/{model}
+                          </span>
+                          <button
+                            onClick={() => copyToClipboard(content, `streaming-${modelId}`)}
+                            className="opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                            title="Copy message"
+                          >
+                          {copiedMessageId === `streaming-${modelId}` ? (
+                            <>
+                              <Check className="h-3 w-3" />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" />
+                              Copy
+                            </>
+                          )}
+                          </button>
+                        </div>
+                        <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-3 pt-2">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={markdownComponents}
+                          >
+                            {content}
+                          </ReactMarkdown>
+                          <div className="inline-block w-2 h-4 bg-primary animate-pulse ml-1 rounded-full" />
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })
+                )}
               </div>
             ) : (
               /* Single streaming response - use traditional layout */
-              Array.from(streamingMessagesByModel.entries()).map(([modelId, content]) => {
+              streamingMessagesByModel && Array.from(streamingMessagesByModel.entries()).map(([modelId, content]) => {
                 return (
                   <div key={modelId} className="message-bubble-assistant prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-4 rounded-2xl relative group">
                     <ReactMarkdown

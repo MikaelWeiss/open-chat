@@ -1061,6 +1061,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           streamingMessage={zustandStreamingMessage}
           streamingMessagesByModel={streamingMessagesByModel}
           isLoading={isLoading}
+          expectedModels={isMultiSelectMode && selectedModels.length > 0 ? selectedModels : []}
         />
       </div>
 
