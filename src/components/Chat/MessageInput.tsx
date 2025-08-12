@@ -719,15 +719,13 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             <textarea
               ref={textareaRef}
               value={message}
-              onChange={(e) => !disabled && !isLoading && setMessage(e.target.value)}
+              onChange={(e) => !disabled && setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               placeholder={
                 noProvider
                   ? "Add an AI provider or select a model to start chatting..." 
-                  : isLoading 
-                    ? "Waiting for response..." 
-                    : selectedPlaceholder
+                  : selectedPlaceholder
               }
               className={clsx(
                 'w-full resize-none bg-transparent px-4 py-2.5 min-h-[48px] max-h-[200px] focus:outline-none text-foreground',

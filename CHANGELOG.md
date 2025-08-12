@@ -2,11 +2,12 @@
 
 All notable changes to Open Chat will be documented in this file.
 
-## [0.1.8] - TBD
+## [0.1.8] - 2025-08-12
 ### Added
 - Multi-model query support: Send the same message to multiple AI models simultaneously
 
 ### Changed
+- Users can now type in the input field while the assistant is responding
 - Simplified chat interface by removing avatar icons and redundant user/assistant bubbles
 - Message bubbles now have a maximum width of 950px and center themselves in the chat area
 - Changed model selector keyboard shortcut from Cmd+F to Shift+Cmd+M
