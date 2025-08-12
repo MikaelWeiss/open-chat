@@ -344,22 +344,13 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                 <div className="comparison-grid">
                   {group.messages.map((message) => (
                     <div key={message.id} className="comparison-response min-w-0">
-                      <div className="flex items-center gap-2 p-3 pb-0">
+                      <div className="flex items-center justify-between p-3 pb-0 group">
                         <span className="model-badge truncate">
                           {message.provider}/{message.model}
                         </span>
-                      </div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-3 pt-2 relative group">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={markdownComponents}
-                        >
-                          {message.text || ''}
-                        </ReactMarkdown>
-                        
                         <button
                           onClick={() => copyToClipboard(message.text || '', message.id.toString())}
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                          className="opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
                           title="Copy message"
                         >
                         {copiedMessageId === message.id.toString() ? (
@@ -374,6 +365,14 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                           </>
                         )}
                         </button>
+                      </div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-3 pt-2">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={markdownComponents}
+                        >
+                          {message.text || ''}
+                        </ReactMarkdown>
                       </div>
                     </div>
                   ))}
@@ -406,23 +405,13 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                   const [provider, model] = modelId.split(':')
                   return (
                     <div key={modelId} className="comparison-response min-w-0">
-                      <div className="flex items-center gap-2 p-3 pb-0">
+                      <div className="flex items-center justify-between p-3 pb-0 group">
                         <span className="model-badge truncate">
                           {provider}/{model}
                         </span>
-                      </div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-3 pt-2 relative group">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={markdownComponents}
-                        >
-                          {content}
-                        </ReactMarkdown>
-                        <div className="inline-block w-2 h-4 bg-primary animate-pulse ml-1 rounded-full" />
-                        
                         <button
                           onClick={() => copyToClipboard(content, `streaming-${modelId}`)}
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                          className="opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
                           title="Copy message"
                         >
                         {copiedMessageId === `streaming-${modelId}` ? (
@@ -437,6 +426,15 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                           </>
                         )}
                         </button>
+                      </div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-3 pt-2">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={markdownComponents}
+                        >
+                          {content}
+                        </ReactMarkdown>
+                        <div className="inline-block w-2 h-4 bg-primary animate-pulse ml-1 rounded-full" />
                       </div>
                     </div>
                   )
