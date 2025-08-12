@@ -98,6 +98,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const [conversationSettings, setConversationSettings] = useState<ConversationSettings | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
   
   // Use Zustand stores
   const { 
@@ -311,7 +312,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   // Click outside to close model selector
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showModelSelector && dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (showModelSelector && dropdownRef.current && buttonRef.current && 
+          !dropdownRef.current.contains(event.target as Node) && 
+          !buttonRef.current.contains(event.target as Node)) {
         setShowModelSelector(false)
       }
     }
@@ -804,8 +807,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                   <span>Add Provider</span>
                 </button>
               ) : (
-                <div className="relative" ref={dropdownRef}>
+                <div className="relative">
                   <button
+                    ref={buttonRef}
                     onClick={() => setShowModelSelector(!showModelSelector)}
                     className="flex items-center gap-2 px-4 py-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 text-sm shadow-elegant border border-border/20 text-muted-foreground hover:text-primary hover:border-primary/30"
                     aria-label={selectedModel && selectedModel.model ? `Selected model: ${selectedModel.model}` : 'Select AI model'}
