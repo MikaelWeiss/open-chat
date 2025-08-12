@@ -435,7 +435,7 @@ export default function MessageList({ messages = [], isLoading = false, streamin
       })}
       
       {/* Streaming messages */}
-      {((streamingMessagesByModel && streamingMessagesByModel.size > 0) || (expectedModels.length > 1 && isLoading)) && (
+      {((streamingMessagesByModel && streamingMessagesByModel.size > 1) || (expectedModels.length > 1 && isLoading)) && (
         <div className="w-full max-w-[1200px] mx-auto elegant-fade-in">
           <div className="space-y-3">
             <div className="parallel-responses-header">
@@ -644,8 +644,9 @@ export default function MessageList({ messages = [], isLoading = false, streamin
         </div>
       )}
       
-      {/* Fallback: Old single streaming message for backward compatibility */}
-      {streamingMessage && (!streamingMessagesByModel || streamingMessagesByModel.size === 0) && (
+      {/* Single streaming message display */}
+      {((streamingMessage && (!streamingMessagesByModel || streamingMessagesByModel.size === 0)) || 
+        (streamingMessagesByModel && streamingMessagesByModel.size === 1 && expectedModels.length <= 1)) && (
         <div className="w-full max-w-[950px] mx-auto elegant-fade-in">
           <div className="space-y-3">
             <div className="flex items-baseline gap-3">
@@ -660,12 +661,25 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                 remarkPlugins={[remarkGfm]}
                 components={markdownComponents}
               >
-                {streamingMessage}
+                {(() => {
+                  if (streamingMessage) {
+                    return streamingMessage
+                  }
+                  if (streamingMessagesByModel && streamingMessagesByModel.size === 1) {
+                    return Array.from(streamingMessagesByModel.values())[0]
+                  }
+                  return ''
+                })()}
               </ReactMarkdown>
               <div className="inline-block w-2 h-4 bg-primary animate-pulse ml-1 rounded-full" />
               
               <button
-                onClick={() => copyToClipboard(streamingMessage, 'streaming')}
+                onClick={() => {
+                  const content = streamingMessage || 
+                    (streamingMessagesByModel && streamingMessagesByModel.size === 1 ? 
+                     Array.from(streamingMessagesByModel.values())[0] : '')
+                  copyToClipboard(content, 'streaming')
+                }}
                 className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
                 title="Copy message"
               >
