@@ -2,6 +2,21 @@
 
 All notable changes to Open Chat will be documented in this file.
 
+## [0.1.8] - TBD
+### Added
+- Multi-model query support: Send the same message to multiple AI models simultaneously
+- Side-by-side model comparison view for parallel responses
+- Individual model/provider tracking per message for better conversation context
+- Enhanced visual styling for model comparison with dedicated CSS classes
+- Model-specific conversation history for follow-up messages
+
+### Changed
+- Database schema updated to include `previous_message_id`, `provider`, and `model` columns in messages table
+- Message interface updated to support model branching and comparison
+- Chat service enhanced to handle multiple concurrent model requests
+- MessageList component redesigned to display parallel responses side-by-side
+- Improved visual indicators for multi-model conversations
+
 ## [0.1.7] - TBD
 ### Changed
 - Simplified chat interface by removing avatar icons and redundant user/assistant bubbles

@@ -4,7 +4,7 @@ import { conversationStore } from './conversationStore'
 // Message Database
 class MessageDatabase {
   private db: Database | null = null
-  private readonly SCHEMA_VERSION = 2
+  private readonly SCHEMA_VERSION = 3
 
   async init() {
     if (!this.db) {
@@ -42,9 +42,14 @@ class MessageDatabase {
         top_k INTEGER,
         processing_time_ms INTEGER,
         
+        previous_message_id INTEGER,
+        provider TEXT,
+        model TEXT,
+        
         metadata JSON,
         created_at DATETIME,
-        FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE
+        FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE,
+        FOREIGN KEY (previous_message_id) REFERENCES messages (id) ON DELETE SET NULL
       )
     `)
 
@@ -70,6 +75,9 @@ class MessageDatabase {
     if (currentVersion < 2) {
       await this.migrate_v2_add_sort_order()
     }
+    if (currentVersion < 3) {
+      await this.migrate_v3_add_multi_model_support()
+    }
 
     // Update schema version
     if (currentVersion < this.SCHEMA_VERSION) {
@@ -88,6 +96,75 @@ class MessageDatabase {
     console.log('Migration v2: Skipped sortOrder migration (functionality removed)')
   }
 
+  private async migrate_v3_add_multi_model_support() {
+    const db = this.db!
+    console.log('Migration v3: Adding multi-model support columns')
+    
+    try {
+      // Add new columns
+      await db.execute('ALTER TABLE messages ADD COLUMN previous_message_id INTEGER')
+      await db.execute('ALTER TABLE messages ADD COLUMN provider TEXT')
+      await db.execute('ALTER TABLE messages ADD COLUMN model TEXT')
+      
+      console.log('Migration v3: Added columns successfully')
+      
+      // Backfill previous_message_id for existing messages
+      const existingMessages = await db.select(
+        'SELECT id, conversation_id, created_at FROM messages ORDER BY conversation_id, created_at ASC'
+      ) as Array<{id: number, conversation_id: number, created_at: string}>
+      
+      // Group messages by conversation
+      const messagesByConversation = new Map<number, Array<{id: number, created_at: string}>>()
+      for (const msg of existingMessages) {
+        if (!messagesByConversation.has(msg.conversation_id)) {
+          messagesByConversation.set(msg.conversation_id, [])
+        }
+        messagesByConversation.get(msg.conversation_id)!.push({
+          id: msg.id,
+          created_at: msg.created_at
+        })
+      }
+      
+      // Set previous_message_id for each message
+      for (const messages of messagesByConversation.values()) {
+        for (let i = 1; i < messages.length; i++) {
+          const currentMessage = messages[i]
+          const previousMessage = messages[i - 1]
+          
+          await db.execute(
+            'UPDATE messages SET previous_message_id = $1 WHERE id = $2',
+            [previousMessage.id, currentMessage.id]
+          )
+        }
+      }
+      
+      // Migrate provider/model from conversation to existing messages
+      const conversations = await db.select(
+        'SELECT id, provider, model FROM conversations'
+      ) as Array<{id: number, provider: string, model: string}>
+      
+      for (const conv of conversations) {
+        if (conv.provider && conv.model) {
+          await db.execute(
+            'UPDATE messages SET provider = $1, model = $2 WHERE conversation_id = $3 AND role = "assistant"',
+            [conv.provider, conv.model, conv.id]
+          )
+        }
+      }
+      
+      console.log('Migration v3: Backfilled previous_message_id and provider/model data')
+      
+    } catch (err) {
+      const errorMessage = (err as Error).message
+      if (errorMessage.includes('duplicate column name')) {
+        console.log('Migration v3: Columns already exist, skipping')
+      } else {
+        console.error('Migration v3 failed:', errorMessage)
+        throw err
+      }
+    }
+  }
+
   async addMessage(conversationId: number, message: CreateMessageInput) {
     const db = await this.init()
     const now = new Date().toISOString()
@@ -96,8 +173,9 @@ class MessageDatabase {
       INSERT INTO messages (
         conversation_id, role, text, thinking, images, audio, files, [references],
         input_tokens, output_tokens, reasoning_tokens, cached_tokens, cost,
-        temperature, max_tokens, top_p, top_k, processing_time_ms, metadata, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        temperature, max_tokens, top_p, top_k, processing_time_ms,
+        previous_message_id, provider, model, metadata, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
     `, [
       conversationId,
       message.role,
@@ -117,6 +195,9 @@ class MessageDatabase {
       message.top_p || null,
       message.top_k || null,
       message.processing_time_ms || null,
+      message.previous_message_id || null,
+      message.provider || null,
+      message.model || null,
       message.metadata ? JSON.stringify(message.metadata) : null,
       now
     ])
@@ -151,6 +232,44 @@ class MessageDatabase {
     
     // Parse JSON fields
     return messages.map(this.parseMessage)
+  }
+
+  async getMessagesGrouped(conversationId: number): Promise<MessageGroup[]> {
+    const messages = await this.getMessages(conversationId)
+    
+    // Group messages by their relationships
+    const messageGroups: MessageGroup[] = []
+    const processedIds = new Set<number>()
+    
+    for (const message of messages) {
+      if (processedIds.has(message.id)) continue
+      
+      // Check if this message has siblings (same previous_message_id)
+      const siblings = messages.filter(m => 
+        m.previous_message_id === message.previous_message_id &&
+        m.previous_message_id !== null
+      )
+      
+      if (siblings.length > 1) {
+        // This is a parallel response group
+        messageGroups.push({
+          type: 'parallel',
+          messages: siblings,
+          previous_message_id: message.previous_message_id
+        })
+        siblings.forEach(sibling => processedIds.add(sibling.id))
+      } else {
+        // This is a single message
+        messageGroups.push({
+          type: 'single',
+          messages: [message],
+          previous_message_id: message.previous_message_id
+        })
+        processedIds.add(message.id)
+      }
+    }
+    
+    return messageGroups
   }
 
   async getMessage(id: number) {
@@ -195,6 +314,18 @@ class MessageDatabase {
     if (updates.metadata !== undefined) {
       fields.push('metadata = $' + (values.length + 1))
       values.push(updates.metadata ? JSON.stringify(updates.metadata) : null)
+    }
+    if (updates.previous_message_id !== undefined) {
+      fields.push('previous_message_id = $' + (values.length + 1))
+      values.push(updates.previous_message_id)
+    }
+    if (updates.provider !== undefined) {
+      fields.push('provider = $' + (values.length + 1))
+      values.push(updates.provider)
+    }
+    if (updates.model !== undefined) {
+      fields.push('model = $' + (values.length + 1))
+      values.push(updates.model)
     }
 
     values.push(id)
@@ -255,6 +386,10 @@ export interface Message {
   top_k?: number | null
   processing_time_ms?: number | null
   
+  previous_message_id?: number | null
+  provider?: string | null
+  model?: string | null
+  
   metadata?: Record<string, any> | null
   created_at: string
 }
@@ -277,6 +412,9 @@ export interface CreateMessageInput {
   top_p?: number
   top_k?: number
   processing_time_ms?: number
+  previous_message_id?: number
+  provider?: string
+  model?: string
   metadata?: Record<string, any>
 }
 
@@ -300,6 +438,9 @@ interface RawMessage {
   top_p: number | null
   top_k: number | null
   processing_time_ms: number | null
+  previous_message_id: number | null
+  provider: string | null
+  model: string | null
   metadata: string | null
   created_at: string
 }
@@ -337,4 +478,10 @@ export interface Reference {
   source_type?: 'news' | 'social' | 'web' | 'academic'
   domain?: string
   published_date?: string
+}
+
+export interface MessageGroup {
+  type: 'single' | 'parallel'
+  messages: Message[]
+  previous_message_id?: number | null
 }

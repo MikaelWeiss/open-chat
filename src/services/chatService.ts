@@ -52,6 +52,7 @@ export interface ModelConfig {
 export interface SendMessageOptions {
   conversationId: number | 'pending'
   userMessage: CreateMessageInput
+  userMessageId?: number
   systemPrompt?: string
   models: ModelConfig[]
   onStreamChunk?: (content: string, modelId: string) => void
@@ -138,6 +139,7 @@ class ChatService {
   async sendMessage({
     conversationId,
     userMessage,
+    userMessageId,
     systemPrompt,
     models,
     onStreamChunk,
@@ -155,6 +157,7 @@ class ChatService {
     return this.sendMessageToMultipleModels({
       conversationId,
       userMessage,
+      userMessageId,
       systemPrompt,
       models,
       onStreamChunk,
@@ -172,6 +175,7 @@ class ChatService {
   private async sendMessageToMultipleModels({
     conversationId,
     userMessage,
+    userMessageId,
     systemPrompt,
     models,
     onStreamChunk,
@@ -183,6 +187,7 @@ class ChatService {
   }: {
     conversationId: number | 'pending'
     userMessage: CreateMessageInput
+    userMessageId?: number
     systemPrompt?: string
     models: ModelConfig[]
     onStreamChunk?: (content: string, modelId: string) => void
@@ -210,6 +215,7 @@ class ChatService {
         const result = await this.sendMessageToSingleModel({
           conversationId,
           userMessage,
+          userMessageId,
           systemPrompt,
           modelConfig,
           modelId,
@@ -229,6 +235,9 @@ class ChatService {
           role: 'assistant' as const,
           text: `Error from ${modelConfig.provider}/${modelConfig.model}: ${err.message}`,
           processing_time_ms: Date.now() - startTime,
+          previous_message_id: userMessageId,
+          provider: modelConfig.provider,
+          model: modelConfig.model,
           metadata: { error: true, errorMessage: err.message }
         }
       }
@@ -255,6 +264,7 @@ class ChatService {
   private async sendMessageToSingleModel({
     conversationId,
     userMessage,
+    userMessageId,
     systemPrompt,
     modelConfig,
     modelId,
@@ -265,6 +275,7 @@ class ChatService {
   }: {
     conversationId: number | 'pending'
     userMessage: CreateMessageInput
+    userMessageId?: number
     systemPrompt?: string
     modelConfig: ModelConfig
     modelId: string
@@ -293,22 +304,45 @@ class ChatService {
       })
     }
 
-    // Add conversation history
+    // Add conversation history - filter to create model-specific history
     for (const message of conversationHistory) {
       if (message.role === 'system') continue // Skip system messages from history (we use systemPrompt)
       
-      const content = this.buildMessageContent({
-        role: message.role as 'user' | 'assistant',
-        text: message.text || '',
-        images: message.images || undefined,
-        audio: message.audio || undefined,
-        files: message.files || undefined
-      }, isAnthropic)
-      
-      messages.push({
-        role: message.role as 'user' | 'assistant',
-        content
-      })
+      // Include all user messages
+      if (message.role === 'user') {
+        const content = this.buildMessageContent({
+          role: message.role as 'user' | 'assistant',
+          text: message.text || '',
+          images: message.images || undefined,
+          audio: message.audio || undefined,
+          files: message.files || undefined
+        }, isAnthropic)
+        
+        messages.push({
+          role: message.role as 'user' | 'assistant',
+          content
+        })
+      }
+      // For assistant messages, only include those from the same model or if no model info exists (legacy)
+      else if (message.role === 'assistant') {
+        const isFromSameModel = (!message.provider && !message.model) || // Legacy messages without model info
+                               (message.provider === modelConfig.provider && message.model === modelConfig.model)
+        
+        if (isFromSameModel) {
+          const content = this.buildMessageContent({
+            role: message.role as 'user' | 'assistant',
+            text: message.text || '',
+            images: message.images || undefined,
+            audio: message.audio || undefined,
+            files: message.files || undefined
+          }, isAnthropic)
+          
+          messages.push({
+            role: message.role as 'user' | 'assistant',
+            content
+          })
+        }
+      }
     }
 
     // Convert current user message to provider format and add it
@@ -396,7 +430,9 @@ class ChatService {
 
     if (requestPayload.stream) {
       return this.handleStreamResponse(response, {
+        provider: modelConfig.provider,
         model: modelConfig.model,
+        userMessageId,
         processingTime,
         onStreamChunk: onStreamChunk ? (content: string) => onStreamChunk(content, modelId) : undefined,
         onStreamComplete: onStreamComplete ? (message: CreateMessageInput) => onStreamComplete(message, modelId) : undefined,
@@ -404,7 +440,9 @@ class ChatService {
       })
     } else {
       return this.handleNonStreamResponse(response, {
+        provider: modelConfig.provider,
         model: modelConfig.model,
+        userMessageId,
         processingTime
       })
     }
@@ -569,7 +607,9 @@ class ChatService {
   private async handleStreamResponse(
     response: Response, 
     options: {
+      provider: string
       model: string
+      userMessageId?: number
       processingTime: number
       onStreamChunk?: (content: string) => void
       onStreamComplete?: (message: CreateMessageInput) => void
@@ -635,7 +675,10 @@ class ChatService {
         text: fullContent,
         input_tokens: totalInputTokens,
         output_tokens: totalOutputTokens,
-        processing_time_ms: options.processingTime
+        processing_time_ms: options.processingTime,
+        previous_message_id: options.userMessageId,
+        provider: options.provider,
+        model: options.model
       }
 
       // Only call onStreamComplete if not aborted (let the cancel handler save partial content)
@@ -654,7 +697,10 @@ class ChatService {
           text: fullContent,
           input_tokens: totalInputTokens,
           output_tokens: totalOutputTokens,
-          processing_time_ms: options.processingTime
+          processing_time_ms: options.processingTime,
+          previous_message_id: options.userMessageId,
+          provider: options.provider,
+          model: options.model
         }
       }
       throw error
@@ -669,7 +715,9 @@ class ChatService {
   private async handleNonStreamResponse(
     response: Response,
     options: {
+      provider: string
       model: string
+      userMessageId?: number
       processingTime: number
     }
   ): Promise<CreateMessageInput> {
@@ -680,7 +728,10 @@ class ChatService {
       text: data.choices[0]?.message?.content || '',
       input_tokens: data.usage?.prompt_tokens,
       output_tokens: data.usage?.completion_tokens,
-      processing_time_ms: options.processingTime
+      processing_time_ms: options.processingTime,
+      previous_message_id: options.userMessageId,
+      provider: options.provider,
+      model: options.model
     }
 
     return assistantMessage

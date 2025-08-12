@@ -647,7 +647,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       }
       
       // Add user message to store (which handles both draft and persistent)
-      await addMessageToStore(activeConversationId, userMessage)
+      const userMessageId = await addMessageToStore(activeConversationId, userMessage)
       
       // Track message sent event
       telemetryService.trackMessageSent(effectiveProvider, effectiveModel, message.length)
@@ -678,6 +678,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       await chatService.sendMessage({
         conversationId: activeConversationId,
         userMessage,
+        userMessageId: typeof userMessageId === 'number' ? userMessageId : undefined,
         systemPrompt: currentConversation?.system_prompt || undefined,
         models: modelConfigs,
         signal: controller.signal,
