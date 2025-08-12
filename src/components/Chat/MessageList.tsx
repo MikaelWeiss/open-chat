@@ -341,10 +341,8 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                 </div>
                 
                 {/* Side by side responses */}
-                <div className="comparison-grid" style={{ 
-                  gridTemplateColumns: `repeat(${Math.min(group.messages.length, 3)}, 1fr)` 
-                }}>
-                  {group.messages.slice(0, 3).map((message) => (
+                <div className="comparison-grid">
+                  {group.messages.map((message) => (
                     <div key={message.id} className="comparison-response min-w-0">
                       <div className="flex items-center gap-2 p-3 pb-0">
                         <span className="model-badge truncate">
@@ -381,12 +379,6 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                   ))}
                 </div>
                 
-                {/* Show remaining responses if more than 3 */}
-                {group.messages.length > 3 && (
-                  <div className="text-xs text-muted-foreground text-center pt-2">
-                    +{group.messages.length - 3} more response{group.messages.length - 3 !== 1 ? 's' : ''}
-                  </div>
-                )}
               </div>
             </div>
           )
@@ -409,10 +401,8 @@ export default function MessageList({ messages = [], isLoading = false, streamin
             
             {streamingMessagesByModel.size > 1 ? (
               /* Multiple streaming responses - display side by side */
-              <div className="comparison-grid" style={{ 
-                gridTemplateColumns: `repeat(${Math.min(streamingMessagesByModel.size, 3)}, 1fr)` 
-              }}>
-                {Array.from(streamingMessagesByModel.entries()).slice(0, 3).map(([modelId, content]) => {
+              <div className="comparison-grid">
+                {Array.from(streamingMessagesByModel.entries()).map(([modelId, content]) => {
                   const [provider, model] = modelId.split(':')
                   return (
                     <div key={modelId} className="comparison-response min-w-0">
