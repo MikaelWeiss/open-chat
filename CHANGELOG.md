@@ -3,6 +3,9 @@
 All notable changes to Open Chat will be documented in this file.
 
 ## [0.1.8] - 2025-08-12
+### Added
+- Added local LLM support
+
 ### Changed
 - Users can now type in the input field while the assistant is responding
 

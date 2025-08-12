@@ -28,10 +28,6 @@ export interface OllamaModelResponse {
   models: OllamaModel[];
 }
 
-export interface OllamaLibraryResponse {
-  models: OllamaLibraryModel[];
-}
-
 export interface OllamaDownloadProgress {
   status: 'pulling' | 'success' | 'error';
   digest?: string;
@@ -110,272 +106,278 @@ export class OllamaService {
   }
 
   /**
-   * Search for models in Ollama library
+   * Search for models in Ollama library using a static list of popular models
    */
   async searchLibraryModels(query?: string): Promise<OllamaLibraryModel[]> {
     try {
-      // Comprehensive list of popular Ollama models based on the official registry
-      const availableModels: OllamaLibraryModel[] = [
-        // Meta Llama Models
+      console.log('Getting popular models from static list...');
+      
+      // Complete list of Ollama models based on the library page
+      const models: OllamaLibraryModel[] = [
+        {
+          name: 'gpt-oss',
+          description: 'OpenAI\'s open-weight models designed for powerful reasoning, agentic tasks, and versatile developer use cases.',
+          tags: ['20b', '120b', 'tools', 'thinking'],
+          updated_at: '2025-08-11T22:43:00Z',
+          pulls: 840000
+        },
+        {
+          name: 'deepseek-r1',
+          description: 'DeepSeek-R1 is a family of open reasoning models with performance approaching that of leading models, such as O3 and Gemini 2.5 Pro.',
+          tags: ['1.5b', '7b', '8b', '14b', '32b', '70b', '671b', 'tools', 'thinking'],
+          updated_at: '2025-07-02T06:09:00Z',
+          pulls: 57000000
+        },
+        {
+          name: 'gemma3',
+          description: 'The current, most capable model that runs on a single GPU.',
+          tags: ['1b', '4b', '12b', '27b', 'vision'],
+          updated_at: '2025-04-18T02:08:00Z',
+          pulls: 11700000
+        },
+        {
+          name: 'qwen3',
+          description: 'Qwen3 is the latest generation of large language models in Qwen series, offering a comprehensive suite of dense and mixture-of-experts (MoE) models.',
+          tags: ['0.6b', '1.7b', '4b', '8b', '14b', '30b', '32b', '235b', 'tools', 'thinking'],
+          updated_at: '2025-01-15T10:00:00Z',
+          pulls: 5100000
+        },
+        {
+          name: 'llama3.3',
+          description: 'Meta Llama 3.3 70B is a multilingual large language model optimized for conversational use cases.',
+          tags: ['70b', 'instruct'],
+          updated_at: '2024-12-06T00:00:00Z',
+          pulls: 4200000
+        },
+        {
+          name: 'deepseek-r1-distill',
+          description: 'DeepSeek-R1-Distill is a distilled version of DeepSeek-R1 that retains its reasoning capabilities while being more efficient.',
+          tags: ['1.5b', '7b', '8b', '14b', '32b', '70b', 'thinking'],
+          updated_at: '2025-01-21T00:00:00Z',
+          pulls: 3800000
+        },
         {
           name: 'llama3.2',
-          description: 'Meta\'s latest Llama 3.2 model with vision capabilities',
-          tags: ['1b', '3b', '11b', '90b'],
-          updated_at: new Date().toISOString(),
-          pulls: 2000000,
+          description: 'Meta Llama 3.2 is a collection of instruction-tuned generative models in 1B, 3B, 11B and 90B sizes.',
+          tags: ['1b', '3b', '11b', '90b', 'vision', 'instruct'],
+          updated_at: '2024-10-23T00:00:00Z',
+          pulls: 25000000
         },
         {
           name: 'llama3.1',
-          description: 'Meta\'s Llama 3.1 with 128K context and tool use',
-          tags: ['8b', '70b', '405b'],
-          updated_at: new Date().toISOString(),
-          pulls: 1500000,
-        },
-        {
-          name: 'llama3',
-          description: 'Meta\'s powerful Llama 3 language model',
-          tags: ['8b', '70b'],
-          updated_at: new Date().toISOString(),
-          pulls: 1200000,
-        },
-        {
-          name: 'llama2',
-          description: 'Meta\'s Llama 2 open foundation model',
-          tags: ['7b', '13b', '70b'],
-          updated_at: new Date().toISOString(),
-          pulls: 800000,
-        },
-        
-        // Code Models
-        {
-          name: 'codellama',
-          description: 'Meta\'s Code Llama for code generation and understanding',
-          tags: ['7b', '13b', '34b'],
-          updated_at: new Date().toISOString(),
-          pulls: 600000,
-        },
-        {
-          name: 'codegemma',
-          description: 'Google\'s CodeGemma for code completion and generation',
-          tags: ['2b', '7b'],
-          updated_at: new Date().toISOString(),
-          pulls: 300000,
-        },
-        {
-          name: 'deepseek-coder',
-          description: 'DeepSeek\'s specialized coding model',
-          tags: ['1.3b', '6.7b', '33b'],
-          updated_at: new Date().toISOString(),
-          pulls: 250000,
-        },
-        
-        // Vision Models  
-        {
-          name: 'llava',
-          description: 'Large Language and Vision Assistant for multimodal tasks',
-          tags: ['7b', '13b', '34b'],
-          updated_at: new Date().toISOString(),
-          pulls: 400000,
-        },
-        {
-          name: 'llava-llama3',
-          description: 'LLaVA based on Llama 3 with improved vision capabilities',
-          tags: ['8b'],
-          updated_at: new Date().toISOString(),
-          pulls: 200000,
-        },
-        {
-          name: 'llava-phi3',
-          description: 'LLaVA based on Phi-3 for efficient vision-language tasks',
-          tags: ['mini'],
-          updated_at: new Date().toISOString(),
-          pulls: 150000,
-        },
-        
-        // Microsoft Models
-        {
-          name: 'phi3',
-          description: 'Microsoft\'s efficient Phi-3 small language model',
-          tags: ['mini', 'small', 'medium'],
-          updated_at: new Date().toISOString(),
-          pulls: 500000,
-        },
-        {
-          name: 'phi3.5',
-          description: 'Microsoft\'s improved Phi-3.5 with better performance',
-          tags: ['mini'],
-          updated_at: new Date().toISOString(),
-          pulls: 300000,
-        },
-        
-        // Mistral Models
-        {
-          name: 'mistral',
-          description: 'Mistral 7B foundational model',
-          tags: ['7b'],
-          updated_at: new Date().toISOString(),
-          pulls: 700000,
-        },
-        {
-          name: 'mixtral',
-          description: 'Mistral\'s Mixture of Experts model',
-          tags: ['8x7b', '8x22b'],
-          updated_at: new Date().toISOString(),
-          pulls: 400000,
-        },
-        {
-          name: 'mistral-nemo',
-          description: 'Mistral\'s latest Nemo model with 12B parameters',
-          tags: ['12b'],
-          updated_at: new Date().toISOString(),
-          pulls: 200000,
-        },
-        
-        // Google Models
-        {
-          name: 'gemma',
-          description: 'Google\'s Gemma lightweight model family',
-          tags: ['2b', '7b'],
-          updated_at: new Date().toISOString(),
-          pulls: 450000,
-        },
-        {
-          name: 'gemma2',
-          description: 'Google\'s improved Gemma 2 with better performance',
-          tags: ['2b', '9b', '27b'],
-          updated_at: new Date().toISOString(),
-          pulls: 350000,
-        },
-        
-        // Qwen Models
-        {
-          name: 'qwen',
-          description: 'Alibaba\'s Qwen large language model',
-          tags: ['0.5b', '1.8b', '4b', '7b', '14b', '72b'],
-          updated_at: new Date().toISOString(),
-          pulls: 300000,
-        },
-        {
-          name: 'qwen2',
-          description: 'Alibaba\'s improved Qwen 2 model',
-          tags: ['0.5b', '1.5b', '7b', '72b'],
-          updated_at: new Date().toISOString(),
-          pulls: 400000,
+          description: 'Meta developed and released the Meta Llama 3 family of large language models (LLMs), a collection of pretrained and instruction tuned generative text models.',
+          tags: ['8b', '70b', '405b', 'instruct'],
+          updated_at: '2024-07-23T00:00:00Z',
+          pulls: 20000000
         },
         {
           name: 'qwen2.5',
-          description: 'Alibaba\'s latest Qwen 2.5 with enhanced capabilities',
+          description: 'Qwen2.5 is the latest series of Qwen large language models.',
           tags: ['0.5b', '1.5b', '3b', '7b', '14b', '32b', '72b'],
-          updated_at: new Date().toISOString(),
-          pulls: 250000,
+          updated_at: '2024-09-19T00:00:00Z',
+          pulls: 8000000
         },
-        
-        // Specialized Models
+        {
+          name: 'mistral',
+          description: 'The 7B model released by Mistral AI, updated to version 0.3.',
+          tags: ['7b', 'instruct'],
+          updated_at: '2024-05-22T00:00:00Z',
+          pulls: 5000000
+        },
+        {
+          name: 'phi3',
+          description: 'Phi-3 is a family of open AI models developed by Microsoft.',
+          tags: ['3.8b', '14b', 'mini', 'medium'],
+          updated_at: '2024-04-24T00:00:00Z',
+          pulls: 4000000
+        },
+        {
+          name: 'phi4',
+          description: 'Phi-4 is Microsoft\'s latest small language model, offering improved performance over Phi-3.',
+          tags: ['14b'],
+          updated_at: '2024-12-11T00:00:00Z',
+          pulls: 3200000
+        },
+        {
+          name: 'codellama',
+          description: 'Code Llama is a model for generating and discussing code, built on top of Llama 2.',
+          tags: ['7b', '13b', '34b', 'code', 'instruct'],
+          updated_at: '2023-08-24T00:00:00Z',
+          pulls: 3500000
+        },
+        {
+          name: 'llava',
+          description: 'LLaVA is a novel end-to-end trained large multimodal model that combines a vision encoder and Vicuna for general-purpose visual and language understanding.',
+          tags: ['7b', '13b', '34b', 'vision', 'multimodal'],
+          updated_at: '2023-10-17T00:00:00Z',
+          pulls: 3000000
+        },
+        {
+          name: 'gemma2',
+          description: 'Gemma 2 is a family of lightweight, state-of-the-art open models from Google.',
+          tags: ['2b', '9b', '27b'],
+          updated_at: '2024-06-27T00:00:00Z',
+          pulls: 2500000
+        },
+        {
+          name: 'qwen',
+          description: 'Qwen is a series of Large Language Models developed by Alibaba Cloud.',
+          tags: ['0.5b', '1.8b', '4b', '7b', '14b', '72b'],
+          updated_at: '2023-09-25T00:00:00Z',
+          pulls: 2000000
+        },
+        {
+          name: 'mistral-nemo',
+          description: 'A 12B model with 128k context length, developed by Mistral AI in collaboration with NVIDIA.',
+          tags: ['12b'],
+          updated_at: '2024-07-18T00:00:00Z',
+          pulls: 1800000
+        },
+        {
+          name: 'granite3',
+          description: 'IBM Granite 3.0 is a family of lightweight, open models for enterprise applications.',
+          tags: ['2b', '8b', 'dense', 'moe'],
+          updated_at: '2024-12-19T00:00:00Z',
+          pulls: 1600000
+        },
+        {
+          name: 'qwen2.5-coder',
+          description: 'The latest series of Code-Specific Qwen models, with significant improvements in code generation and reasoning.',
+          tags: ['1.5b', '3b', '7b', '14b', '32b', 'code'],
+          updated_at: '2024-11-12T00:00:00Z',
+          pulls: 1500000
+        },
+        {
+          name: 'llama3',
+          description: 'Meta Llama 3: The most capable openly available LLM to date.',
+          tags: ['8b', '70b', 'instruct'],
+          updated_at: '2024-04-18T00:00:00Z',
+          pulls: 15000000
+        },
+        {
+          name: 'gemma',
+          description: 'Gemma is a family of lightweight, state-of-the-art open models from Google.',
+          tags: ['2b', '7b'],
+          updated_at: '2024-02-21T00:00:00Z',
+          pulls: 1400000
+        },
+        {
+          name: 'starcoder2',
+          description: 'StarCoder2 is the next generation of transparently trained open code LLMs.',
+          tags: ['3b', '7b', '15b', 'code'],
+          updated_at: '2024-02-28T00:00:00Z',
+          pulls: 1300000
+        },
+        {
+          name: 'llava-phi3',
+          description: 'A multimodal model that combines the Phi-3 language model with LLaVA\'s visual capabilities.',
+          tags: ['3.8b', 'vision', 'multimodal'],
+          updated_at: '2024-05-23T00:00:00Z',
+          pulls: 1200000
+        },
+        {
+          name: 'marco-o1',
+          description: 'Marco-o1 is a large reasoning model trained on Chain-of-Thought data.',
+          tags: ['7b', 'reasoning'],
+          updated_at: '2024-11-21T00:00:00Z',
+          pulls: 1100000
+        },
+        {
+          name: 'nemotron-mini',
+          description: 'A compact model in the Nemotron family, optimized for efficiency.',
+          tags: ['4b'],
+          updated_at: '2024-10-01T00:00:00Z',
+          pulls: 1000000
+        },
         {
           name: 'dolphin-mistral',
-          description: 'Uncensored Dolphin model based on Mistral',
+          description: 'An uncensored fine-tune of Mistral with a variety of instruction, conversational, and coding skills.',
           tags: ['7b'],
-          updated_at: new Date().toISOString(),
-          pulls: 200000,
+          updated_at: '2024-03-15T00:00:00Z',
+          pulls: 950000
         },
         {
-          name: 'dolphin-llama3',
-          description: 'Uncensored Dolphin model based on Llama 3',
-          tags: ['8b', '70b'],
-          updated_at: new Date().toISOString(),
-          pulls: 180000,
+          name: 'aya',
+          description: 'Aya 23 is an open weights research release of an instruction following model with highly advanced multilingual capabilities.',
+          tags: ['8b', '35b', 'multilingual'],
+          updated_at: '2024-05-23T00:00:00Z',
+          pulls: 900000
         },
         {
-          name: 'openchat',
-          description: 'OpenChat conversational AI model',
-          tags: ['7b'],
-          updated_at: new Date().toISOString(),
-          pulls: 150000,
+          name: 'mistral-large',
+          description: 'Mistral Large: flagship model, top-tier reasoning for high-complexity tasks.',
+          tags: ['123b'],
+          updated_at: '2024-07-24T00:00:00Z',
+          pulls: 850000
         },
         {
-          name: 'neural-chat',
-          description: 'Intel\'s Neural Chat model for conversations',
-          tags: ['7b'],
-          updated_at: new Date().toISOString(),
-          pulls: 120000,
-        },
-        {
-          name: 'starling-lm',
-          description: 'Berkeley\'s Starling language model with RLAIF training',
-          tags: ['7b'],
-          updated_at: new Date().toISOString(),
-          pulls: 100000,
+          name: 'wizard-vicuna-uncensored',
+          description: 'Wizard Vicuna 13B Uncensored is a 13B model for generating and following instructions.',
+          tags: ['13b', 'uncensored'],
+          updated_at: '2023-07-01T00:00:00Z',
+          pulls: 800000
         },
         {
           name: 'nous-hermes2',
-          description: 'Nous Research\'s Hermes 2 with improved reasoning',
-          tags: ['10.7b', '34b'],
-          updated_at: new Date().toISOString(),
-          pulls: 150000,
-        },
-        {
-          name: 'solar',
-          description: 'Upstage\'s Solar model with strong performance',
-          tags: ['10.7b'],
-          updated_at: new Date().toISOString(),
-          pulls: 120000,
-        },
-        
-        // Math and Reasoning Models
-        {
-          name: 'wizard-math',
-          description: 'WizardMath model specialized for mathematical reasoning',
-          tags: ['7b', '13b', '70b'],
-          updated_at: new Date().toISOString(),
-          pulls: 80000,
-        },
-        {
-          name: 'deepseek-math',
-          description: 'DeepSeek\'s mathematical reasoning model',
+          description: 'The flagship Nous Research model trained over the Mistral 7B base.',
           tags: ['7b'],
-          updated_at: new Date().toISOString(),
-          pulls: 70000,
+          updated_at: '2024-01-09T00:00:00Z',
+          pulls: 750000
         },
-        
-        // Other Notable Models
         {
-          name: 'orca-mini',
-          description: 'Microsoft\'s Orca Mini reasoning model',
-          tags: ['3b', '7b', '13b'],
-          updated_at: new Date().toISOString(),
-          pulls: 200000,
+          name: 'llama2',
+          description: 'Llama 2 is a collection of foundation language models ranging from 7B to 70B parameters.',
+          tags: ['7b', '13b', '70b'],
+          updated_at: '2023-07-18T00:00:00Z',
+          pulls: 700000
+        },
+        {
+          name: 'deepseek-coder',
+          description: 'DeepSeek Coder is a model series for code generation.',
+          tags: ['1.3b', '6.7b', '33b', 'code'],
+          updated_at: '2023-11-15T00:00:00Z',
+          pulls: 650000
         },
         {
           name: 'vicuna',
-          description: 'UC Berkeley\'s Vicuna conversational model',
+          description: 'An open-source chatbot trained by fine-tuning LLaMA.',
           tags: ['7b', '13b', '33b'],
-          updated_at: new Date().toISOString(),
-          pulls: 180000,
+          updated_at: '2023-03-30T00:00:00Z',
+          pulls: 600000
         },
         {
-          name: 'zephyr',
-          description: 'HuggingFace\'s Zephyr fine-tuned model',
-          tags: ['7b'],
-          updated_at: new Date().toISOString(),
-          pulls: 160000,
+          name: 'falcon',
+          description: 'Falcon is a foundation model from the Technology Innovation Institute.',
+          tags: ['7b', '40b', '180b'],
+          updated_at: '2023-05-25T00:00:00Z',
+          pulls: 550000
         },
+        {
+          name: 'neural-chat',
+          description: 'A fine-tuned model based on Mistral with good conversation capabilities.',
+          tags: ['7b'],
+          updated_at: '2023-11-01T00:00:00Z',
+          pulls: 500000
+        }
       ];
 
+      // Filter by query if provided
       if (query) {
         const queryLower = query.toLowerCase();
-        return availableModels.filter(model => 
+        const filtered = models.filter(model => 
           model.name.toLowerCase().includes(queryLower) ||
           model.description?.toLowerCase().includes(queryLower) ||
           model.tags.some(tag => tag.toLowerCase().includes(queryLower))
         );
+        console.log(`Filtered to ${filtered.length} models based on query: "${query}"`);
+        return filtered;
       }
 
-      return availableModels;
+      console.log(`Returning ${models.length} models from static list`);
+      return models;
     } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Failed to search library models: ${error.message}`);
-      }
-      throw new Error('Failed to search library models: Unknown error');
+      console.warn('Failed to get models from static list:', error);
+      return [];
     }
   }
 

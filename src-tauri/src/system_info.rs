@@ -368,15 +368,29 @@ async fn get_available_storage_for_path(path: &str) -> Result<u64, String> {
     let output_str = String::from_utf8_lossy(&output.stdout);
     let lines: Vec<&str> = output_str.lines().collect();
     
-    if lines.len() >= 2 {
-        let fields: Vec<&str> = lines[1].split_whitespace().collect();
+    // Skip header line and find the data line
+    for (i, line) in lines.iter().enumerate() {
+        if i == 0 {
+            continue; // Skip header
+        }
+        
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        
+        // df output can vary in format, but available space is typically the 4th field (index 3)
+        // Sometimes filesystem name spans multiple lines, so check for various field counts
         if fields.len() >= 4 {
-            return fields[3].parse::<u64>()
-                .map_err(|e| format!("Failed to parse available storage: {}", e));
+            if let Ok(available_bytes) = fields[3].parse::<u64>() {
+                return Ok(available_bytes);
+            }
+        } else if fields.len() >= 3 {
+            // Sometimes available space is in the 3rd field
+            if let Ok(available_bytes) = fields[2].parse::<u64>() {
+                return Ok(available_bytes);
+            }
         }
     }
     
-    Err("Could not parse df output".to_string())
+    Err(format!("Could not parse df output. Raw output: {}", output_str))
 }
 
 #[tauri::command]
