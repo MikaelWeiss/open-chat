@@ -119,28 +119,7 @@ export default function MessageList({ messages = [], isLoading = false, streamin
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const { userName } = useSettings()
   
-  // Helper function to check if a model has completed
-  const hasModelCompleted = (expectedModel: {provider: string, model: string}) => {
-    return messages.some(msg => 
-      msg.role === 'assistant' && 
-      msg.provider === expectedModel.provider && 
-      msg.model === expectedModel.model &&
-      msg.previous_message_id === messages.filter(m => m.role === 'user').slice(-1)[0]?.id
-    )
-  }
   
-  // Helper function to check if a model is currently streaming
-  const isModelStreaming = (expectedModel: {provider: string, model: string}) => {
-    const modelKey = `${expectedModel.provider}:${expectedModel.model}`
-    return streamingMessagesByModel ? 
-      Array.from(streamingMessagesByModel.entries())
-        .some(([id]) => id.startsWith(modelKey)) : false
-  }
-  
-  // Get active models (streaming or waiting to start)
-  const activeModels = expectedModels.filter(model => 
-    isModelStreaming(model) || !hasModelCompleted(model)
-  )
   
   // Group messages by their relationships for side-by-side display
   const groupedMessages = React.useMemo(() => {
@@ -707,8 +686,8 @@ export default function MessageList({ messages = [], isLoading = false, streamin
         </div>
       )}
       
-      {/* Loading indicator - show when loading and no streaming started yet */}
-      {isLoading && !streamingMessage && (!streamingMessagesByModel || streamingMessagesByModel.size === 0) && (
+      {/* Loading indicator - show when loading and no streaming started yet, but hide in multi-model mode */}
+      {isLoading && !streamingMessage && (!streamingMessagesByModel || streamingMessagesByModel.size === 0) && expectedModels.length <= 1 && (
         <div className="w-full max-w-[950px] mx-auto elegant-fade-in">
           <div className="space-y-3">
             <div className="flex items-baseline gap-3">
