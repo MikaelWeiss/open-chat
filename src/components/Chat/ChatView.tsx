@@ -13,6 +13,7 @@ import { chatService } from '../../services/chatService'
 import { telemetryService } from '../../services/telemetryService'
 import clsx from 'clsx'
 import EmptyState from '../EmptyState/EmptyState'
+import { getConversationModelDisplay } from '../../utils/conversationUtils'
 
 interface ChatViewProps {
   conversationId?: number | 'pending' | null
@@ -795,8 +796,14 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             </h2>
             <p className="text-sm text-muted-foreground/80 truncate">
               {isMultiSelectMode && selectedModels.length > 0 
-                ? `${selectedModels.length} models selected` 
-                : `${currentConversation?.provider || selectedModel?.provider || 'No Provider'} • ${currentConversation?.model || selectedModel?.model || 'No Model'}`
+                ? `Multi-Model (${selectedModels.length} selected)` 
+                : (() => {
+                    const modelDisplay = getConversationModelDisplay(currentConversation?.model || selectedModel?.model, messages)
+                    const provider = currentConversation?.provider || selectedModel?.provider || 'No Provider'
+                    return modelDisplay === 'Multi-Model' 
+                      ? modelDisplay
+                      : `${provider} • ${modelDisplay}`
+                  })()
               }
             </p>
           </div>
