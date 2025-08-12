@@ -27,7 +27,7 @@ interface AppState {
   
   // Messages
   messagesByConversation: Map<number | 'pending', Message[]>
-  streamingMessages: Map<number | 'pending', string>
+  streamingMessages: Map<number | 'pending', Map<string, string>> // conversationId -> modelId -> content
   loadingConversations: Set<number>
   
   // Providers
@@ -49,9 +49,10 @@ interface AppState {
   
   // Actions - Messages
   loadMessages: (conversationId: number) => Promise<void>
-  addMessage: (conversationId: number | 'pending', message: CreateMessageInput) => Promise<void>
-  setStreamingMessage: (conversationId: number | 'pending', content: string) => void
-  clearStreamingMessage: (conversationId: number | 'pending') => void
+  addMessage: (conversationId: number | 'pending', message: CreateMessageInput) => Promise<number>
+  setStreamingMessage: (conversationId: number | 'pending', content: string, modelId?: string) => void
+  clearStreamingMessage: (conversationId: number | 'pending', modelId?: string) => void
+  getStreamingMessagesByModel: (conversationId: number | 'pending') => Map<string, string>
   
   // Actions - Providers
   loadProviders: () => Promise<void>
@@ -318,13 +319,14 @@ export const useAppStore = create<AppState>()(
       }
     },
 
-    addMessage: async (conversationId: number | 'pending', message: CreateMessageInput) => {
+    addMessage: async (conversationId: number | 'pending', message: CreateMessageInput): Promise<number> => {
       if (conversationId === 'pending') {
         // Pending conversation - store in memory
         const state = get()
         const existingMessages = state.messagesByConversation.get('pending') || []
+        const messageId = Date.now()
         const newMessage: Message = {
-          id: Date.now(),
+          id: messageId,
           conversation_id: 'pending' as any,
           role: message.role,
           text: message.text || '',
@@ -339,17 +341,22 @@ export const useAppStore = create<AppState>()(
           cached_tokens: message.cached_tokens,
           cost: message.cost,
           processing_time_ms: message.processing_time_ms,
+          previous_message_id: message.previous_message_id,
+          provider: message.provider,
+          model: message.model,
           created_at: new Date().toISOString()
         }
         
         set((state) => ({
           messagesByConversation: new Map(state.messagesByConversation.set('pending', [...existingMessages, newMessage]))
         }))
+        
+        return messageId
       } else {
         // Persistent conversation - save to database and update memory
         try {
           get().clearError(conversationId)
-          await messageStore.addMessage(conversationId, message)
+          const messageId = await messageStore.addMessage(conversationId, message)
           await get().loadMessages(conversationId)
           get().resetRetryAttempt(conversationId)
           
@@ -357,28 +364,50 @@ export const useAppStore = create<AppState>()(
           import('../utils/messageSync').then(({ messageSync }) => {
             messageSync.notifyMessageUpdate(conversationId)
           }).catch(() => {})
+          
+          return messageId || 0
         } catch (error) {
           console.error('Failed to add message:', error)
           get().setError(conversationId, `Failed to save message: ${error}`)
+          throw error
         }
       }
     },
 
-    setStreamingMessage: (conversationId: number | 'pending', content: string) => {
+    setStreamingMessage: (conversationId: number | 'pending', content: string, modelId = 'default') => {
       set((state) => {
-        const currentContent = state.streamingMessages.get(conversationId) || ''
-        return {
-          streamingMessages: new Map(state.streamingMessages.set(conversationId, currentContent + content))
-        }
+        const newStreamingMessages = new Map(state.streamingMessages)
+        const conversationStreams = newStreamingMessages.get(conversationId) || new Map<string, string>()
+        const currentContent = conversationStreams.get(modelId) || ''
+        conversationStreams.set(modelId, currentContent + content)
+        newStreamingMessages.set(conversationId, conversationStreams)
+        return { streamingMessages: newStreamingMessages }
       })
     },
 
-    clearStreamingMessage: (conversationId: number | 'pending') => {
+    clearStreamingMessage: (conversationId: number | 'pending', modelId?: string) => {
       set((state) => {
         const newStreamingMessages = new Map(state.streamingMessages)
-        newStreamingMessages.delete(conversationId)
+        if (modelId) {
+          // Clear specific model stream
+          const conversationStreams = newStreamingMessages.get(conversationId)
+          if (conversationStreams) {
+            conversationStreams.delete(modelId)
+            if (conversationStreams.size === 0) {
+              newStreamingMessages.delete(conversationId)
+            }
+          }
+        } else {
+          // Clear all streams for conversation
+          newStreamingMessages.delete(conversationId)
+        }
         return { streamingMessages: newStreamingMessages }
       })
+    },
+
+    getStreamingMessagesByModel: (conversationId: number | 'pending') => {
+      const state = get()
+      return state.streamingMessages.get(conversationId) || new Map<string, string>()
     },
 
     // Provider actions
@@ -457,7 +486,18 @@ export const useAppStore = create<AppState>()(
     },
 
     getStreamingMessage: (conversationId: number | 'pending') => {
-      return get().streamingMessages.get(conversationId) || ''
+      // For backward compatibility, return the combined content of all streaming messages
+      const modelStreams = get().streamingMessages.get(conversationId)
+      if (!modelStreams) return ''
+      
+      // If there's only one stream, return it directly
+      if (modelStreams.size === 1) {
+        return Array.from(modelStreams.values())[0]
+      }
+      
+      // For multiple streams, we'll just return the first one for backward compatibility
+      // The UI should use getStreamingMessagesByModel for proper multi-model support
+      return Array.from(modelStreams.values())[0] || ''
     },
 
     // Cleanup method
@@ -549,6 +589,7 @@ export const useMessages = (conversationId: number | 'pending' | null) => {
   const addMessage = useAppStore((state) => state.addMessage)
   const setStreamingMessage = useAppStore((state) => state.setStreamingMessage)
   const clearStreamingMessage = useAppStore((state) => state.clearStreamingMessage)
+  const getStreamingMessagesByModel = useAppStore((state) => state.getStreamingMessagesByModel)
 
   // Memoize derived values
   const messages = useMemo(() => {
@@ -556,8 +597,22 @@ export const useMessages = (conversationId: number | 'pending' | null) => {
   }, [conversationId, messagesByConversation])
 
   const streamingMessage = useMemo(() => {
-    return conversationId ? (streamingMessages.get(conversationId) || '') : ''
+    if (!conversationId) return ''
+    const modelStreams = streamingMessages.get(conversationId)
+    if (!modelStreams) return ''
+    
+    // For backward compatibility, return the combined content of all streaming messages
+    if (modelStreams.size === 1) {
+      return Array.from(modelStreams.values())[0]
+    }
+    
+    // For multiple streams, just return the first one for backward compatibility
+    return Array.from(modelStreams.values())[0] || ''
   }, [conversationId, streamingMessages])
+  
+  const streamingMessagesByModel = useMemo(() => {
+    return conversationId ? getStreamingMessagesByModel(conversationId) : new Map<string, string>()
+  }, [conversationId, getStreamingMessagesByModel, streamingMessages])
 
   const isLoading = useMemo(() => {
     return conversationId && typeof conversationId === 'number' ? loadingConversations.has(conversationId) : false
@@ -566,6 +621,7 @@ export const useMessages = (conversationId: number | 'pending' | null) => {
   return {
     messages,
     streamingMessage,
+    streamingMessagesByModel,
     isLoading,
     loadMessages,
     addMessage,

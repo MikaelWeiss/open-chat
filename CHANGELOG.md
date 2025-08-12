@@ -9,12 +9,16 @@ All notable changes to Open Chat will be documented in this file.
 - Individual model/provider tracking per message for better conversation context
 - Enhanced visual styling for model comparison with dedicated CSS classes
 - Model-specific conversation history for follow-up messages
+- Real-time side-by-side streaming: Multiple models stream responses concurrently in separate columns
+- Individual streaming progress per model with model badges and copy functionality
 
 ### Changed
 - Database schema updated to include `previous_message_id`, `provider`, and `model` columns in messages table
 - Message interface updated to support model branching and comparison
 - Chat service enhanced to handle multiple concurrent model requests
 - MessageList component redesigned to display parallel responses side-by-side
+- App store updated to support multiple concurrent streaming messages per conversation
+- Streaming system redesigned to track individual model responses separately
 - Improved visual indicators for multi-model conversations
 
 ## [0.1.7] - TBD

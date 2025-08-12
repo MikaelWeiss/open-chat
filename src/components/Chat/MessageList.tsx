@@ -16,6 +16,7 @@ interface MessageListProps {
   messages?: Message[]
   isLoading?: boolean
   streamingMessage?: string
+  streamingMessagesByModel?: Map<string, string>
 }
 
 interface CodeBlockProps {
@@ -112,7 +113,7 @@ function AttachmentDisplay({ attachments }: { attachments: { type: string; path:
 }
 
 
-export default function MessageList({ messages = [], isLoading = false, streamingMessage = '' }: MessageListProps) {
+export default function MessageList({ messages = [], isLoading = false, streamingMessage = '', streamingMessagesByModel }: MessageListProps) {
   const [loadingMessage, setLoadingMessage] = useState('Assembling')
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const { userName } = useSettings()
@@ -392,8 +393,105 @@ export default function MessageList({ messages = [], isLoading = false, streamin
         }
       })}
       
-      {/* Streaming message */}
-      {streamingMessage && (
+      {/* Streaming messages */}
+      {streamingMessagesByModel && streamingMessagesByModel.size > 0 && (
+        <div className="w-full max-w-[1200px] mx-auto elegant-fade-in">
+          <div className="space-y-3">
+            <div className="parallel-responses-header">
+              <span className="font-semibold text-foreground/95">Assistant</span>
+              <span className="parallel-count-badge">
+                {streamingMessagesByModel.size} {streamingMessagesByModel.size === 1 ? 'model' : 'models'}
+              </span>
+              <span className="text-xs text-muted-foreground/70 font-medium ml-auto">
+                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            
+            {streamingMessagesByModel.size > 1 ? (
+              /* Multiple streaming responses - display side by side */
+              <div className="comparison-grid" style={{ 
+                gridTemplateColumns: `repeat(${Math.min(streamingMessagesByModel.size, 3)}, 1fr)` 
+              }}>
+                {Array.from(streamingMessagesByModel.entries()).slice(0, 3).map(([modelId, content]) => {
+                  const [provider, model] = modelId.split(':')
+                  return (
+                    <div key={modelId} className="comparison-response min-w-0">
+                      <div className="flex items-center gap-2 p-3 pb-0">
+                        <span className="model-badge truncate">
+                          {provider}/{model}
+                        </span>
+                      </div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-3 pt-2 relative group">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={markdownComponents}
+                        >
+                          {content}
+                        </ReactMarkdown>
+                        <div className="inline-block w-2 h-4 bg-primary animate-pulse ml-1 rounded-full" />
+                        
+                        <button
+                          onClick={() => copyToClipboard(content, `streaming-${modelId}`)}
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                          title="Copy message"
+                        >
+                        {copiedMessageId === `streaming-${modelId}` ? (
+                          <>
+                            <Check className="h-3 w-3" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            Copy
+                          </>
+                        )}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              /* Single streaming response - use traditional layout */
+              Array.from(streamingMessagesByModel.entries()).map(([modelId, content]) => {
+                return (
+                  <div key={modelId} className="message-bubble-assistant prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-4 rounded-2xl relative group">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={markdownComponents}
+                    >
+                      {content}
+                    </ReactMarkdown>
+                    <div className="inline-block w-2 h-4 bg-primary animate-pulse ml-1 rounded-full" />
+                    
+                    <button
+                      onClick={() => copyToClipboard(content, `streaming-${modelId}`)}
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                      title="Copy message"
+                    >
+                    {copiedMessageId === `streaming-${modelId}` ? (
+                      <>
+                        <Check className="h-3 w-3" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" />
+                        Copy
+                      </>
+                    )}
+                    </button>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Fallback: Old single streaming message for backward compatibility */}
+      {streamingMessage && (!streamingMessagesByModel || streamingMessagesByModel.size === 0) && (
         <div className="w-full max-w-[950px] mx-auto elegant-fade-in">
           <div className="space-y-3">
             <div className="flex items-baseline gap-3">
@@ -435,7 +533,7 @@ export default function MessageList({ messages = [], isLoading = false, streamin
       )}
       
       {/* Loading indicator - show when loading and no streaming started yet */}
-      {isLoading && !streamingMessage && (
+      {isLoading && !streamingMessage && (!streamingMessagesByModel || streamingMessagesByModel.size === 0) && (
         <div className="w-full max-w-[950px] mx-auto elegant-fade-in">
           <div className="space-y-3">
             <div className="flex items-baseline gap-3">

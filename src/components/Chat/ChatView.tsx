@@ -104,6 +104,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const { 
     messages, 
     streamingMessage: zustandStreamingMessage,
+    streamingMessagesByModel,
     addMessage: addMessageToStore,
     loadMessages,
     setStreamingMessage,
@@ -683,9 +684,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         models: modelConfigs,
         signal: controller.signal,
         onStreamChunk: (content: string, modelId: string) => {
-          // For now, combine all model streams into one UI stream
-          // TODO: Handle multiple concurrent streams in UI
-          setStreamingMessage(activeConversationId, content)
+          // Handle multiple concurrent streams per model
+          setStreamingMessage(activeConversationId, content, modelId)
           console.log(`Streaming from ${modelId}: ${content.slice(0, 50)}...`)
         },
         onStreamComplete: async (message: CreateMessageInput, modelId: string) => {
@@ -704,7 +704,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           } catch (err) {
             console.error('Failed to save assistant message:', err)
           }
-          clearStreamingMessage(activeConversationId)
+          clearStreamingMessage(activeConversationId, modelId)
         },
         onModelStreamStart: (modelId: string) => {
           console.log(`Model ${modelId} started streaming`)
@@ -1059,6 +1059,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         <MessageList 
           messages={messages}
           streamingMessage={zustandStreamingMessage}
+          streamingMessagesByModel={streamingMessagesByModel}
           isLoading={isLoading}
         />
       </div>
