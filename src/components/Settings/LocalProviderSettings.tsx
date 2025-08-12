@@ -145,22 +145,25 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
     }
   };
 
-  const downloadModel = async (modelName: string) => {
+  const downloadModel = async (modelName: string, sizeTag?: string) => {
+    const fullModelName = sizeTag ? `${modelName}:${sizeTag}` : modelName;
+
+    // Immediately set downloading state for visual feedback
     setDownloads(prev => ({
       ...prev,
-      [modelName]: { modelName, progress: 0, status: 'downloading' }
+      [fullModelName]: { modelName: fullModelName, progress: 0, status: 'downloading' }
     }));
 
     try {
-      await ollamaService.downloadModel(modelName, (progress) => {
+      await ollamaService.downloadModel(fullModelName, (progress) => {
         const progressPercent = progress.total && progress.completed 
           ? (progress.completed / progress.total) * 100 
           : 0;
 
         setDownloads(prev => ({
           ...prev,
-          [modelName]: {
-            modelName,
+          [fullModelName]: {
+            modelName: fullModelName,
             progress: progressPercent,
             status: progress.status === 'success' ? 'completed' : 'downloading'
           }
@@ -169,7 +172,7 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
 
       setDownloads(prev => ({
         ...prev,
-        [modelName]: { modelName, progress: 100, status: 'completed' }
+        [fullModelName]: { modelName: fullModelName, progress: 100, status: 'completed' }
       }));
 
       // Refresh installed models
@@ -177,8 +180,8 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
     } catch (err) {
       setDownloads(prev => ({
         ...prev,
-        [modelName]: {
-          modelName,
+        [fullModelName]: {
+          modelName: fullModelName,
           progress: 0,
           status: 'error',
           error: err instanceof Error ? err.message : 'Download failed'
@@ -227,6 +230,170 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
             {label}
           </span>
         ))}
+      </div>
+    );
+  };
+
+  const ModelCard = ({ 
+    model, 
+    installedModels, 
+    downloads, 
+    onDownload, 
+    ollamaStatus 
+  }: {
+    model: OllamaLibraryModel;
+    installedModels: OllamaModel[];
+    downloads: Record<string, DownloadProgress>;
+    onDownload: (modelName: string, sizeTag?: string) => void;
+    ollamaStatus: OllamaStatus | null;
+  }) => {
+    const hasMultipleSizes = model.availableSizes && model.availableSizes.length > 0;
+    
+    if (!hasMultipleSizes) {
+      // Single variant model - show original UI
+      const download = downloads[model.name];
+      const isInstalled = installedModels.some(installed => installed.name.startsWith(model.name));
+      
+      return (
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h4 className="font-medium text-lg">{model.name}</h4>
+              {model.description && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{model.description}</p>
+              )}
+              <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-4">
+                  <span>Tags: {model.tags.join(', ')}</span>
+                  {model.pulls && <span>Downloads: {model.pulls.toLocaleString()}</span>}
+                </div>
+              </div>
+              <div className="mt-3">
+                <ModelCapabilityBadges modelName={model.name} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 ml-4">
+              {isInstalled ? (
+                <span className="text-green-600 font-medium">Installed</span>
+              ) : download ? (
+                <div className="text-center">
+                  {download.status === 'downloading' && (
+                    <div className="w-32">
+                      <div className="bg-gray-200 rounded-full h-2 mb-1">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${download.progress}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-gray-600">{Math.round(download.progress)}%</div>
+                    </div>
+                  )}
+                  {download.status === 'completed' && (
+                    <span className="text-green-600 font-medium">Complete</span>
+                  )}
+                  {download.status === 'error' && (
+                    <span className="text-red-600 font-medium">Error</span>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => onDownload(model.name)}
+                  disabled={ollamaStatus?.status !== 'running'}
+                  className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Multi-size model - show expandable UI with size options
+    return (
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <h4 className="font-medium text-lg">{model.name}</h4>
+            {model.description && (
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{model.description}</p>
+            )}
+            <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-center gap-4">
+                {model.otherTags && model.otherTags.length > 0 && (
+                  <span>Features: {model.otherTags.join(', ')}</span>
+                )}
+                {model.pulls && <span>Downloads: {model.pulls.toLocaleString()}</span>}
+              </div>
+            </div>
+            <div className="mt-3">
+              <ModelCapabilityBadges modelName={model.name} />
+            </div>
+          </div>
+        </div>
+        
+        {/* Size Selection Grid */}
+        <div className="space-y-3">
+          <h5 className="font-medium text-sm text-gray-700 dark:text-gray-300">Available Sizes:</h5>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {model.availableSizes!.map((size) => {
+              const fullModelName = `${model.name}:${size.tag}`;
+              const download = downloads[fullModelName];
+              const isInstalled = installedModels.some(installed => 
+                installed.name === fullModelName || 
+                (installed.name.startsWith(model.name) && installed.name.includes(size.tag))
+              );
+              
+              return (
+                <div key={size.tag} className="border border-gray-100 dark:border-gray-600 rounded-lg p-3 bg-gray-50 dark:bg-gray-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="font-medium text-sm">{size.displayName}</div>
+                      {size.parameterCount && (
+                        <div className="text-xs text-gray-500">{size.parameterCount}</div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {isInstalled ? (
+                        <span className="text-xs text-green-600 font-medium">✓ Installed</span>
+                      ) : download ? (
+                        <div className="text-center min-w-[60px]">
+                          {download.status === 'downloading' && (
+                            <div className="w-full">
+                              <div className="bg-gray-200 rounded-full h-1 mb-1">
+                                <div 
+                                  className="bg-blue-600 h-1 rounded-full transition-all duration-300"
+                                  style={{ width: `${download.progress}%` }}
+                                />
+                              </div>
+                              <div className="text-xs text-gray-600">{Math.round(download.progress)}%</div>
+                            </div>
+                          )}
+                          {download.status === 'completed' && (
+                            <span className="text-xs text-green-600 font-medium">Complete</span>
+                          )}
+                          {download.status === 'error' && (
+                            <span className="text-xs text-red-600 font-medium">Error</span>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => onDownload(model.name, size.tag)}
+                          disabled={ollamaStatus?.status !== 'running'}
+                          className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Download
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     );
   };
@@ -396,67 +563,19 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
                   <div>Loading available models...</div>
                 </div>
               ) : (
-                <div className="grid gap-4">
+                <div className="space-y-6">
                   {libraryModels
                     .filter(model => !searchQuery || model.name.toLowerCase().includes(searchQuery.toLowerCase()))
                     .map((model) => {
-                      const download = downloads[model.name];
-                      const isInstalled = installedModels.some(installed => installed.name.startsWith(model.name));
-                      
                       return (
-                        <div key={model.name} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-lg">{model.name}</h4>
-                              {model.description && (
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{model.description}</p>
-                              )}
-                              <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                <div className="flex items-center gap-4">
-                                  <span>Tags: {model.tags.join(', ')}</span>
-                                  {model.pulls && <span>Downloads: {model.pulls.toLocaleString()}</span>}
-                                </div>
-                              </div>
-                              <div className="mt-3">
-                                <ModelCapabilityBadges modelName={model.name} />
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 ml-4">
-                              {isInstalled ? (
-                                <span className="text-green-600 font-medium">Installed</span>
-                              ) : download ? (
-                                <div className="text-center">
-                                  {download.status === 'downloading' && (
-                                    <div className="w-32">
-                                      <div className="bg-gray-200 rounded-full h-2 mb-1">
-                                        <div 
-                                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                          style={{ width: `${download.progress}%` }}
-                                        />
-                                      </div>
-                                      <div className="text-xs text-gray-600">{Math.round(download.progress)}%</div>
-                                    </div>
-                                  )}
-                                  {download.status === 'completed' && (
-                                    <span className="text-green-600 font-medium">Complete</span>
-                                  )}
-                                  {download.status === 'error' && (
-                                    <span className="text-red-600 font-medium">Error</span>
-                                  )}
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => downloadModel(model.name)}
-                                  disabled={ollamaStatus?.status !== 'running'}
-                                  className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  <Download className="w-4 h-4" />
-                                  Download
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                        <ModelCard 
+                          key={model.name} 
+                          model={model} 
+                          installedModels={installedModels}
+                          downloads={downloads}
+                          onDownload={downloadModel}
+                          ollamaStatus={ollamaStatus}
+                        />
                       );
                     })}
                 </div>

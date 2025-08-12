@@ -15,6 +15,13 @@ export interface OllamaModel {
   };
 }
 
+export interface ModelSize {
+  tag: string;
+  displayName: string;
+  parameterCount?: string;
+  isInstalled?: boolean;
+}
+
 export interface OllamaLibraryModel {
   name: string;
   description?: string;
@@ -22,6 +29,8 @@ export interface OllamaLibraryModel {
   updated_at: string;
   pulls?: number;
   size?: number;
+  availableSizes?: ModelSize[];
+  otherTags?: string[];
 }
 
 export interface OllamaModelResponse {
@@ -55,6 +64,94 @@ export interface OllamaGenerateRequest {
     top_k?: number;
     num_predict?: number;
   };
+}
+
+class ModelSizeParser {
+  private static readonly SIZE_PATTERNS = [
+    /^(\d+(?:\.\d+)?)b$/i,      // e.g., "7b", "1.5b", "70b"
+    /^(\d+(?:\.\d+)?)gb$/i,     // e.g., "1gb", "2.5gb"
+    /^(\d+)m$/i,                // e.g., "400m", "3m"
+    /^(\d+)k$/i,                // e.g., "100k", "500k"
+  ];
+
+  static parseModelSizes(tags: string[]): { sizes: ModelSize[], otherTags: string[] } {
+    const sizes: ModelSize[] = [];
+    const otherTags: string[] = [];
+
+    for (const tag of tags) {
+      if (this.isModelSize(tag)) {
+        sizes.push({
+          tag,
+          displayName: this.formatSizeDisplay(tag),
+          parameterCount: this.extractParameterCount(tag)
+        });
+      } else {
+        otherTags.push(tag);
+      }
+    }
+
+    // Sort sizes by parameter count (ascending)
+    sizes.sort((a, b) => {
+      const aNum = this.getSizeNumericValue(a.tag);
+      const bNum = this.getSizeNumericValue(b.tag);
+      return aNum - bNum;
+    });
+
+    return { sizes, otherTags };
+  }
+
+  private static isModelSize(tag: string): boolean {
+    return this.SIZE_PATTERNS.some(pattern => pattern.test(tag));
+  }
+
+  private static formatSizeDisplay(tag: string): string {
+    const match = tag.match(/^(\d+(?:\.\d+)?)([bmgk]?)$/i);
+    if (!match) return tag;
+
+    const [, number, suffix] = match;
+    const suffixMap: { [key: string]: string } = {
+      'b': 'B',
+      'm': 'M', 
+      'k': 'K',
+      'g': 'GB',
+      'gb': 'GB'
+    };
+
+    const displaySuffix = suffixMap[suffix.toLowerCase()] || suffix.toUpperCase();
+    return `${number}${displaySuffix}`;
+  }
+
+  private static extractParameterCount(tag: string): string {
+    const match = tag.match(/^(\d+(?:\.\d+)?)([bmgk]?)$/i);
+    if (!match) return tag;
+
+    const [, number, suffix] = match;
+    if (suffix.toLowerCase() === 'b') {
+      return `${number} billion parameters`;
+    } else if (suffix.toLowerCase() === 'm') {
+      return `${number} million parameters`;
+    } else if (suffix.toLowerCase() === 'k') {
+      return `${number} thousand parameters`;
+    }
+    return `${number}${suffix.toUpperCase()}`;
+  }
+
+  private static getSizeNumericValue(tag: string): number {
+    const match = tag.match(/^(\d+(?:\.\d+)?)([bmgk]?)$/i);
+    if (!match) return 0;
+
+    const [, numberStr, suffix] = match;
+    const number = parseFloat(numberStr);
+
+    switch (suffix.toLowerCase()) {
+      case 'b': return number * 1000000000;     // billions
+      case 'm': return number * 1000000;       // millions  
+      case 'k': return number * 1000;          // thousands
+      case 'g':
+      case 'gb': return number * 1000000000;   // treat GB as billions for sorting
+      default: return number;
+    }
+  }
 }
 
 export class OllamaService {
@@ -113,7 +210,7 @@ export class OllamaService {
       console.log('Getting popular models from static list...');
       
       // Complete list of Ollama models based on the library page
-      const models: OllamaLibraryModel[] = [
+      const baseModels: OllamaLibraryModel[] = [
         {
           name: 'gpt-oss',
           description: 'OpenAI\'s open-weight models designed for powerful reasoning, agentic tasks, and versatile developer use cases.',
@@ -360,6 +457,16 @@ export class OllamaService {
           pulls: 500000
         }
       ];
+
+      // Parse sizes for each model
+      const models = baseModels.map(model => {
+        const { sizes, otherTags } = ModelSizeParser.parseModelSizes(model.tags);
+        return {
+          ...model,
+          availableSizes: sizes,
+          otherTags
+        };
+      });
 
       // Filter by query if provided
       if (query) {
