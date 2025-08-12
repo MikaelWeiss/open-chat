@@ -5,28 +5,11 @@ All notable changes to Open Chat will be documented in this file.
 ## [0.1.8] - TBD
 ### Added
 - Multi-model query support: Send the same message to multiple AI models simultaneously
-- Side-by-side model comparison view for parallel responses
-- Individual model/provider tracking per message for better conversation context
-- Enhanced visual styling for model comparison with dedicated CSS classes
-- Model-specific conversation history for follow-up messages
-- Real-time side-by-side streaming: Multiple models stream responses concurrently in separate columns
-- Individual streaming progress per model with model badges and copy functionality
 
-### Changed
-- Database schema updated to include `previous_message_id`, `provider`, and `model` columns in messages table
-- Message interface updated to support model branching and comparison
-- Chat service enhanced to handle multiple concurrent model requests
-- MessageList component redesigned to display parallel responses side-by-side
-- App store updated to support multiple concurrent streaming messages per conversation
-- Streaming system redesigned to track individual model responses separately
-- Improved visual indicators for multi-model conversations
-
-## [0.1.7] - TBD
 ### Changed
 - Simplified chat interface by removing avatar icons and redundant user/assistant bubbles
 - Message bubbles now have a maximum width of 950px and center themselves in the chat area
 - Changed model selector keyboard shortcut from Cmd+F to Shift+Cmd+M
-- Removed sortOrder functionality from message system
 
 ## [0.1.7] - 2025-08-11
 ### Fixed
