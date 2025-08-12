@@ -7,6 +7,7 @@ All notable changes to Open Chat will be documented in this file.
 - Simplified chat interface by removing avatar icons and redundant user/assistant bubbles
 - Message bubbles now have a maximum width of 950px and center themselves in the chat area
 - Changed model selector keyboard shortcut from Cmd+F to Shift+Cmd+M
+- Removed sortOrder functionality from message system
 
 ## [0.1.7] - 2025-08-11
 ### Fixed

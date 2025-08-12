@@ -222,141 +222,60 @@ export default function MessageList({ messages = [], isLoading = false, streamin
     )
   }
 
-  // Group messages by sortOrder for multi-model display
-  const messageGroups = messages.reduce((groups: Message[][], message) => {
-    const sortOrder = message.sort_order || message.id // Fallback to ID for null sortOrder
-    let group = groups.find(g => (g[0].sort_order || g[0].id) === sortOrder)
-    
-    if (!group) {
-      group = []
-      groups.push(group)
-    }
-    
-    group.push(message)
-    return groups
-  }, [])
-
   return (
     <div className="h-full overflow-y-auto p-6 space-y-8 min-w-0 elegant-scrollbar">
-      {messageGroups.map((group, groupIndex) => {
-        // Single message in group - display normally
-        if (group.length === 1) {
-          const message = group[0]
-          return (
-            <div key={message.id} className="w-full max-w-[950px] mx-auto elegant-fade-in">
-              <div className="space-y-3">
-                <div className="flex items-baseline gap-3">
-                  <span className="font-semibold text-foreground/95">
-                    {message.role === 'user' ? (userName || 'You') : 'Assistant'}
-                  </span>
-                  <span className="text-xs text-muted-foreground/70 font-medium">
-                    {format(new Date(message.created_at), 'h:mm a')}
-                  </span>
-                </div>
-                
-                {/* Show file attachments */}
-                <AttachmentDisplay attachments={
-                  message.images?.map(img => ({ type: 'image', path: img.file_path || img.url || '', mimeType: img.mime_type || 'image/*' })) ||
-                  message.audio?.map(audio => ({ type: 'audio', path: audio.file_path || audio.url || '', mimeType: audio.mime_type || 'audio/*' })) ||
-                  message.files?.map(file => ({ type: 'file', path: file.path, mimeType: file.type })) ||
-                  null
-                } />
-                
-                <div className={clsx(
-                  'prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-4 rounded-2xl relative group',
-                  message.role === 'user' ? 'message-bubble-user' : 'message-bubble-assistant'
-                )}>
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
-                    {message.text || ''}
-                  </ReactMarkdown>
-                  
-                  <button
-                    onClick={() => copyToClipboard(message.text || '', message.id.toString())}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
-                    title="Copy message"
-                  >
-                  {copiedMessageId === message.id.toString() ? (
-                    <>
-                      <Check className="h-3 w-3" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3 w-3" />
-                      Copy
-                    </>
-                  )}
-                  </button>
-                </div>
-              </div>
+      {messages.map((message) => (
+        <div key={message.id} className="w-full max-w-[950px] mx-auto elegant-fade-in">
+          <div className="space-y-3">
+            <div className="flex items-baseline gap-3">
+              <span className="font-semibold text-foreground/95">
+                {message.role === 'user' ? (userName || 'You') : 'Assistant'}
+              </span>
+              <span className="text-xs text-muted-foreground/70 font-medium">
+                {format(new Date(message.created_at), 'h:mm a')}
+              </span>
             </div>
-          )
-        }
-
-        // Multiple messages in group - display side by side (multi-model responses)
-        return (
-          <div key={`group-${groupIndex}`} className="w-full max-w-[950px] mx-auto elegant-fade-in">
-            <div className="space-y-3">
-              <div className="flex items-baseline gap-3">
-                <span className="font-semibold text-foreground/95">Assistant</span>
-                <span className="text-xs text-muted-foreground/70 font-medium">
-                  {format(new Date(group[0].created_at), 'h:mm a')} • {group.length} models
-                </span>
-              </div>
+            
+            {/* Show file attachments */}
+            <AttachmentDisplay attachments={
+              message.images?.map(img => ({ type: 'image', path: img.file_path || img.url || '', mimeType: img.mime_type || 'image/*' })) ||
+              message.audio?.map(audio => ({ type: 'audio', path: audio.file_path || audio.url || '', mimeType: audio.mime_type || 'audio/*' })) ||
+              message.files?.map(file => ({ type: 'file', path: file.path, mimeType: file.type })) ||
+              null
+            } />
+            
+            <div className={clsx(
+              'prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-4 rounded-2xl relative group',
+              message.role === 'user' ? 'message-bubble-user' : 'message-bubble-assistant'
+            )}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={markdownComponents}
+              >
+                {message.text || ''}
+              </ReactMarkdown>
               
-              {/* Multi-model responses displayed horizontally */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {group.map((message) => {
-                  // Extract model info from metadata or message content
-                  const modelInfo = message.metadata?.modelId || 'Model'
-                  
-                  return (
-                    <div key={message.id} className="min-w-0">
-                      <div className="mb-2">
-                        <span className="text-xs font-medium text-muted-foreground bg-secondary px-2 py-1 rounded-full">
-                          {modelInfo}
-                        </span>
-                      </div>
-                      <div className={clsx(
-                        'prose prose-sm dark:prose-invert max-w-none break-words selection:bg-primary/20 p-4 rounded-2xl relative group',
-                        'message-bubble-assistant min-h-[100px]'
-                      )}>
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={markdownComponents}
-                        >
-                          {message.text || ''}
-                        </ReactMarkdown>
-                        
-                        <button
-                          onClick={() => copyToClipboard(message.text || '', message.id.toString())}
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
-                          title="Copy message"
-                        >
-                        {copiedMessageId === message.id.toString() ? (
-                          <>
-                            <Check className="h-3 w-3" />
-                            Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3 w-3" />
-                            Copy
-                          </>
-                        )}
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+              <button
+                onClick={() => copyToClipboard(message.text || '', message.id.toString())}
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary p-1.5 rounded-lg elegant-hover"
+                title="Copy message"
+              >
+              {copiedMessageId === message.id.toString() ? (
+                <>
+                  <Check className="h-3 w-3" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </>
+              )}
+              </button>
             </div>
           </div>
-        )
-      })}
+        </div>
+      ))}
       
       {/* Streaming message */}
       {streamingMessage && (

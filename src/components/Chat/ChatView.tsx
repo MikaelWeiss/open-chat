@@ -8,7 +8,7 @@ import { useSettings } from '../../hooks/useSettings'
 import { useProviders, useMessages, useConversations } from '../../stores/appStore'
 import { type PendingConversation } from '../../stores/appStore'
 import { type Conversation } from '../../shared/conversationStore'
-import { type CreateMessageInput, messageStore } from '../../shared/messageStore'
+import { type CreateMessageInput } from '../../shared/messageStore'
 import { chatService } from '../../services/chatService'
 import { telemetryService } from '../../services/telemetryService'
 import clsx from 'clsx'
@@ -646,24 +646,6 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         }
       }
       
-      // Calculate next sortOrder for this message pair (user + assistant responses)
-      let nextSortOrder = 1
-      let assistantSortOrder = 2
-      
-      if (typeof activeConversationId === 'number') {
-        const currentMessages = await messageStore.getMessages(activeConversationId)
-        const maxSortOrder = Math.max(0, ...currentMessages.map(m => m.sort_order || 0))
-        nextSortOrder = maxSortOrder + 1
-        assistantSortOrder = nextSortOrder + 1
-      } else {
-        // For pending conversations, start from 1
-        nextSortOrder = 1
-        assistantSortOrder = 2
-      }
-      
-      // Set sortOrder for user message
-      userMessage.sortOrder = nextSortOrder
-      
       // Add user message to store (which handles both draft and persistent)
       await addMessageToStore(activeConversationId, userMessage)
       
@@ -706,10 +688,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           console.log(`Streaming from ${modelId}: ${content.slice(0, 50)}...`)
         },
         onStreamComplete: async (message: CreateMessageInput, modelId: string) => {
-          // Add complete assistant message to store with sortOrder
+          // Add complete assistant message to store
           try {
-            // All assistant messages from this multi-query get the same sortOrder
-            message.sortOrder = assistantSortOrder
             // Store model info for display in UI
             const [provider, model] = modelId.split(':')
             message.metadata = {
