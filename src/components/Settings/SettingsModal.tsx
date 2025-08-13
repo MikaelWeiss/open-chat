@@ -787,9 +787,46 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
     })
   }
 
-  const handleAddPreset = (preset: ProviderPreset) => {
-    setSelectedPreset(preset.id)
-    setCustomProvider({ name: preset.name, endpoint: preset.endpoint, apiKey: '' })
+  const handleAddPreset = async (preset: ProviderPreset) => {
+    if (preset.isLocal) {
+      // For local providers, add directly without configuration
+      try {
+        await onAddProvider(preset.name, preset.endpoint, undefined, true)
+        
+        // Show success toast
+        // @ts-ignore
+        if (window.showToast) {
+          // @ts-ignore
+          window.showToast({
+            type: 'success',
+            title: 'Provider Added',
+            message: `${preset.name} has been successfully configured.`,
+            duration: 3000
+          })
+        }
+        
+        // Close the Add Provider view
+        setShowAddProvider(false)
+        setSelectedPreset(null)
+        setCustomProvider({ name: '', endpoint: '', apiKey: '' })
+      } catch (error) {
+        console.error('Failed to add local provider:', error)
+        // @ts-ignore
+        if (window.showToast) {
+          // @ts-ignore
+          window.showToast({
+            type: 'error',
+            title: 'Failed to Add Provider',
+            message: error instanceof Error ? error.message : 'An unknown error occurred',
+            duration: 5000
+          })
+        }
+      }
+    } else {
+      // For non-local providers, show configuration form
+      setSelectedPreset(preset.id)
+      setCustomProvider({ name: preset.name, endpoint: preset.endpoint, apiKey: '' })
+    }
   }
 
   const handleSaveProvider = async () => {
@@ -1494,6 +1531,7 @@ function ModelsSettings({ providers: providersData, onToggleModel, onCapabilityT
           providerId={showLocalProviderSettings}
           isOpen={true}
           onClose={() => setShowLocalProviderSettings(null)}
+          onRemoveProvider={onRemoveProvider}
         />
       )}
     </div>

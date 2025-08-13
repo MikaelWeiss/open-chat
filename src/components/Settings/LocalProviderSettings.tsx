@@ -24,6 +24,7 @@ interface LocalProviderSettingsProps {
   providerId: string;
   isOpen: boolean;
   onClose: () => void;
+  onRemoveProvider: (providerId: string) => Promise<void>;
 }
 
 interface OllamaStatus {
@@ -63,7 +64,7 @@ interface DownloadProgress {
   error?: string;
 }
 
-export default function LocalProviderSettings({ isOpen, onClose }: LocalProviderSettingsProps) {
+export default function LocalProviderSettings({ providerId, isOpen, onClose, onRemoveProvider }: LocalProviderSettingsProps) {
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
   const [installedModels, setInstalledModels] = useState<OllamaModel[]>([]);
   const [discoveredModels, setDiscoveredModels] = useState<LocalModel[]>([]);
@@ -83,6 +84,7 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
   });
   const [error, setError] = useState<string | null>(null);
   const [modelToDelete, setModelToDelete] = useState<string | null>(null);
+  const [showRemoveProviderConfirm, setShowRemoveProviderConfirm] = useState(false);
 
   // Persist downloads to localStorage whenever it changes
   useEffect(() => {
@@ -244,6 +246,22 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
 
   const cancelDelete = () => {
     setModelToDelete(null);
+  };
+
+  const handleRemoveProvider = async () => {
+    try {
+      await onRemoveProvider(providerId);
+      onClose(); // Close the modal after successful removal
+    } catch (err) {
+      console.error('Failed to remove provider:', err);
+      setError(`Failed to remove provider: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setShowRemoveProviderConfirm(false);
+    }
+  };
+
+  const cancelRemoveProvider = () => {
+    setShowRemoveProviderConfirm(false);
   };
 
 
@@ -452,12 +470,22 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold">Local Provider Management</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-          >
-            <XCircle className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowRemoveProviderConfirm(true)}
+              className="flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              title="Remove Provider"
+            >
+              <Trash2 className="w-4 h-4" />
+              Remove Provider
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+            >
+              <XCircle className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Status Banner */}
@@ -750,6 +778,38 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
                   Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Remove Provider Confirmation Modal */}
+        {showRemoveProviderConfirm && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md mx-4">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-500" />
+                <h3 className="text-lg font-semibold">Remove Provider</h3>
+              </div>
+              
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Are you sure you want to remove the Local provider? This will remove the provider configuration 
+                but will not delete any installed models from your system.
+              </p>
+              
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={cancelRemoveProvider}
+                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRemoveProvider}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Remove Provider
                 </button>
               </div>
             </div>
