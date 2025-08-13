@@ -3,9 +3,10 @@ import { format } from 'date-fns'
 import clsx from 'clsx'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { open } from '@tauri-apps/plugin-shell'
-import { useConversations } from '../../stores/appStore'
+import { useConversations, useAppStore } from '../../stores/appStore'
 import { type Conversation } from '../../shared/conversationStore'
 import { type PendingConversation } from '../../stores/appStore'
+import { getConversationModelDisplay } from '../../utils/conversationUtils'
 
 // Helper type for sidebar display
 type SidebarConversation = Conversation | (PendingConversation & { id: 'pending', is_favorite?: boolean })
@@ -44,6 +45,7 @@ export default function Sidebar({
   onDeleteConversation,
 }: SidebarProps) {
   const { conversations, deleteConversation, toggleConversationFavorite, createPendingConversation } = useConversations()
+  const getMessages = useAppStore((state) => state.getMessages)
   
   // For now, disable loading/error states - can be added back later
   const loading = false
@@ -205,6 +207,10 @@ export default function Sidebar({
     const isDeleting = deletingIds.has(conversation.id)
     const isSelected = selectedConversationId === conversation.id
     
+    // Get messages for this conversation to check if it's multi-model
+    const messages = getMessages(conversation.id)
+    const modelDisplay = getConversationModelDisplay(conversation.model, messages)
+    
     return (
       <div
         key={conversation.id}
@@ -232,7 +238,7 @@ export default function Sidebar({
             <span className="truncate text-foreground/90">{conversation.title}</span>
           </div>
           <div className="text-xs text-muted-foreground mt-1 truncate">
-            {conversation.model || 'No model'} • {format(new Date(conversation.updated_at), 'h:mm a')}
+            {modelDisplay} • {format(new Date(conversation.updated_at), 'h:mm a')}
           </div>
         </button>
         <button

@@ -12,10 +12,7 @@ interface OpenAIMessage {
 
 
 
-export interface SendMessageOptions {
-  conversationId: number | 'pending'
-  userMessage: CreateMessageInput
-  systemPrompt?: string
+export interface ModelConfig {
   provider: string
   endpoint: string
   model: string
@@ -31,64 +28,278 @@ export interface SendMessageOptions {
   stop?: string[]
   n?: number
   seed?: number
-  onStreamChunk?: (content: string) => void
-  onStreamComplete?: (assistantMessage: CreateMessageInput) => void
+}
+
+export interface SendMessageOptions {
+  conversationId: number | 'pending'
+  userMessage: CreateMessageInput
+  userMessageId?: number
+  systemPrompt?: string
+  models: ModelConfig[]
+  onStreamChunk?: (content: string, modelId: string) => void
+  onStreamComplete?: (assistantMessage: CreateMessageInput, modelId: string) => void
+  onModelStreamStart?: (modelId: string) => void
+  onModelError?: (error: Error, modelId: string) => void
   signal?: AbortSignal
 }
 
 class ChatService {
   /**
+   * Helper method to create a ModelConfig array from selected models and providers
+   */
+  createModelConfigs(
+    selectedModels: Array<{provider: string, model: string}>,
+    providers: Record<string, {endpoint: string, isLocal?: boolean}>,
+    apiKeyLookup: (provider: string) => Promise<string | null>,
+    options?: {
+      temperature?: number
+      maxTokens?: number
+      topP?: number
+      topK?: number
+      reasoningEffort?: 'none' | 'low' | 'medium' | 'high'
+      frequencyPenalty?: number
+      presencePenalty?: number
+      stop?: string[]
+      n?: number
+      seed?: number
+    }
+  ): Promise<ModelConfig[]> {
+    return Promise.all(
+      selectedModels.map(async selectedModel => {
+        const providerInfo = providers[selectedModel.provider]
+        if (!providerInfo) {
+          throw new Error(`Provider ${selectedModel.provider} not found`)
+        }
+        
+        const apiKey = await apiKeyLookup(selectedModel.provider)
+        
+        return {
+          provider: selectedModel.provider,
+          model: selectedModel.model,
+          endpoint: providerInfo.endpoint,
+          isLocal: providerInfo.isLocal,
+          apiKey: apiKey || undefined,
+          ...options
+        }
+      })
+    )
+  }
+
+  /**
    * Send a message to an OpenAI-compatible API and handle streaming response
+   * 
+   * Example usage for multiple models:
+   * ```
+   * const modelConfigs = await chatService.createModelConfigs(
+   *   selectedModels, // Array<{provider: string, model: string}>
+   *   providers,      // Record<string, {endpoint: string, isLocal?: boolean}>
+   *   getProviderApiKey, // (provider: string) => Promise<string | null>
+   *   conversationSettings // Optional settings
+   * )
+   * 
+   * const responses = await chatService.sendMessage({
+   *   conversationId,
+   *   userMessage,
+   *   systemPrompt,
+   *   models: modelConfigs,
+   *   onStreamChunk: (content: string, modelId: string) => {
+   *     console.log(`Model ${modelId}: ${content}`)
+   *   },
+   *   onStreamComplete: (message: CreateMessageInput, modelId: string) => {
+   *     console.log(`Model ${modelId} completed`)
+   *   },
+   *   onModelStreamStart: (modelId: string) => {
+   *     console.log(`Model ${modelId} started`)
+   *   },
+   *   onModelError: (error: Error, modelId: string) => {
+   *     console.error(`Model ${modelId} error:`, error)
+   *   }
+   * })
+   * ```
    */
   async sendMessage({
     conversationId,
     userMessage,
+    userMessageId,
     systemPrompt,
-    endpoint,
-    model,
-    apiKey,
-    isLocal = false,
-    temperature,
-    maxTokens,
-    topP,
-    topK: _topK,
-    reasoningEffort: _reasoningEffort,
-    frequencyPenalty,
-    presencePenalty,
-    stop,
-    n,
-    seed,
+    models,
     onStreamChunk,
     onStreamComplete,
+    onModelStreamStart,
+    onModelError,
     signal
-  }: SendMessageOptions): Promise<CreateMessageInput> {
+  }: SendMessageOptions): Promise<CreateMessageInput[]> {
     const startTime = Date.now()
 
-    try {
-      // Get conversation history (only for persistent conversations)
-      const conversationHistory = typeof conversationId === 'number' 
-        ? await messageStore.getMessages(conversationId)
-        : [] // Pending conversations have no history in database yet
-      
-      // Detect provider type for proper formatting
-      const isAnthropic = endpoint.includes('anthropic.com')
-      const isOllama = endpoint.includes('ollama') || endpoint.includes('11434')
-      
-      // Build provider-compatible messages array
-      const messages: OpenAIMessage[] = []
-      
-      // Add system message if provided
-      if (systemPrompt) {
-        messages.push({
-          role: 'system',
-          content: systemPrompt
-        })
-      }
+    if (!models || models.length === 0) {
+      throw new Error('At least one model must be provided')
+    }
 
-      // Add conversation history
-      for (const message of conversationHistory) {
-        if (message.role === 'system') continue // Skip system messages from history (we use systemPrompt)
+    return this.sendMessageToMultipleModels({
+      conversationId,
+      userMessage,
+      userMessageId,
+      systemPrompt,
+      models,
+      onStreamChunk,
+      onStreamComplete,
+      onModelStreamStart,
+      onModelError,
+      signal,
+      startTime
+    })
+  }
+
+  /**
+   * Send a message to multiple models concurrently and handle streaming responses
+   */
+  private async sendMessageToMultipleModels({
+    conversationId,
+    userMessage,
+    userMessageId,
+    systemPrompt,
+    models,
+    onStreamChunk,
+    onStreamComplete,
+    onModelStreamStart,
+    onModelError,
+    signal,
+    startTime
+  }: {
+    conversationId: number | 'pending'
+    userMessage: CreateMessageInput
+    userMessageId?: number
+    systemPrompt?: string
+    models: ModelConfig[]
+    onStreamChunk?: (content: string, modelId: string) => void
+    onStreamComplete?: (assistantMessage: CreateMessageInput, modelId: string) => void
+    onModelStreamStart?: (modelId: string) => void
+    onModelError?: (error: Error, modelId: string) => void
+    signal?: AbortSignal
+    startTime: number
+  }): Promise<CreateMessageInput[]> {
+    
+    // Track occurrence count for each model config to disambiguate duplicates
+    const modelConfigCounts = new Map<string, number>();
+    const modelPromises = models.map(async (modelConfig) => {
+      const modelKey = JSON.stringify({ provider: modelConfig.provider, model: modelConfig.model });
+      const count = modelConfigCounts.get(modelKey) ?? 0;
+      modelConfigCounts.set(modelKey, count + 1);
+      // If the same model appears multiple times, append occurrence count
+      const modelId = count === 0
+        ? `${modelConfig.provider}:${modelConfig.model}`
+        : `${modelConfig.provider}:${modelConfig.model}#${count + 1}`;
+      
+      try {
+        onModelStreamStart?.(modelId)
         
+        // Create individual abort controller for this model
+        const modelAbortController = new AbortController()
+        
+        // If parent signal is aborted, abort this model too
+        if (signal) {
+          signal.addEventListener('abort', () => modelAbortController.abort())
+        }
+        
+        const result = await this.sendMessageToSingleModel({
+          conversationId,
+          userMessage,
+          userMessageId,
+          systemPrompt,
+          modelConfig,
+          modelId,
+          onStreamChunk,
+          onStreamComplete,
+          signal: modelAbortController.signal,
+          startTime
+        })
+        
+        return result
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error('Unknown error')
+        onModelError?.(err, modelId)
+        
+        // Return error message as assistant response for this model
+        return {
+          role: 'assistant' as const,
+          text: `Error from ${modelConfig.provider}/${modelConfig.model}: ${err.message}`,
+          processing_time_ms: Date.now() - startTime,
+          previous_message_id: userMessageId,
+          provider: modelConfig.provider,
+          model: modelConfig.model,
+          metadata: { error: true, errorMessage: err.message }
+        }
+      }
+    })
+    
+    // Wait for all models to complete (or error)
+    const results = await Promise.allSettled(modelPromises)
+    
+    return results.map(result => 
+      result.status === 'fulfilled' 
+        ? result.value 
+        : {
+            role: 'assistant' as const,
+            text: 'Failed to get response from model',
+            processing_time_ms: Date.now() - startTime,
+            metadata: { error: true, errorMessage: 'Promise rejected' }
+          }
+    )
+  }
+
+  /**
+   * Send a message to a single model (used by multi-model flow)
+   */
+  private async sendMessageToSingleModel({
+    conversationId,
+    userMessage,
+    userMessageId,
+    systemPrompt,
+    modelConfig,
+    modelId,
+    onStreamChunk,
+    onStreamComplete,
+    signal,
+    startTime
+  }: {
+    conversationId: number | 'pending'
+    userMessage: CreateMessageInput
+    userMessageId?: number
+    systemPrompt?: string
+    modelConfig: ModelConfig
+    modelId: string
+    onStreamChunk?: (content: string, modelId: string) => void
+    onStreamComplete?: (assistantMessage: CreateMessageInput, modelId: string) => void
+    signal?: AbortSignal
+    startTime: number
+  }): Promise<CreateMessageInput> {
+    
+    // Get conversation history (only for persistent conversations)
+    const conversationHistory = typeof conversationId === 'number' 
+      ? await messageStore.getMessages(conversationId)
+      : [] // Pending conversations have no history in database yet
+    
+    // Detect provider type for proper formatting
+    const isAnthropic = modelConfig.endpoint.includes('anthropic.com')
+    const isOllama = modelConfig.endpoint.includes('ollama') || modelConfig.endpoint.includes('11434')
+    
+    // Build provider-compatible messages array
+    const messages: OpenAIMessage[] = []
+    
+    // Add system message if provided
+    if (systemPrompt) {
+      messages.push({
+        role: 'system',
+        content: systemPrompt
+      })
+    }
+
+    // Add conversation history - filter to create model-specific history
+    for (const message of conversationHistory) {
+      if (message.role === 'system') continue // Skip system messages from history (we use systemPrompt)
+      
+      // Include all user messages
+      if (message.role === 'user') {
         const content = this.buildMessageContent({
           role: message.role as 'user' | 'assistant',
           text: message.text || '',
@@ -102,137 +313,132 @@ class ChatService {
           content
         })
       }
-
-      // Convert current user message to provider format and add it
-      const userContent = this.buildMessageContent(userMessage, isAnthropic)
-      messages.push({
-        role: 'user',
-        content: userContent
-      })
-
-      // Build request payload based on provider
-      const requestPayload = isAnthropic ? {
-        model,
-        messages,
-        stream: !!onStreamChunk,
-        max_tokens: maxTokens || 1024,
-        ...(temperature !== undefined && { temperature }),
-        ...(topP !== undefined && { top_p: topP }),
-        // Note: Anthropic may not support all OpenAI parameters
-      } : {
-        model,
-        messages,
-        stream: !!onStreamChunk,
-        ...(temperature !== undefined && { temperature }),
-        ...(maxTokens !== undefined && { max_tokens: maxTokens }),
-        ...(topP !== undefined && { top_p: topP }),
-        ...(frequencyPenalty !== undefined && { frequency_penalty: frequencyPenalty }),
-        ...(presencePenalty !== undefined && { presence_penalty: presencePenalty }),
-        ...(stop !== undefined && stop.length > 0 && { stop }),
-        ...(n !== undefined && { n }),
-        ...(seed !== undefined && { seed }),
-      }
-
-      // Build headers
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      }
-
-      // Add authentication based on provider
-      if (!isLocal && apiKey) {
-        if (isAnthropic) {
-          headers['x-api-key'] = apiKey
-          headers['anthropic-version'] = '2023-06-01'
-          headers['anthropic-dangerous-direct-browser-access'] = 'true'
-        } else {
-          headers['Authorization'] = `Bearer ${apiKey}`
+      // For assistant messages, only include those from the same model or if no model info exists (legacy)
+      else if (message.role === 'assistant') {
+        const isFromSameModel = (!message.provider && !message.model) || // Legacy messages without model info
+                               (message.provider === modelConfig.provider && message.model === modelConfig.model)
+        
+        if (isFromSameModel) {
+          const content = this.buildMessageContent({
+            role: message.role as 'user' | 'assistant',
+            text: message.text || '',
+            images: message.images || undefined,
+            audio: message.audio || undefined,
+            files: message.files || undefined
+          }, isAnthropic)
+          
+          messages.push({
+            role: message.role as 'user' | 'assistant',
+            content
+          })
         }
       }
+    }
 
-      // Build endpoint URL
-      const chatEndpoint = this.buildChatEndpoint(endpoint)
+    // Convert current user message to provider format and add it
+    const userContent = this.buildMessageContent(userMessage, isAnthropic)
+    messages.push({
+      role: 'user',
+      content: userContent
+    })
 
-      // Create timeout signal for local models if none provided
-      const timeoutMs = isLocal ? 120000 : 60000 // 2 minutes for local, 1 minute for remote
-      const timeoutSignal = signal || AbortSignal.timeout(timeoutMs)
+    // Build request payload based on provider
+    const requestPayload = isAnthropic ? {
+      model: modelConfig.model,
+      messages,
+      stream: !!onStreamChunk,
+      max_tokens: modelConfig.maxTokens || 1024,
+      ...(modelConfig.temperature !== undefined && { temperature: modelConfig.temperature }),
+      ...(modelConfig.topP !== undefined && { top_p: modelConfig.topP }),
+    } : {
+      model: modelConfig.model,
+      messages,
+      stream: !!onStreamChunk,
+      ...(modelConfig.temperature !== undefined && { temperature: modelConfig.temperature }),
+      ...(modelConfig.maxTokens !== undefined && { max_tokens: modelConfig.maxTokens }),
+      ...(modelConfig.topP !== undefined && { top_p: modelConfig.topP }),
+      ...(modelConfig.frequencyPenalty !== undefined && { frequency_penalty: modelConfig.frequencyPenalty }),
+      ...(modelConfig.presencePenalty !== undefined && { presence_penalty: modelConfig.presencePenalty }),
+      ...(modelConfig.stop !== undefined && modelConfig.stop.length > 0 && { stop: modelConfig.stop }),
+      ...(modelConfig.n !== undefined && { n: modelConfig.n }),
+      ...(modelConfig.seed !== undefined && { seed: modelConfig.seed }),
+      ...(modelConfig.reasoningEffort !== undefined && modelConfig.reasoningEffort !== 'none' && { reasoning_effort: modelConfig.reasoningEffort }),
+    }
 
-      // Make the API call
-      const response = await fetch(chatEndpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(requestPayload),
-        signal: timeoutSignal
-      })
+    // Build headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    }
 
-      if (!response.ok) {
-        let errorText = response.statusText
+    // Add authentication based on provider
+    if (!modelConfig.isLocal && modelConfig.apiKey) {
+      if (isAnthropic) {
+        headers['x-api-key'] = modelConfig.apiKey
+        headers['anthropic-version'] = '2023-06-01'
+        headers['anthropic-dangerous-direct-browser-access'] = 'true'
+      } else {
+        headers['Authorization'] = `Bearer ${modelConfig.apiKey}`
+      }
+    }
+
+    // Build endpoint URL
+    const chatEndpoint = this.buildChatEndpoint(modelConfig.endpoint)
+
+    // Make the API call
+    const response = await fetch(chatEndpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestPayload),
+      signal
+    })
+
+    if (!response.ok) {
+      let errorText = response.statusText
+      try {
+        const errorBody = await response.text()
+        console.error('API Error Response:', errorBody)
+        // Try to parse as JSON to extract error message
         try {
-          const errorBody = await response.text()
-          console.error('API Error Response:', errorBody)
-          // Try to parse as JSON to extract error message
-          try {
-            const errorJson = JSON.parse(errorBody)
-            if (errorJson.error?.message) {
-              errorText = errorJson.error.message
-            } else if (errorJson.message) {
-              errorText = errorJson.message
-            } else {
-              errorText = errorBody || response.statusText
-            }
-          } catch {
-            // Not JSON, use as-is
+          const errorJson = JSON.parse(errorBody)
+          if (errorJson.error?.message) {
+            errorText = errorJson.error.message
+          } else if (errorJson.message) {
+            errorText = errorJson.message
+          } else {
             errorText = errorBody || response.statusText
           }
-        } catch (e) {
-          // Ignore errors reading response body
+        } catch {
+          // Not JSON, use as-is
+          errorText = errorBody || response.statusText
         }
-        throw new Error(errorText)
+      } catch (e) {
+        // Ignore errors reading response body
       }
+      throw new Error(errorText)
+    }
 
-      const processingTime = Date.now() - startTime
+    const processingTime = Date.now() - startTime
 
-      if (requestPayload.stream) {
-        return this.handleStreamResponse(response, {
-          model,
-          processingTime,
-          onStreamChunk,
-          onStreamComplete,
-          isAnthropic,
-          isOllama
-        })
-      } else {
-        return this.handleNonStreamResponse(response, {
-          model,
-          processingTime,
-          isAnthropic,
-          isOllama
-        })
-      }
-
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        // For AbortError, we don't throw - let the caller handle the cancellation
-        // The partial message will be handled by the cancel handler
-        return {
-          role: 'assistant',
-          text: '', // Empty since partial content is handled elsewhere
-          processing_time_ms: Date.now() - startTime
-        }
-      }
-      console.error('Chat service error:', error)
-      
-      // Provide user-friendly error messages for common issues
-      if (error instanceof Error) {
-        if (error.message.includes('A maximum of 100 PDF pages may be provided')) {
-          throw new Error('PDF file is too large. Anthropic supports a maximum of 100 pages per PDF. Please try a smaller PDF file.')
-        }
-        if (error.message.includes('messages') && error.message.includes('content')) {
-          throw new Error('There was an issue with the file attachment format. Please try again or use a different file.')
-        }
-        throw error
-      }
-      
-      throw new Error('Unknown chat service error')
+    if (requestPayload.stream) {
+      return this.handleStreamResponse(response, {
+        provider: modelConfig.provider,
+        model: modelConfig.model,
+        userMessageId,
+        processingTime,
+        onStreamChunk: onStreamChunk ? (content: string) => onStreamChunk(content, modelId) : undefined,
+        onStreamComplete: onStreamComplete ? (message: CreateMessageInput) => onStreamComplete(message, modelId) : undefined,
+        isAnthropic,
+        isOllama
+      })
+    } else {
+      return this.handleNonStreamResponse(response, {
+        provider: modelConfig.provider,
+        model: modelConfig.model,
+        userMessageId,
+        processingTime,
+        isAnthropic,
+        isOllama
+      })
     }
   }
 
@@ -395,7 +601,9 @@ class ChatService {
   private async handleStreamResponse(
     response: Response, 
     options: {
+      provider: string
       model: string
+      userMessageId?: number
       processingTime: number
       onStreamChunk?: (content: string) => void
       onStreamComplete?: (message: CreateMessageInput) => void
@@ -489,7 +697,10 @@ class ChatService {
         text: fullContent,
         input_tokens: totalInputTokens,
         output_tokens: totalOutputTokens,
-        processing_time_ms: options.processingTime
+        processing_time_ms: options.processingTime,
+        previous_message_id: options.userMessageId,
+        provider: options.provider,
+        model: options.model
       }
 
       // Only call onStreamComplete if not aborted (let the cancel handler save partial content)
@@ -508,7 +719,10 @@ class ChatService {
           text: fullContent,
           input_tokens: totalInputTokens,
           output_tokens: totalOutputTokens,
-          processing_time_ms: options.processingTime
+          processing_time_ms: options.processingTime,
+          previous_message_id: options.userMessageId,
+          provider: options.provider,
+          model: options.model
         }
       }
       throw error
@@ -523,7 +737,9 @@ class ChatService {
   private async handleNonStreamResponse(
     response: Response,
     options: {
+      provider: string
       model: string
+      userMessageId?: number
       processingTime: number
       isAnthropic?: boolean
       isOllama?: boolean
@@ -558,7 +774,10 @@ class ChatService {
       text,
       input_tokens: inputTokens,
       output_tokens: outputTokens,
-      processing_time_ms: options.processingTime
+      processing_time_ms: options.processingTime,
+      previous_message_id: options.userMessageId,
+      provider: options.provider,
+      model: options.model
     }
 
     return assistantMessage

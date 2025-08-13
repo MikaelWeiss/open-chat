@@ -28,10 +28,6 @@
   @apply hidden;
 }
 
-.mini-window .avatar-assistant,
-.mini-window .avatar-user {
-  @apply w-7 h-7;
-}
 
 .mini-window .message-bubble-assistant,
 .mini-window .message-bubble-user {
@@ -414,34 +410,6 @@ a,
   position: relative;
 }
 
-/* Elegant avatar styles */
-.avatar-assistant {
-  background: linear-gradient(135deg, #00BF9C, #8b5cf6);
-  box-shadow: 0 0 20px rgba(0, 191, 156, 0.3);
-  position: relative;
-  overflow: hidden;
-}
-
-.avatar-assistant::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  animation: shimmer 3s infinite;
-}
-
-@keyframes shimmer {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.avatar-user {
-  background: hsl(var(--muted) / 0.5);
-  border: 1px solid hsl(var(--border));
-}
 
 /* Enhanced input styling */
 .elegant-input-container {
@@ -540,4 +508,81 @@ a,
 
 .elegant-scrollbar::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Multi-Model Comparison Styles */
+.comparison-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  max-width: 100%;
+  width: 100%;
+}
+
+.comparison-response {
+  position: relative;
+  border: 1px solid hsl(var(--border) / 0.4);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.comparison-response:hover {
+  border-color: hsl(var(--primary) / 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px hsl(var(--shadow));
+}
+
+.model-badge {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--accent) / 0.1));
+  border: 1px solid hsl(var(--primary) / 0.2);
+  color: hsl(var(--primary));
+  font-weight: 500;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.model-badge:hover {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.2));
+  transform: scale(1.05);
+}
+
+.parallel-responses-header {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.05), hsl(var(--accent) / 0.05));
+  border: 1px solid hsl(var(--primary) / 0.15);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.parallel-count-badge {
+  background: hsl(var(--primary));
+  color: white;
+  font-weight: 600;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  box-shadow: 0 2px 4px hsl(var(--primary) / 0.3);
+}
+
+/* Enhanced gradient effects for multi-model UI */
+.bg-gradient-subtle {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--accent) / 0.08));
+}
+
+/* Improved shadow effects */
+.shadow-elegant-xl {
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Backdrop blur for better glass effects */
+.backdrop-blur-strong {
+  backdrop-filter: blur(12px);
 }

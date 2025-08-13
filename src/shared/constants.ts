@@ -9,6 +9,7 @@ export const KEYBOARD_SHORTCUTS = {
   SHOW_SHORTCUTS: { mac: '⌘/', pc: 'Ctrl+/' },
   FOCUS_INPUT: { mac: '⌘L', pc: 'Ctrl+L' },
   TOGGLE_SIDEBAR: { mac: '⌘S', pc: 'Ctrl+S' },
+  TOGGLE_MODEL_SELECTOR: { mac: '⇧⌘M', pc: 'Ctrl+Shift+M' },
   ESCAPE: 'Esc'
 } as const
 
