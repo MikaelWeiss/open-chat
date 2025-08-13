@@ -10,25 +10,6 @@ interface OpenAIMessage {
 }
 
 
-interface OpenAIChatCompletionResponse {
-  id: string
-  object: string
-  created: number
-  model: string
-  choices: {
-    index: number
-    message: {
-      role: 'assistant'
-      content: string
-    }
-    finish_reason: string
-  }[]
-  usage: {
-    prompt_tokens: number
-    completion_tokens: number
-    total_tokens: number
-  }
-}
 
 
 export interface SendMessageOptions {
@@ -91,6 +72,7 @@ class ChatService {
       
       // Detect provider type for proper formatting
       const isAnthropic = endpoint.includes('anthropic.com')
+      const isOllama = endpoint.includes('ollama') || endpoint.includes('11434')
       
       // Build provider-compatible messages array
       const messages: OpenAIMessage[] = []
@@ -170,12 +152,16 @@ class ChatService {
       // Build endpoint URL
       const chatEndpoint = this.buildChatEndpoint(endpoint)
 
+      // Create timeout signal for local models if none provided
+      const timeoutMs = isLocal ? 120000 : 60000 // 2 minutes for local, 1 minute for remote
+      const timeoutSignal = signal || AbortSignal.timeout(timeoutMs)
+
       // Make the API call
       const response = await fetch(chatEndpoint, {
         method: 'POST',
         headers,
         body: JSON.stringify(requestPayload),
-        signal
+        signal: timeoutSignal
       })
 
       if (!response.ok) {
@@ -211,12 +197,15 @@ class ChatService {
           processingTime,
           onStreamChunk,
           onStreamComplete,
-          isAnthropic
+          isAnthropic,
+          isOllama
         })
       } else {
         return this.handleNonStreamResponse(response, {
           model,
-          processingTime
+          processingTime,
+          isAnthropic,
+          isOllama
         })
       }
 
@@ -411,6 +400,7 @@ class ChatService {
       onStreamChunk?: (content: string) => void
       onStreamComplete?: (message: CreateMessageInput) => void
       isAnthropic?: boolean
+      isOllama?: boolean
     }
   ): Promise<CreateMessageInput> {
     const reader = response.body?.getReader()
@@ -437,31 +427,58 @@ class ChatService {
 
         for (const line of lines) {
           if (line.trim() === '') continue
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim()
-            if (data === '[DONE]') continue
-
-            try {
-              const chunk = JSON.parse(data)
-              let deltaContent = ''
-              
-              if (options.isAnthropic) {
-                // Anthropic streaming format
-                if (chunk.type === 'content_block_delta') {
-                  deltaContent = chunk.delta?.text || ''
-                }
-              } else {
-                // OpenAI streaming format
-                deltaContent = chunk.choices?.[0]?.delta?.content || ''
-              }
-              
-              if (deltaContent) {
-                fullContent += deltaContent
-                options.onStreamChunk?.(deltaContent)
-              }
-            } catch (err) {
-              console.warn('Failed to parse streaming chunk:', err)
+          
+          let data = line
+          let isDone = false
+          
+          // Handle different streaming formats
+          if (options.isOllama) {
+            // Ollama streams JSON objects directly, not prefixed with "data: "
+            if (line.startsWith('data: ')) {
+              data = line.slice(6).trim()
             }
+          } else {
+            // OpenAI and Anthropic use "data: " prefix
+            if (line.startsWith('data: ')) {
+              data = line.slice(6).trim()
+              if (data === '[DONE]') continue
+            } else {
+              continue // Skip lines that don't start with "data: "
+            }
+          }
+
+          try {
+            const chunk = JSON.parse(data)
+            let deltaContent = ''
+            
+            if (options.isAnthropic) {
+              // Anthropic streaming format
+              if (chunk.type === 'content_block_delta') {
+                deltaContent = chunk.delta?.text || ''
+              }
+            } else if (options.isOllama) {
+              // Ollama streaming format - content is in message.content
+              deltaContent = chunk.message?.content || ''
+              // Check if Ollama response is done
+              if (chunk.done === true) {
+                isDone = true
+              }
+            } else {
+              // OpenAI streaming format
+              deltaContent = chunk.choices?.[0]?.delta?.content || ''
+            }
+            
+            if (deltaContent) {
+              fullContent += deltaContent
+              options.onStreamChunk?.(deltaContent)
+            }
+            
+            // For Ollama, break when done
+            if (isDone) {
+              break
+            }
+          } catch (err) {
+            console.warn('Failed to parse streaming chunk:', err, 'Line:', line)
           }
         }
       }
@@ -508,15 +525,39 @@ class ChatService {
     options: {
       model: string
       processingTime: number
+      isAnthropic?: boolean
+      isOllama?: boolean
     }
   ): Promise<CreateMessageInput> {
-    const data: OpenAIChatCompletionResponse = await response.json()
+    const data = await response.json()
+
+    let text = ''
+    let inputTokens: number | undefined = undefined
+    let outputTokens: number | undefined = undefined
+
+    if (options.isOllama) {
+      // Ollama non-streaming format: { message: { content: "..." } }
+      text = data.message?.content || ''
+      // Ollama may include usage statistics
+      inputTokens = data.prompt_eval_count
+      outputTokens = data.eval_count
+    } else if (options.isAnthropic) {
+      // Anthropic format
+      text = data.content?.[0]?.text || ''
+      inputTokens = data.usage?.input_tokens
+      outputTokens = data.usage?.output_tokens
+    } else {
+      // OpenAI format
+      text = data.choices?.[0]?.message?.content || ''
+      inputTokens = data.usage?.prompt_tokens
+      outputTokens = data.usage?.completion_tokens
+    }
 
     const assistantMessage: CreateMessageInput = {
       role: 'assistant',
-      text: data.choices[0]?.message?.content || '',
-      input_tokens: data.usage?.prompt_tokens,
-      output_tokens: data.usage?.completion_tokens,
+      text,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
       processing_time_ms: options.processingTime
     }
 
