@@ -35,6 +35,39 @@ export default function ModelLoadingBanner({ modelName, onModelStatusChange }: M
     }
   }
 
+  const handleRetry = async () => {
+    setIsLoading(true)
+    try {
+      // If the error mentions Ollama not being accessible, try to start it first
+      if (modelStatus.error?.includes('not accessible') || modelStatus.error?.includes('Ollama is not accessible')) {
+        console.log('Ollama not accessible, attempting to start...')
+        
+        const startResult = await ollamaService.autoStartOllama()
+        if (startResult.success) {
+          console.log('Ollama started successfully, checking model status...')
+        } else {
+          console.warn('Failed to start Ollama:', startResult.message)
+          // Continue anyway to check status
+        }
+        
+        // Wait a moment for Ollama to fully start
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
+      
+      // Check model status after potential Ollama start
+      await checkModelStatus()
+    } catch (error) {
+      console.error('Failed during retry:', error)
+      setModelStatus({
+        name: modelName,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Retry failed'
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleLoadModel = async () => {
     setIsLoading(true)
     try {
@@ -144,12 +177,12 @@ export default function ModelLoadingBanner({ modelName, onModelStatusChange }: M
         <div className="flex items-center gap-2">
           {modelStatus.status === 'error' && (
             <button
-              onClick={checkModelStatus}
+              onClick={handleRetry}
               disabled={isLoading}
               className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 dark:text-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 rounded-lg transition-colors disabled:opacity-50"
             >
               <RotateCcw className="h-3 w-3" />
-              Retry
+              {modelStatus.error?.includes('not accessible') || modelStatus.error?.includes('Ollama is not accessible') ? 'Start Ollama & Retry' : 'Retry'}
             </button>
           )}
           

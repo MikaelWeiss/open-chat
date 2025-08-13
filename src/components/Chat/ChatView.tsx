@@ -12,6 +12,7 @@ import { type Conversation } from '../../shared/conversationStore'
 import { type CreateMessageInput } from '../../shared/messageStore'
 import { chatService } from '../../services/chatService'
 import { telemetryService } from '../../services/telemetryService'
+import { ollamaService } from '../../services/ollamaService'
 import clsx from 'clsx'
 import EmptyState from '../EmptyState/EmptyState'
 
@@ -99,6 +100,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   
   // Model loading banner state
   const [showModelBanner, setShowModelBanner] = useState(false)
+  
+  // Track the last loaded local model for cleanup when switching
+  const [lastLoadedLocalModel, setLastLoadedLocalModel] = useState<string | null>(null)
   
   // Use Zustand stores
   const { 
@@ -435,6 +439,33 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   useEffect(() => {
     setShowModelBanner(isCurrentModelLocal && !!currentModelName)
   }, [isCurrentModelLocal, currentModelName])
+
+  // Handle model switching - unload previous local model when switching to a different model
+  useEffect(() => {
+    const effectiveProvider = currentConversation?.provider || selectedModel?.provider
+    const effectiveModel = currentConversation?.model || selectedModel?.model
+    
+    // Check if current model is local
+    const provider = effectiveProvider && providers ? providers[effectiveProvider] : null
+    const isLocalModel = provider?.isLocal === true
+    
+    // If we're switching models and there was a previously loaded local model
+    if (lastLoadedLocalModel && 
+        (effectiveModel !== lastLoadedLocalModel || !isLocalModel)) {
+      
+      console.log(`Model switched from ${lastLoadedLocalModel} to ${effectiveModel || 'none'}, unloading previous model`)
+      
+      // Unload the previous local model (non-blocking)
+      ollamaService.unloadModel(lastLoadedLocalModel).then(() => {
+        console.log(`Successfully unloaded previous model: ${lastLoadedLocalModel}`)
+      }).catch(error => {
+        console.warn(`Failed to unload previous model ${lastLoadedLocalModel}:`, error)
+      })
+      
+      // Clear the tracked model
+      setLastLoadedLocalModel(null)
+    }
+  }, [currentConversation?.provider, currentConversation?.model, selectedModel?.provider, selectedModel?.model, providers, lastLoadedLocalModel])
   
   // Function to get the index of a model in the compatible models list
   const getModelIndex = (model: any) => {
@@ -968,6 +999,17 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         {showModelBanner && (
           <ModelLoadingBanner 
             modelName={currentModelName}
+            onModelStatusChange={(status) => {
+              // Track when a local model is successfully loaded
+              if (status.status === 'loaded') {
+                setLastLoadedLocalModel(status.name)
+              } else if (status.status === 'not_loaded' || status.status === 'error') {
+                // If this specific model failed to load or was unloaded, clear tracking
+                if (lastLoadedLocalModel === status.name) {
+                  setLastLoadedLocalModel(null)
+                }
+              }
+            }}
           />
         )}
         
