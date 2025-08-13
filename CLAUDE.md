@@ -89,8 +89,26 @@ The SQLite database auto-creates tables for:
 - When you're done doing anything, run `pnpm build` to make sure there aren't any errors
 
 ## Changelog Maintenance
-- After every change add an entry to CHANGELOG.md under the current version section
+
+### When to Add Changelog Entries
+**Only add changelog entries for user-visible changes that are complete and ready for release:**
+- New features that are fully functional
+- Bug fixes that resolve user-reported issues
+- Changes that affect user experience or behavior
+- Breaking changes or deprecated functionality
+
+### When NOT to Add Changelog Entries
+**Do not add changelog entries for:**
+- Work-in-progress features that aren't ready for users
+- Internal refactoring or code cleanup
+- Intermediate fixes while developing a feature
+- Development tooling or build process changes
+- Documentation updates (unless user-facing)
+
+### Format Guidelines
 - Use the format: `- Description of change` under the appropriate category (Added/Changed/Fixed)
+- Focus on what the user gains/experiences, not technical implementation details
+- Group related changes under a single entry when appropriate
 - Update the TBD date when preparing for release
 
 ## Documentation Libraries
