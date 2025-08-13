@@ -1,5 +1,5 @@
-import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
-import { ArrowUp, Paperclip, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings, Globe2 } from 'lucide-react'
+import { useRef, useEffect, forwardRef, useImperativeHandle, useState, useMemo } from 'react'
+import { ArrowUp, Paperclip, Square, Zap, DollarSign, X, FileText, Image, Volume2, Settings, Brain, Globe2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../../hooks/useSettings'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -15,7 +15,7 @@ interface FileAttachment {
 }
 
 interface MessageInputProps {
-  onSend: (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => void
+  onSend: (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>, reasoningEffort?: 'none' | 'low' | 'medium' | 'high') => void
   onCancel?: () => void
   disabled?: boolean
   isLoading?: boolean
@@ -24,6 +24,7 @@ interface MessageInputProps {
     vision?: boolean
     audio?: boolean
     files?: boolean
+    thinking?: boolean
   }
   noProvider?: boolean
   onOpenConversationSettings?: () => void
@@ -43,6 +44,42 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const [message, setMessage] = useState('')
     const [attachments, setAttachments] = useState<FileAttachment[]>([])
+    const [reasoningEffort, setReasoningEffort] = useState<'none' | 'low' | 'medium' | 'high'>('medium')
+    const [isReasoningDropdownOpen, setIsReasoningDropdownOpen] = useState(false)
+    
+    // Array of 25 different placeholder text presets
+    const placeholderTexts = [
+      "What's on your mind?",
+      "Ask me anything...",
+      "Start a conversation...",
+      "Type your message...",
+      "What can I help you with?",
+      "Share your thoughts...",
+      "Tell me something...",
+      "What would you like to know?",
+      "How can I assist you?",
+      "Let's chat...",
+      "What's your question?",
+      "Need help with something?",
+      "Start typing...",
+      "What are you curious about?",
+      "Message away...",
+      "Drop your question here...",
+      "What's puzzling you?",
+      "Ready to help...",
+      "Fire away with your question...",
+      "What brings you here today?",
+      "Let's explore together...",
+      "Your thoughts?",
+      "Speak your mind...",
+      "What's the topic?",
+      "Ready when you are..."
+    ]
+    
+    // Randomly select a placeholder text that stays consistent during the session
+    const selectedPlaceholder = useMemo(() => {
+      return placeholderTexts[Math.floor(Math.random() * placeholderTexts.length)]
+    }, [])
     
     // Use refs to access current values in event handlers
     const disabledRef = useRef(disabled)
@@ -55,6 +92,21 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     disabledRef.current = disabled
     isLoadingRef.current = isLoading
     modelCapabilitiesRef.current = modelCapabilities
+
+    // Close reasoning dropdown on click outside
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as HTMLElement
+        if (!target.closest('.reasoning-dropdown')) {
+          setIsReasoningDropdownOpen(false)
+        }
+      }
+      
+      if (isReasoningDropdownOpen) {
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }, [isReasoningDropdownOpen])
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -312,8 +364,8 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       if (isLoading) {
         onCancel?.()
       } else {
-        console.log('Sending message:', message, attachments)
-        onSend(message, attachments.length > 0 ? attachments : undefined)
+        console.log('Sending message:', message, attachments, 'reasoning effort:', reasoningEffort)
+        onSend(message, attachments.length > 0 ? attachments : undefined, reasoningEffort)
         setMessage('')
         setAttachments([])
       }
@@ -637,15 +689,13 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             <textarea
               ref={textareaRef}
               value={message}
-              onChange={(e) => !disabled && !isLoading && setMessage(e.target.value)}
+              onChange={(e) => !disabled && setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               placeholder={
                 noProvider
                   ? "Add an AI provider or select a model to start chatting..." 
-                  : isLoading 
-                    ? "Waiting for response..." 
-                    : "Message Open Chat..."
+                  : selectedPlaceholder
               }
               className={clsx(
                 'w-full resize-none bg-transparent px-4 py-2.5 min-h-[48px] max-h-[200px] focus:outline-none text-foreground',

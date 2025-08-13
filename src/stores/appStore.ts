@@ -5,6 +5,7 @@ import { conversationStore, type Conversation } from '../shared/conversationStor
 import { messageStore, type Message, type CreateMessageInput } from '../shared/messageStore'
 import { settings, SETTINGS_KEYS } from '../shared/settingsStore'
 import { type Provider } from '../types/provider'
+import { telemetryService } from '../services/telemetryService'
 
 // Pending conversation type (exists only in memory until first message)
 export interface PendingConversation {
@@ -12,6 +13,7 @@ export interface PendingConversation {
   provider: string
   model: string
   system_prompt?: string
+  settings?: string | null // JSON string for conversation-specific settings
   created_at: string
   updated_at: string
 }
@@ -38,7 +40,7 @@ interface AppState {
   
   // Actions - Conversations
   loadConversations: () => Promise<void>
-  createPendingConversation: (title: string, provider: string, model: string, systemPrompt?: string) => void
+  createPendingConversation: (title: string, provider: string, model: string, systemPrompt?: string, settings?: string) => void
   commitPendingConversation: () => Promise<number | null>
   updateConversation: (id: number | 'pending', updates: Partial<Conversation>) => Promise<void>
   deleteConversation: (id: number | 'pending') => Promise<void>
@@ -99,7 +101,7 @@ export const useAppStore = create<AppState>()(
       }
     },
 
-    createPendingConversation: (title: string, provider: string, model: string, systemPrompt?: string) => {
+    createPendingConversation: (title: string, provider: string, model: string, systemPrompt?: string, settings?: string) => {
       const now = new Date().toISOString()
       
       // Clear any existing pending conversation and its messages
@@ -110,6 +112,7 @@ export const useAppStore = create<AppState>()(
         provider,
         model,
         system_prompt: systemPrompt,
+        settings: settings || null,
         created_at: now,
         updated_at: now
       }
@@ -118,6 +121,11 @@ export const useAppStore = create<AppState>()(
         pendingConversation: pending,
         selectedConversationId: 'pending'
       })
+      
+      // Track new conversation creation
+      if (provider && model) {
+        telemetryService.trackNewConversation(provider, model)
+      }
     },
 
     commitPendingConversation: async () => {
@@ -140,7 +148,8 @@ export const useAppStore = create<AppState>()(
           pending.title,
           pending.provider,
           pending.model,
-          pending.system_prompt
+          pending.system_prompt,
+          pending.settings || undefined
         )
 
         if (persistentId) {

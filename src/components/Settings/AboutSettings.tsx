@@ -1,13 +1,26 @@
 import { useState } from 'react'
 import { ExternalLink } from 'lucide-react'
+import { open } from '@tauri-apps/plugin-shell'
 import PrivacyPolicyModal from './PrivacyPolicyModal'
+import packageJson from '../../../package.json'
 
 export default function AboutSettings() {
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false)
 
-  const handleOpenWebsite = () => {
-    console.log('Opening website: https://weisssolutions.org')
-    // In real app: window.electronAPI?.shell?.openExternal('https://weisssolutions.org')
+  const handleOpenWebsite = async () => {
+    try {
+      await open('https://weisssolutions.org')
+    } catch (error) {
+      console.error('Failed to open website:', error)
+    }
+  }
+
+  const handleOpenEmail = async () => {
+    try {
+      await open('mailto:contact@weisssolutions.org')
+    } catch (error) {
+      console.error('Failed to open email client:', error)
+    }
   }
 
   return (
@@ -76,8 +89,16 @@ export default function AboutSettings() {
 
       <div className="border-t border-border pt-6">
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>Open Chat v1.0.0</p>
-          <p>Contact: contact@weisssolutions.org</p>
+          <p>Open Chat v{packageJson.version}</p>
+          <p>
+            Contact: 
+            <button
+              onClick={handleOpenEmail}
+              className="text-blue-500 hover:text-blue-600 underline transition-colors ml-1"
+            >
+              contact@weisssolutions.org
+            </button>
+          </p>
         </div>
       </div>
 

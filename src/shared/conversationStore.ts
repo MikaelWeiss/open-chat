@@ -14,9 +14,16 @@ class ConversationDatabase {
   }
 
   private async createTable() {
-    const db = await this.init()
+    if (!this.db) return
     
-    await db.execute(`
+    // Create schema_version table for migration tracking
+    await this.db.execute(`
+      CREATE TABLE IF NOT EXISTS schema_version (
+        version INTEGER PRIMARY KEY
+      )
+    `)
+    
+    await this.db.execute(`
       CREATE TABLE IF NOT EXISTS conversations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -24,10 +31,48 @@ class ConversationDatabase {
         model TEXT NOT NULL,
         system_prompt TEXT,
         is_favorite BOOLEAN DEFAULT FALSE,
+        settings TEXT, -- JSON string for conversation-specific settings
         created_at DATETIME,
         updated_at DATETIME
       )
     `)
+    
+    // Run migrations only if needed
+    await this.runMigrations()
+  }
+
+  private async runMigrations() {
+    if (!this.db) return
+    
+    try {
+      // Get current schema version
+      const versionResult = await this.db.select(`SELECT version FROM schema_version ORDER BY version DESC LIMIT 1`) as any[]
+      const currentVersion = versionResult.length > 0 ? versionResult[0].version : 0
+      
+      // Migration 1: Add settings column (version 1)
+      if (currentVersion < 1) {
+        try {
+          await this.db.execute(`ALTER TABLE conversations ADD COLUMN settings TEXT`)
+          await this.db.execute(`INSERT OR REPLACE INTO schema_version (version) VALUES (1)`)
+          console.log('Migration 1: Added settings column to conversations table')
+        } catch (err) {
+          const errorMessage = (err as Error).message
+          if (errorMessage.includes('duplicate column name')) {
+            // Column already exists, just update version
+            await this.db.execute(`INSERT OR REPLACE INTO schema_version (version) VALUES (1)`)
+            console.log('Migration 1: Settings column already exists, updated version')
+          } else {
+            console.error('Migration 1 failed:', errorMessage)
+          }
+        }
+      }
+      
+      // Future migrations can be added here with version checks
+      // if (currentVersion < 2) { ... }
+      
+    } catch (err) {
+      console.error('Failed to run migrations:', err)
+    }
   }
 
   // Listener management
@@ -40,12 +85,12 @@ class ConversationDatabase {
     this.listeners.forEach(listener => listener())
   }
 
-  async createConversation(title: string, provider: string, model: string, systemPrompt?: string) {
+  async createConversation(title: string, provider: string, model: string, systemPrompt?: string, settings?: string) {
     const db = await this.init()
     const now = new Date().toISOString()
     const result = await db.execute(
-      'INSERT INTO conversations (title, provider, model, system_prompt, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)',
-      [title, provider, model, systemPrompt || null, now, now]
+      'INSERT INTO conversations (title, provider, model, system_prompt, settings, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [title, provider, model, systemPrompt || null, settings || null, now, now]
     )
     this.notifyListeners()
     return result.lastInsertId
@@ -80,7 +125,7 @@ class ConversationDatabase {
     return null
   }
 
-  async updateConversation(id: number, updates: Partial<Pick<Conversation, 'title' | 'provider' | 'model' | 'system_prompt' | 'is_favorite'>>) {
+  async updateConversation(id: number, updates: Partial<Pick<Conversation, 'title' | 'provider' | 'model' | 'system_prompt' | 'is_favorite' | 'settings'>>) {
     const db = await this.init()
     const fields = []
     const values = []
@@ -104,6 +149,10 @@ class ConversationDatabase {
     if (updates.is_favorite !== undefined) {
       fields.push('is_favorite = $' + (values.length + 1))
       values.push(updates.is_favorite)
+    }
+    if (updates.settings !== undefined) {
+      fields.push('settings = $' + (values.length + 1))
+      values.push(updates.settings)
     }
 
     fields.push('updated_at = $' + (values.length + 1))
@@ -170,6 +219,7 @@ export interface Conversation {
   model: string
   system_prompt: string | null
   is_favorite: boolean
+  settings: string | null // JSON string for conversation-specific settings
   created_at: string
   updated_at: string
 }

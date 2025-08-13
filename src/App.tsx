@@ -4,13 +4,17 @@ import ChatView from './components/Chat/ChatView'
 import SettingsModal from './components/Settings/SettingsModal'
 import ShortcutsModal from './components/Shortcuts/ShortcutsModal'
 import ToastContainer from './components/Toast/Toast'
-import { DEFAULT_SIDEBAR_WIDTH } from './shared/constants'
+import OnboardingModal from './components/Onboarding/OnboardingModal'
+import { DEFAULT_SIDEBAR_WIDTH, TELEMETRY_CONFIG } from './shared/constants'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { MessageInputHandle } from './components/Chat/MessageInput'
 import { useSettings } from './hooks/useSettings'
 import { useConversations, useAppStore } from './stores/appStore'
 import { initializeAppStore } from './stores/appStore'
 import { messageSync } from './utils/messageSync'
+import { telemetryService } from './services/telemetryService'
+import { check } from '@tauri-apps/plugin-updater'
+import { relaunch } from '@tauri-apps/plugin-process'
 
 function App() {
   // Check if we're in mini window mode
@@ -21,6 +25,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState<'general' | 'models' | 'about'>('general')
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
   
   // Use Zustand store for conversations
   const { 
@@ -33,13 +38,25 @@ function App() {
   const messageInputRef = useRef<MessageInputHandle>(null)
   
   // Initialize settings (theme will be applied in useSettings hook)
-  const { handleThemeChange, theme } = useSettings()
+  const { handleThemeChange, theme, hasCompletedOnboarding, isLoading: settingsLoading } = useSettings()
   
   // Initialize Zustand store and message sync
   useEffect(() => {
     const initialize = async () => {
+      // Initialize TelemetryDeck (non-blocking)
+      telemetryService.initialize({
+        appID: TELEMETRY_CONFIG.APP_ID,
+        testMode: TELEMETRY_CONFIG.TEST_MODE,
+      }).then(() => {
+        // Track app launch after initialization
+        telemetryService.trackAppLaunched()
+      }).catch(error => {
+        console.warn('Telemetry initialization failed:', error)
+      })
+      
       // Initialize store
       await initializeAppStore()
+      
       
       // Set up sync listeners
       await messageSync.setupListeners(
@@ -65,6 +82,46 @@ function App() {
       messageSync.cleanup()
     }
   }, [])
+
+  // Check for app updates on startup
+  useEffect(() => {
+    // Don't check for updates in mini window mode
+    if (isMiniWindow) {
+      return
+    }
+
+    const checkForUpdates = async () => {
+      const update = await check();
+      if (update) {
+        console.log(
+          `found update ${update.version} from ${update.date} with notes ${update.body}`
+        );
+        let downloaded = 0;
+        let contentLength = 0;
+        // alternatively we could also call update.download() and update.install() separately
+        await update.downloadAndInstall((event) => {
+          switch (event.event) {
+            case 'Started':
+              contentLength = event.data.contentLength || 0;
+              console.log(`started downloading ${event.data.contentLength || 0} bytes`);
+              break;
+            case 'Progress':
+              downloaded += event.data.chunkLength || 0;
+              console.log(`downloaded ${downloaded} from ${contentLength}`);
+              break;
+            case 'Finished':
+              console.log('download finished');
+              break;
+          }
+        });
+      
+        console.log('update installed');
+        await relaunch();
+      }
+    }
+
+    checkForUpdates();
+  }, [isMiniWindow])
   
   // Reload state when window gains focus
   useEffect(() => {
@@ -100,11 +157,14 @@ function App() {
       if (section === 'providers') {
         setSettingsSection('models')
         setSettingsOpen(true)
+        telemetryService.trackSettingsOpened('models')
       } else if (section === 'general' || section === 'models' || section === 'about') {
         setSettingsSection(section)
         setSettingsOpen(true)
+        telemetryService.trackSettingsOpened(section)
       } else {
         setSettingsOpen(true)
+        telemetryService.trackSettingsOpened('general')
       }
     }
     
@@ -114,7 +174,24 @@ function App() {
     }
   }, [])
   
-  
+  // Show onboarding if not completed
+  useEffect(() => {
+    if (!settingsLoading && !hasCompletedOnboarding && !isMiniWindow) {
+      setOnboardingOpen(true)
+    }
+  }, [settingsLoading, hasCompletedOnboarding, isMiniWindow])
+
+  // Listen for restart onboarding event
+  useEffect(() => {
+    const handleRestartOnboarding = () => {
+      setOnboardingOpen(true)
+    }
+    
+    window.addEventListener('restartOnboarding', handleRestartOnboarding)
+    return () => {
+      window.removeEventListener('restartOnboarding', handleRestartOnboarding)
+    }
+  }, [])
   
   // Create initial pending conversation when app starts and no conversation is selected
   useEffect(() => {
@@ -196,6 +273,9 @@ function App() {
 
   const handleToggleSettings = () => {
     setSettingsOpen(!settingsOpen)
+    if (!settingsOpen) {
+      telemetryService.trackSettingsOpened('general')
+    }
   }
 
   const handleToggleShortcuts = () => {
@@ -223,6 +303,7 @@ function App() {
     // Toggle between light and dark only
     const newTheme = theme === 'light' ? 'dark' : 'light'
     handleThemeChange(newTheme)
+    telemetryService.trackThemeChanged(newTheme)
   }
 
   // Add escape key handler for mini window
@@ -290,6 +371,11 @@ function App() {
           <ShortcutsModal
             isOpen={shortcutsOpen}
             onClose={() => setShortcutsOpen(false)}
+          />
+          
+          <OnboardingModal
+            isOpen={onboardingOpen}
+            onClose={() => setOnboardingOpen(false)}
           />
         </>
       )}

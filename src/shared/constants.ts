@@ -19,3 +19,11 @@ export const THEME_OPTIONS = [
 ] as const
 
 export const DEFAULT_SIDEBAR_WIDTH = 320
+
+// TelemetryDeck Configuration
+export const TELEMETRY_CONFIG = {
+  // Replace with your actual TelemetryDeck App ID
+  APP_ID: '5E5DB279-2E23-4ADC-83FF-281CDB44D606',
+  // Enable test mode in development
+  TEST_MODE: import.meta.env.DEV || false,
+} as const

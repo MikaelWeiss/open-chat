@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, ChevronDown, Settings, Trash2, Star, Message
 import { format } from 'date-fns'
 import clsx from 'clsx'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { open } from '@tauri-apps/plugin-shell'
 import { useConversations } from '../../stores/appStore'
 import { type Conversation } from '../../shared/conversationStore'
 import { type PendingConversation } from '../../stores/appStore'
@@ -399,7 +400,13 @@ export default function Sidebar({
         {/* Bottom Feedback Button - Now positioned absolutely */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/10 glass-nav backdrop-blur-strong shadow-elegant-xl z-50">
           <button
-            onClick={() => console.log("Send feedback")}
+            onClick={async () => {
+              try {
+                await open('mailto:contact@weisssolutions.org')
+              } catch (error) {
+                console.error('Failed to open email client:', error)
+              }
+            }}
             className="ml-auto block p-2 elegant-hover rounded-lg transition-all text-muted-foreground hover:text-primary"
             title="Send Feedback"
           >

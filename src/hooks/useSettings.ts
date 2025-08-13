@@ -6,6 +6,7 @@ import { applyTheme, setupSystemThemeListener } from '../shared/theme'
 import { modelsService } from '../services/modelsService'
 import { useAppStore } from '../stores/appStore'
 import * as windowManager from '../utils/windowManager'
+import { telemetryService } from '../services/telemetryService'
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system'
@@ -14,6 +15,8 @@ export interface AppSettings {
   showPricing: boolean
   showConversationSettings: boolean
   providers: Record<string, Provider>
+  hasCompletedOnboarding: boolean
+  userName: string
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -22,6 +25,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   globalHotkey: '',
   showPricing: false,
   showConversationSettings: false,
+  hasCompletedOnboarding: false,
+  userName: '',
   providers: {}
 }
 
@@ -235,6 +240,7 @@ export function useSettings() {
     await updateSetting('showConversationSettings', show)
   }
 
+
   const handleToggleModel = async (providerId: string, modelName: string, enabled: boolean) => {
     const provider = settingsManager.settings.providers[providerId]
     if (!provider) return
@@ -333,6 +339,10 @@ export function useSettings() {
           modelCapabilities,
           connected: true
         })
+        
+        // Track provider configuration with first enabled model
+        const defaultModel = enabledModels[0] || 'unknown'
+        await telemetryService.trackProviderConfigured(provider.name, defaultModel)
       } catch (error) {
         // Don't fail the provider creation if model fetching fails
         console.warn(`Failed to fetch models for new provider ${providerId}:`, error)
@@ -509,6 +519,19 @@ export function useSettings() {
     }
   }
 
+  const handleUserNameChange = async (newUserName: string) => {
+    await updateSetting('userName', newUserName)
+  }
+
+  const handleOnboardingCompletion = async (completed: boolean = true) => {
+    await updateSetting('hasCompletedOnboarding', completed)
+    
+    // Track onboarding completion
+    if (completed) {
+      await telemetryService.trackOnboardingCompleted()
+    }
+  }
+
   return {
     // Settings data (for direct access)
     settings: settingsManager.settings,
@@ -520,6 +543,8 @@ export function useSettings() {
     showPricing: settingsManager.settings.showPricing,
     showConversationSettings: settingsManager.settings.showConversationSettings,
     providers: settingsManager.settings.providers,
+    hasCompletedOnboarding: settingsManager.settings.hasCompletedOnboarding,
+    userName: settingsManager.settings.userName,
     
     // State
     isLoading: settingsManager.isLoading,
@@ -539,6 +564,8 @@ export function useSettings() {
     handleShowConversationSettingsChange,
     handleToggleModel,
     handleCapabilityToggle,
+    handleUserNameChange,
+    handleOnboardingCompletion,
     
     // Provider management
     addProvider,

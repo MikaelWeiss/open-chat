@@ -1,6 +1,7 @@
 import { ChevronDown, Copy, Eye, Volume2, FileText, Search, Plus, Check } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
+import ConversationSettingsModal, { ConversationSettings } from './ConversationSettingsModal'
 import { useRef, RefObject, useState, useEffect, useMemo } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useSettings } from '../../hooks/useSettings'
@@ -10,6 +11,7 @@ import { type Conversation } from '../../shared/conversationStore'
 import { type CreateMessageInput } from '../../shared/messageStore'
 import { chatService } from '../../services/chatService'
 import { getDefaultSearchProvider, formatResultsForPrompt } from '../../services/search/index'
+import { telemetryService } from '../../services/telemetryService'
 import clsx from 'clsx'
 import EmptyState from '../EmptyState/EmptyState'
 
@@ -91,6 +93,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const [selectedModel, setSelectedModel] = useState<{provider: string, model: string} | null>(null)
   const [copiedConversation, setCopiedConversation] = useState(false)
   const [searchEnabled, setSearchEnabled] = useState(false)
+  const [showConversationSettings, setShowConversationSettings] = useState(false)
+  const [conversationSettings, setConversationSettings] = useState<ConversationSettings | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   
@@ -228,6 +232,19 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             setSelectedModel({ provider: conv.provider, model: conv.model })
           }
           
+          // Load conversation settings
+          if (conv?.settings) {
+            try {
+              const parsedSettings = JSON.parse(conv.settings)
+              setConversationSettings(parsedSettings)
+            } catch (err) {
+              console.error('Failed to parse conversation settings:', err)
+              setConversationSettings(null)
+            }
+          } else {
+            setConversationSettings(null)
+          }
+          
           // Load messages if it's a persistent conversation
           if (typeof conversationId === 'number') {
             await loadMessages(conversationId)
@@ -238,6 +255,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       } else {
         setCurrentConversation(null)
         setSelectedModel(null)
+        setConversationSettings(null)
       }
     }
     loadConversation()
@@ -487,8 +505,27 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       console.error('Failed to create new conversation:', err)
     }
   }
+
+  // Handle conversation settings save
+  const handleSaveConversationSettings = async (newSettings: ConversationSettings) => {
+    if (!conversationId) return
+    
+    try {
+      const settingsJson = JSON.stringify(newSettings)
+      await updateConversation(conversationId, { settings: settingsJson })
+      setConversationSettings(newSettings)
+      
+      // Update local state immediately to reflect the change
+      setCurrentConversation((prev) => prev ? {
+        ...prev,
+        settings: settingsJson
+      } : null)
+    } catch (err) {
+      console.error('Failed to save conversation settings:', err)
+    }
+  }
   
-  const handleSend = async (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>) => {
+  const handleSend = async (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>, reasoningEffort?: 'none' | 'low' | 'medium' | 'high') => {
     if (!conversationId || !message.trim()) return
     
     // Get effective provider and model (prefer conversation, fallback to selected)
@@ -647,6 +684,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       // Add user message to store (which handles both draft and persistent)
       await addMessageToStore(activeConversationId, userMessage)
       
+      // Track message sent event
+      telemetryService.trackMessageSent(effectiveProvider, effectiveModel, message.length)
+      
       // Get API key for the provider
       const apiKey = await getProviderApiKey(effectiveProvider)
       
@@ -660,7 +700,19 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         model: effectiveModel,
         apiKey: apiKey || undefined,
         isLocal: provider.isLocal,
+        reasoningEffort,
         signal: controller.signal,
+        // Pass conversation settings only if they exist
+        ...(conversationSettings && {
+          temperature: conversationSettings.temperature,
+          maxTokens: conversationSettings.max_tokens,
+          topP: conversationSettings.top_p,
+          frequencyPenalty: conversationSettings.frequency_penalty,
+          presencePenalty: conversationSettings.presence_penalty,
+          stop: conversationSettings.stop.length > 0 ? conversationSettings.stop : undefined,
+          n: conversationSettings.n,
+          seed: conversationSettings.seed,
+        }),
         onStreamChunk: (content: string) => {
           setStreamingMessage(activeConversationId, content)
         },
@@ -671,6 +723,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
               ? { ...message, references: searchReferences }
               : message
             await addMessageToStore(activeConversationId, assistantWithRefs)
+            // Track message received event
+            telemetryService.trackMessageReceived(effectiveProvider, effectiveModel, message.text?.length || 0)
           } catch (err) {
             console.error('Failed to save assistant message:', err)
           }
@@ -952,16 +1006,26 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             (selectedModel?.model && providers?.[selectedModel.provider]?.modelCapabilities?.[selectedModel.model]) || {
               vision: false,
               audio: false,
-              files: false
+              files: false,
+              thinking: false
             }
           }
-          onOpenConversationSettings={() => console.log('Open conversation settings')}
+          onOpenConversationSettings={() => setShowConversationSettings(true)}
           onAttachmentsChange={setRequiredCapabilities}
           searchEnabled={searchEnabled}
           onToggleSearch={() => setSearchEnabled(prev => !prev)}
         />
       </div>
       </div>
+
+      {/* Conversation Settings Modal */}
+      <ConversationSettingsModal
+        isOpen={showConversationSettings}
+        onClose={() => setShowConversationSettings(false)}
+        settings={conversationSettings}
+        onSave={handleSaveConversationSettings}
+        conversationId={conversationId || null}
+      />
     </div>
   )
 }

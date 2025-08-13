@@ -15,7 +15,7 @@ export default function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyMod
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={onClose}
     >
       <div 
@@ -73,7 +73,7 @@ export default function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyMod
               </div>
               
               <p className="pt-4 border-t border-border text-xs text-muted-foreground">
-                Last updated: {new Date().toLocaleDateString()}
+                Last updated: 8/10/25
               </p>
             </div>
           </div>
