@@ -402,6 +402,12 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     focusInput()
   }, [conversationId, currentConversation?.model, selectedModel?.model, messageInputRef])
   
+  // Function to check if a model is local
+  const isModelLocal = (model: {provider: string, model: string}) => {
+    const provider = providers?.[model.provider]
+    return provider?.isLocal === true
+  }
+
   // Function to check if a model is compatible with current attachments
   const isModelCompatible = (model: any) => {
     if (!model.capabilities) return true // If no capabilities info, allow selection
@@ -445,10 +451,25 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     return currentConversation?.model || selectedModel?.model || ''
   }, [currentConversation?.model, selectedModel?.model])
 
+  // Get the local model name for the banner (single mode or multi-select mode)
+  const localModelName = useMemo(() => {
+    if (isMultiSelectMode) {
+      // In multi-select mode, find the first local model
+      const localModel = selectedModels.find(m => isModelLocal(m))
+      return localModel?.model || ''
+    } else {
+      // In single mode, use current model if it's local
+      return isCurrentModelLocal ? currentModelName : ''
+    }
+  }, [isMultiSelectMode, selectedModels, isCurrentModelLocal, currentModelName])
+
   // Update banner visibility based on local model selection
   useEffect(() => {
-    setShowModelBanner(isCurrentModelLocal && !!currentModelName)
-  }, [isCurrentModelLocal, currentModelName])
+    // Show banner if current model is local OR if in multi-select mode and any selected model is local
+    const hasLocalModelInMultiSelect = isMultiSelectMode && selectedModels.some(m => isModelLocal(m))
+    const shouldShowBanner = (isCurrentModelLocal && !!currentModelName) || hasLocalModelInMultiSelect
+    setShowModelBanner(shouldShowBanner)
+  }, [isCurrentModelLocal, currentModelName, isMultiSelectMode, selectedModels])
 
   // Handle model switching - unload previous local model when switching to a different model
   useEffect(() => {
@@ -958,7 +979,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         {/* Model Loading Banner - only show for local models */}
         {showModelBanner && (
           <ModelLoadingBanner 
-            modelName={currentModelName}
+            modelName={localModelName}
             onModelStatusChange={(status) => {
               // Track when a local model is successfully loaded
               if (status.status === 'loaded') {
@@ -1139,7 +1160,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                     const isSelected = selectedModel?.provider === model.provider && selectedModel?.model === model.model
                     const isSelectedInMulti = selectedModels.some(m => m.provider === model.provider && m.model === model.model)
                     const isHighlighted = isModelHighlighted(model)
+                    const currentLocalCount = selectedModels.filter(m => isModelLocal(m)).length
                     const isAtMaxSelection = isMultiSelectMode && selectedModels.length >= 5 && !isSelectedInMulti
+                    const isAtMaxLocalSelection = isMultiSelectMode && isModelLocal(model) && currentLocalCount >= 1 && !isSelectedInMulti
                     
                     return (
                       <button
@@ -1150,7 +1173,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                             // In multi-select mode, toggle selection
                             if (isSelectedInMulti) {
                               setSelectedModels(prev => prev.filter(m => !(m.provider === model.provider && m.model === model.model)))
-                            } else if (selectedModels.length < 5) {
+                            } else if (selectedModels.length < 5 && !isAtMaxLocalSelection) {
                               setSelectedModels(prev => [...prev, { provider: model.provider, model: model.model }])
                             }
                           } else {
@@ -1160,7 +1183,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                         onMouseEnter={() => handleModelMouseEnter(model)}
                         className={clsx(
                           'w-full text-left px-3 py-2 transition-all duration-200 rounded-xl mx-1 my-0.5',
-                          !compatible || isAtMaxSelection
+                          !compatible || isAtMaxSelection || isAtMaxLocalSelection
                             ? 'cursor-not-allowed opacity-50' 
                             : 'cursor-pointer elegant-hover',
                           (isSelected && !isMultiSelectMode) || (isSelectedInMulti && isMultiSelectMode)
@@ -1169,8 +1192,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                             ? 'bg-surface-hover'
                             : ''
                         )}
-                        disabled={!compatible || isAtMaxSelection}
-                        title={incompatibilityReason || (isAtMaxSelection ? 'Maximum 5 models can be selected' : undefined)}
+                        disabled={!compatible || isAtMaxSelection || isAtMaxLocalSelection}
+                        title={incompatibilityReason || (isAtMaxSelection ? 'Maximum 5 models can be selected' : isAtMaxLocalSelection ? 'Maximum 1 local model can be selected' : undefined)}
                         data-model-id={`${model.provider}-${model.model}`}
                       >
                         <div className="flex items-center justify-between">
@@ -1187,7 +1210,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                             )}
                             <div className={clsx(
                               "font-medium text-sm",
-                              !compatible || isAtMaxSelection ? "text-muted-foreground" : "text-foreground/90"
+                              !compatible || isAtMaxSelection || isAtMaxLocalSelection ? "text-muted-foreground" : "text-foreground/90"
                             )}>
                               {model.model}
                             </div>
