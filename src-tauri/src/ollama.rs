@@ -58,6 +58,27 @@ pub async fn detect_ollama_installation() -> Result<OllamaDetectionResult, Strin
     })
 }
 
+#[tauri::command]
+pub async fn start_ollama() -> Result<(), String> {
+    // Find the Ollama binary
+    let binary_path = find_ollama_binary()
+        .ok_or_else(|| "Ollama binary not found. Please install Ollama first.".to_string())?;
+
+    // Try to start Ollama in serve mode
+    match Command::new(&binary_path)
+        .arg("serve")
+        .spawn()
+    {
+        Ok(_) => {
+            println!("Ollama start command issued");
+            Ok(())
+        }
+        Err(e) => {
+            Err(format!("Failed to start Ollama: {}", e))
+        }
+    }
+}
+
 fn find_ollama_binary() -> Option<String> {
     // Try using the 'which' command first for cross-platform compatibility
     if let Ok(path) = which::which("ollama") {

@@ -1,6 +1,7 @@
 import { ChevronDown, Copy, Eye, Volume2, FileText, Search, Plus, Check } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
+import ModelLoadingBanner from './ModelLoadingBanner'
 import ConversationSettingsModal, { ConversationSettings } from './ConversationSettingsModal'
 import { useRef, RefObject, useState, useEffect, useMemo } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -95,6 +96,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const [conversationSettings, setConversationSettings] = useState<ConversationSettings | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  
+  // Model loading banner state
+  const [showModelBanner, setShowModelBanner] = useState(false)
   
   // Use Zustand stores
   const { 
@@ -410,6 +414,27 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     const attachmentTypes = missing.join(', ')
     return `Remove ${attachmentTypes} attachment${missing.length > 1 ? 's' : ''} to switch to this model`
   }
+
+  // Function to check if the current model is a local model
+  const isCurrentModelLocal = useMemo(() => {
+    const effectiveProvider = currentConversation?.provider || selectedModel?.provider
+    const effectiveModel = currentConversation?.model || selectedModel?.model
+    
+    if (!effectiveProvider || !effectiveModel) return false
+    
+    const provider = providers?.[effectiveProvider]
+    return provider?.isLocal === true
+  }, [currentConversation?.provider, selectedModel?.provider, providers])
+
+  // Get the current model name for the banner
+  const currentModelName = useMemo(() => {
+    return currentConversation?.model || selectedModel?.model || ''
+  }, [currentConversation?.model, selectedModel?.model])
+
+  // Update banner visibility based on local model selection
+  useEffect(() => {
+    setShowModelBanner(isCurrentModelLocal && !!currentModelName)
+  }, [isCurrentModelLocal, currentModelName])
   
   // Function to get the index of a model in the compatible models list
   const getModelIndex = (model: any) => {
@@ -939,14 +964,21 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       </div>
 
       <div className="flex-1 flex flex-col min-h-0">
+        {/* Model Loading Banner - only show for local models */}
+        {showModelBanner && (
+          <ModelLoadingBanner 
+            modelName={currentModelName}
+          />
+        )}
+        
         {/* Messages - this should be the scrollable area */}
-      <div className="flex-1 min-h-0">
-        <MessageList 
-          messages={messages}
-          streamingMessage={zustandStreamingMessage}
-          isLoading={isLoading}
-        />
-      </div>
+        <div className="flex-1 min-h-0">
+          <MessageList 
+            messages={messages}
+            streamingMessage={zustandStreamingMessage}
+            isLoading={isLoading}
+          />
+        </div>
 
       {/* Input - fixed at bottom */}
       <div className="flex-shrink-0">

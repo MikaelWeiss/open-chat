@@ -164,6 +164,46 @@ export class OllamaService {
   }
 
   /**
+   * Auto-start Ollama if it's not running (for app initialization)
+   */
+  async autoStartOllama(): Promise<{ success: boolean; message: string }> {
+    try {
+      // First check if Ollama is already running
+      const isAccessible = await this.isAccessible();
+      if (isAccessible) {
+        return { success: true, message: 'Ollama is already running' };
+      }
+
+      // Try to start Ollama using Tauri command
+      const { invoke } = await import('@tauri-apps/api/core');
+      try {
+        await invoke('start_ollama');
+        
+        // Wait a moment for Ollama to start
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Check if it's now accessible
+        const isNowAccessible = await this.isAccessible();
+        if (isNowAccessible) {
+          return { success: true, message: 'Ollama started successfully' };
+        } else {
+          return { success: false, message: 'Ollama started but not yet accessible' };
+        }
+      } catch (invokeError) {
+        return { 
+          success: false, 
+          message: `Failed to start Ollama: ${invokeError instanceof Error ? invokeError.message : 'Unknown error'}` 
+        };
+      }
+    } catch (error) {
+      return { 
+        success: false, 
+        message: `Error during Ollama auto-start: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      };
+    }
+  }
+
+  /**
    * Test if Ollama API is accessible
    */
   async isAccessible(): Promise<boolean> {
@@ -558,6 +598,13 @@ export class OllamaService {
    */
   async loadModel(modelName: string): Promise<void> {
     try {
+      // First check if Ollama is accessible
+      const isAccessible = await this.isAccessible();
+      if (!isAccessible) {
+        throw new Error('Ollama is not accessible. Please ensure Ollama is running.');
+      }
+
+      // Use a minimal prompt to load the model
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: 'POST',
         headers: {
@@ -565,17 +612,20 @@ export class OllamaService {
         },
         body: JSON.stringify({
           model: modelName,
-          prompt: '', // Empty prompt just to load the model
+          prompt: 'Hello', // Minimal prompt to load the model
           stream: false,
+          options: { num_predict: 1 }, // Only generate 1 token
         }),
-        signal: AbortSignal.timeout(this.timeout),
+        signal: AbortSignal.timeout(60000), // 60 seconds for model loading
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load model: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Failed to load model: ${response.status} ${response.statusText}. ${errorText}`);
       }
 
       // The model is now loaded in memory
+      console.log(`Model ${modelName} loaded successfully`);
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to load model: ${error.message}`);
@@ -586,18 +636,38 @@ export class OllamaService {
 
   /**
    * Unload a model from memory
+   * Note: Ollama doesn't have an explicit unload API, so we signal unload by 
+   * making a request that causes Ollama to free the model memory
    */
   async unloadModel(modelName: string): Promise<void> {
     try {
-      // Ollama doesn't have a direct unload API, but we can load another small model
-      // or rely on Ollama's automatic memory management
-      // For now, we'll consider this a no-op as Ollama manages memory automatically
-      console.log(`Model ${modelName} will be unloaded automatically by Ollama when needed`);
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Failed to unload model: ${error.message}`);
+      // First check if Ollama is accessible
+      const isAccessible = await this.isAccessible();
+      if (!isAccessible) {
+        throw new Error('Ollama is not accessible. Please ensure Ollama is running.');
       }
-      throw new Error('Failed to unload model: Unknown error');
+
+      // Ollama doesn't have a direct unload API, but we can trigger memory cleanup
+      // by making a request with keep_alive: 0 which tells Ollama to unload immediately
+      await fetch(`${this.baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: modelName,
+          prompt: '',
+          stream: false,
+          keep_alive: 0, // This tells Ollama to unload the model immediately
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      // Even if the response is not OK, the unload signal has been sent
+      console.log(`Model ${modelName} unload signal sent to Ollama`);
+    } catch (error) {
+      // Don't throw error for unload failures - it's not critical
+      console.warn(`Warning: Could not send unload signal for model ${modelName}:`, error);
     }
   }
 
@@ -606,6 +676,28 @@ export class OllamaService {
    */
   async getModelStatus(modelName: string): Promise<OllamaModelStatus> {
     try {
+      // First check if Ollama is accessible
+      const isAccessible = await this.isAccessible();
+      if (!isAccessible) {
+        return {
+          name: modelName,
+          status: 'error',
+          error: 'Ollama is not accessible. Please ensure Ollama is running.',
+        };
+      }
+
+      // Check if the model is installed first
+      const installedModels = await this.getInstalledModels();
+      const isInstalled = installedModels.some(m => m.name === modelName || m.name.startsWith(modelName + ':'));
+      
+      if (!isInstalled) {
+        return {
+          name: modelName,
+          status: 'error',
+          error: 'Model is not installed. Please install it first.',
+        };
+      }
+
       // Test if model responds quickly to determine if it's loaded
       const startTime = Date.now();
       
@@ -616,18 +708,19 @@ export class OllamaService {
         },
         body: JSON.stringify({
           model: modelName,
-          prompt: 'test',
+          prompt: 'Hi',
           stream: false,
           options: { num_predict: 1 },
         }),
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(3000), // Shorter timeout for status check
       });
 
       const responseTime = Date.now() - startTime;
 
       if (response.ok) {
-        // If response is very fast (< 1 second), model is likely loaded
-        const status = responseTime < 1000 ? 'loaded' : 'loading';
+        // If response is fast (< 2 seconds), model is likely loaded
+        // Otherwise it might be loading
+        const status = responseTime < 2000 ? 'loaded' : 'loading';
         return {
           name: modelName,
           status,
@@ -635,15 +728,16 @@ export class OllamaService {
       } else {
         return {
           name: modelName,
-          status: 'error',
-          error: `${response.status} ${response.statusText}`,
+          status: 'not_loaded',
+          error: `Model not responding: ${response.status} ${response.statusText}`,
         };
       }
     } catch (error) {
+      // If we get a timeout or connection error, the model is likely not loaded
       return {
         name: modelName,
         status: 'not_loaded',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : 'Model not accessible',
       };
     }
   }

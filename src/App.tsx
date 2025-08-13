@@ -13,6 +13,7 @@ import { useConversations, useAppStore } from './stores/appStore'
 import { initializeAppStore } from './stores/appStore'
 import { messageSync } from './utils/messageSync'
 import { telemetryService } from './services/telemetryService'
+import { ollamaService } from './services/ollamaService'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 
@@ -57,6 +58,16 @@ function App() {
       // Initialize store
       await initializeAppStore()
       
+      // Auto-start Ollama (non-blocking)
+      ollamaService.autoStartOllama().then(result => {
+        if (result.success) {
+          console.log('Ollama auto-start:', result.message)
+        } else {
+          console.warn('Ollama auto-start failed:', result.message)
+        }
+      }).catch(error => {
+        console.warn('Ollama auto-start error:', error)
+      })
       
       // Set up sync listeners
       await messageSync.setupListeners(
