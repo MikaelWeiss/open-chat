@@ -204,6 +204,46 @@ export class OllamaService {
   }
 
   /**
+   * Stop Ollama service completely (including all loaded models)
+   */
+  async stopOllama(): Promise<{ success: boolean; message: string }> {
+    try {
+      // First check if Ollama is running
+      const isAccessible = await this.isAccessible();
+      if (!isAccessible) {
+        return { success: true, message: 'Ollama is already stopped' };
+      }
+
+      // Try to stop Ollama using Tauri command
+      const { invoke } = await import('@tauri-apps/api/core');
+      try {
+        await invoke('stop_ollama');
+        
+        // Wait a moment for Ollama to stop
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Check if it's now stopped
+        const isNowAccessible = await this.isAccessible();
+        if (!isNowAccessible) {
+          return { success: true, message: 'Ollama stopped successfully' };
+        } else {
+          return { success: false, message: 'Ollama stop signal sent but service still accessible' };
+        }
+      } catch (invokeError) {
+        return { 
+          success: false, 
+          message: `Failed to stop Ollama: ${invokeError instanceof Error ? invokeError.message : 'Unknown error'}` 
+        };
+      }
+    } catch (error) {
+      return { 
+        success: false, 
+        message: `Error during Ollama stop: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      };
+    }
+  }
+
+  /**
    * Test if Ollama API is accessible
    */
   async isAccessible(): Promise<boolean> {
@@ -668,6 +708,63 @@ export class OllamaService {
     } catch (error) {
       // Don't throw error for unload failures - it's not critical
       console.warn(`Warning: Could not send unload signal for model ${modelName}:`, error);
+    }
+  }
+
+  /**
+   * Unload all currently loaded models from memory
+   * This is useful for cleanup when the app shuts down
+   */
+  async unloadAllModels(): Promise<void> {
+    try {
+      // First check if Ollama is accessible
+      const isAccessible = await this.isAccessible();
+      if (!isAccessible) {
+        console.warn('Ollama is not accessible, skipping model cleanup');
+        return;
+      }
+
+      // Get list of installed models and try to unload each one
+      // This is a simple approach - send unload signal to all models
+      const installedModels = await this.getInstalledModels();
+      
+      if (installedModels.length === 0) {
+        console.log('No models found to unload');
+        return;
+      }
+
+      console.log(`Attempting to unload ${installedModels.length} models...`);
+      
+      // Send unload signal to all models (parallel for speed)
+      const unloadPromises = installedModels.map(async (model) => {
+        try {
+          await fetch(`${this.baseUrl}/api/generate`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: model.name,
+              prompt: '',
+              stream: false,
+              keep_alive: 0, // This tells Ollama to unload the model immediately
+            }),
+            signal: AbortSignal.timeout(5000), // Shorter timeout for cleanup
+          });
+          console.log(`Unload signal sent for model: ${model.name}`);
+        } catch (error) {
+          // Don't fail the whole operation if one model fails
+          console.warn(`Failed to send unload signal for model ${model.name}:`, error);
+        }
+      });
+
+      // Wait for all unload attempts to complete
+      await Promise.allSettled(unloadPromises);
+      console.log('All model unload signals sent');
+      
+    } catch (error) {
+      // Don't throw error for unload failures - it's not critical for app shutdown
+      console.warn('Warning: Could not complete model cleanup:', error);
     }
   }
 

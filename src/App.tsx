@@ -16,6 +16,7 @@ import { telemetryService } from './services/telemetryService'
 import { ollamaService } from './services/ollamaService'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 
 function App() {
   // Check if we're in mini window mode
@@ -93,6 +94,48 @@ function App() {
       messageSync.cleanup()
     }
   }, [])
+
+  // Setup cleanup handler for app shutdown
+  useEffect(() => {
+    let unlisten: (() => void) | null = null
+
+    const setupCleanup = async () => {
+      try {
+        const appWindow = getCurrentWindow()
+        
+        // Listen for the window close event
+        unlisten = await appWindow.onCloseRequested(async () => {
+          console.log('App close requested, stopping Ollama...')
+          
+          // Stop Ollama completely (this automatically unloads all models)
+          try {
+            const result = await ollamaService.stopOllama()
+            if (result.success) {
+              console.log('Ollama cleanup completed:', result.message)
+            } else {
+              console.warn('Ollama cleanup warning:', result.message)
+            }
+          } catch (error) {
+            console.warn('Failed to stop Ollama:', error)
+          }
+          
+          // Allow the window to close after cleanup
+          // Don't prevent the close, just clean up first
+        })
+      } catch (error) {
+        console.warn('Failed to setup cleanup handler:', error)
+      }
+    }
+    
+    setupCleanup()
+    
+    // Cleanup the listener when component unmounts
+    return () => {
+      if (unlisten) {
+        unlisten()
+      }
+    }
+  }, [])  // No dependencies needed - this is a one-time setup
 
   // Check for app updates on startup
   useEffect(() => {

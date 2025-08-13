@@ -213,6 +213,7 @@ pub fn run() {
             unregister_global_shortcut,
             ollama::detect_ollama,
             ollama::start_ollama,
+            ollama::stop_ollama,
             ollama::discover_models,
             system_info::get_system_info,
             system_info::validate_model_system_compatibility

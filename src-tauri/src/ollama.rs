@@ -79,6 +79,68 @@ pub async fn start_ollama() -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+pub async fn stop_ollama() -> Result<(), String> {
+    // Try to stop Ollama gracefully by sending a request to shutdown
+    // This will automatically unload all models from memory as well
+    
+    // First check if Ollama is running
+    if !test_ollama_api().await {
+        return Ok(()); // Already stopped
+    }
+    
+    // On Unix systems, we can try to find and stop the Ollama process
+    #[cfg(unix)]
+    {
+        use std::process::Command;
+        
+        // Try to find Ollama process and stop it gracefully
+        match Command::new("pkill")
+            .arg("-f")
+            .arg("ollama")
+            .output()
+        {
+            Ok(output) => {
+                if output.status.success() {
+                    println!("Ollama stop signal sent successfully");
+                    Ok(())
+                } else {
+                    // pkill failed, but that's not necessarily an error
+                    // (could mean no process was found)
+                    Ok(())
+                }
+            }
+            Err(e) => {
+                Err(format!("Failed to stop Ollama: {}", e))
+            }
+        }
+    }
+    
+    // On Windows, try a different approach
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        
+        match Command::new("taskkill")
+            .args(["/F", "/IM", "ollama.exe"])
+            .output()
+        {
+            Ok(output) => {
+                if output.status.success() {
+                    println!("Ollama stopped successfully");
+                    Ok(())
+                } else {
+                    // Task not found is OK
+                    Ok(())
+                }
+            }
+            Err(e) => {
+                Err(format!("Failed to stop Ollama: {}", e))
+            }
+        }
+    }
+}
+
 fn find_ollama_binary() -> Option<String> {
     // Try using the 'which' command first for cross-platform compatibility
     if let Ok(path) = which::which("ollama") {
