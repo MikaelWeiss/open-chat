@@ -73,15 +73,38 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState<'installed' | 'available' | 'system'>('installed');
   const [isLoading, setIsLoading] = useState(false);
-  const [downloads, setDownloads] = useState<Record<string, DownloadProgress>>({});
+  const [downloads, setDownloads] = useState<Record<string, DownloadProgress>>(() => {
+    try {
+      const stored = localStorage.getItem('ollama-downloads');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
   const [error, setError] = useState<string | null>(null);
   const [modelToDelete, setModelToDelete] = useState<string | null>(null);
+
+  // Persist downloads to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('ollama-downloads', JSON.stringify(downloads));
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [downloads]);
 
   useEffect(() => {
     if (isOpen) {
       checkOllamaStatus();
       getSystemInfo();
       loadData();
+      // Clean up completed/errored downloads from previous sessions
+      setDownloads(prev => {
+        const ongoingOnly = Object.fromEntries(
+          Object.entries(prev).filter(([, download]) => download.status === 'downloading')
+        );
+        return ongoingOnly;
+      });
     }
   }, [isOpen]);
 
@@ -153,11 +176,17 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
   const downloadModel = async (modelName: string, sizeTag?: string) => {
     const fullModelName = sizeTag ? `${modelName}:${sizeTag}` : modelName;
 
-    // Immediately set downloading state for visual feedback
-    setDownloads(prev => ({
-      ...prev,
-      [fullModelName]: { modelName: fullModelName, progress: 0, status: 'downloading' }
-    }));
+    // Only set initial downloading state if not already downloading
+    setDownloads(prev => {
+      const existing = prev[fullModelName];
+      if (existing?.status === 'downloading') {
+        return prev; // Don't reset progress if already downloading
+      }
+      return {
+        ...prev,
+        [fullModelName]: { modelName: fullModelName, progress: 0, status: 'downloading' }
+      };
+    });
 
     try {
       await ollamaService.downloadModel(fullModelName, (progress) => {
