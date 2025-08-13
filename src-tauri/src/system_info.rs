@@ -20,16 +20,24 @@ pub struct ModelCompatibility {
 }
 
 pub async fn get_system_resources() -> Result<SystemResources, String> {
+    let timeout_duration = std::time::Duration::from_secs(5);
+    
     // Get total system memory in bytes
-    let total_memory_bytes = get_total_memory().await?;
+    let total_memory_bytes = tokio::time::timeout(timeout_duration, get_total_memory())
+        .await
+        .map_err(|_| "Total memory query timed out".to_string())??;
     let total_memory_gb = bytes_to_gb(total_memory_bytes);
     
     // Get available memory (conservative estimate)
-    let available_memory_bytes = get_available_memory().await?;
+    let available_memory_bytes = tokio::time::timeout(timeout_duration, get_available_memory())
+        .await
+        .map_err(|_| "Available memory query timed out".to_string())??;
     let available_memory_gb = bytes_to_gb(available_memory_bytes);
     
     // Get available storage space
-    let available_storage_bytes = get_available_storage().await?;
+    let available_storage_bytes = tokio::time::timeout(timeout_duration, get_available_storage())
+        .await
+        .map_err(|_| "Storage query timed out".to_string())??;
     let available_storage_gb = bytes_to_gb(available_storage_bytes);
     
     // Get CPU core count
@@ -356,17 +364,89 @@ async fn get_available_storage_for_path(path: &str) -> Result<u64, String> {
         .map_err(|e| format!("Failed to parse storage size: {}", e))
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "macos")]
 async fn get_available_storage_for_path(path: &str) -> Result<u64, String> {
     use std::process::Command;
     
+    // Try df command first - macOS uses different flags than Linux
     let output = Command::new("df")
-        .args(&["-B1", path]) // Get size in bytes
+        .args(&["-k", path]) // Get size in kilobytes (macOS compatible)
         .output()
-        .map_err(|e| format!("Failed to get storage info: {}", e))?;
+        .map_err(|e| format!("Failed to execute df command: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("df command failed: {}", stderr));
+    }
     
     let output_str = String::from_utf8_lossy(&output.stdout);
+    
+    // Check if output is empty
+    if output_str.trim().is_empty() {
+        return Err("df command returned empty output".to_string());
+    }
+    
     let lines: Vec<&str> = output_str.lines().collect();
+    
+    // Need at least 2 lines (header + data)
+    if lines.len() < 2 {
+        return Err(format!("df output has insufficient lines. Raw output: '{}'", output_str));
+    }
+    
+    // Skip header line and find the data line
+    for (i, line) in lines.iter().enumerate() {
+        if i == 0 {
+            continue; // Skip header
+        }
+        
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        
+        // df output can vary in format, but available space is typically the 4th field (index 3)
+        // Sometimes filesystem name spans multiple lines, so check for various field counts
+        if fields.len() >= 4 {
+            if let Ok(available_kb) = fields[3].parse::<u64>() {
+                return Ok(available_kb * 1024); // Convert KB to bytes
+            }
+        } else if fields.len() >= 3 {
+            // Sometimes available space is in the 3rd field
+            if let Ok(available_kb) = fields[2].parse::<u64>() {
+                return Ok(available_kb * 1024); // Convert KB to bytes
+            }
+        }
+    }
+    
+    
+    Err(format!("Could not parse df output. Lines count: {}, Raw output: '{}'", lines.len(), output_str))
+}
+
+#[cfg(target_os = "linux")]
+async fn get_available_storage_for_path(path: &str) -> Result<u64, String> {
+    use std::process::Command;
+    
+    // Try df command first - Linux supports -B1 for bytes
+    let output = Command::new("df")
+        .args(&["-B1", path]) // Get size in bytes (Linux compatible)
+        .output()
+        .map_err(|e| format!("Failed to execute df command: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("df command failed: {}", stderr));
+    }
+    
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    
+    // Check if output is empty
+    if output_str.trim().is_empty() {
+        return Err("df command returned empty output".to_string());
+    }
+    
+    let lines: Vec<&str> = output_str.lines().collect();
+    
+    // Need at least 2 lines (header + data)
+    if lines.len() < 2 {
+        return Err(format!("df output has insufficient lines. Raw output: '{}'", output_str));
+    }
     
     // Skip header line and find the data line
     for (i, line) in lines.iter().enumerate() {
@@ -380,22 +460,28 @@ async fn get_available_storage_for_path(path: &str) -> Result<u64, String> {
         // Sometimes filesystem name spans multiple lines, so check for various field counts
         if fields.len() >= 4 {
             if let Ok(available_bytes) = fields[3].parse::<u64>() {
-                return Ok(available_bytes);
+                return Ok(available_bytes); // Already in bytes
             }
         } else if fields.len() >= 3 {
             // Sometimes available space is in the 3rd field
             if let Ok(available_bytes) = fields[2].parse::<u64>() {
-                return Ok(available_bytes);
+                return Ok(available_bytes); // Already in bytes
             }
         }
     }
     
-    Err(format!("Could not parse df output. Raw output: {}", output_str))
+    Err(format!("Could not parse df output. Lines count: {}, Raw output: '{}'", lines.len(), output_str))
 }
 
 #[tauri::command]
 pub async fn get_system_info() -> Result<SystemResources, String> {
-    get_system_resources().await
+    // Add timeout to prevent hanging
+    let timeout_duration = std::time::Duration::from_secs(10);
+    
+    match tokio::time::timeout(timeout_duration, get_system_resources()).await {
+        Ok(result) => result,
+        Err(_) => Err("System info request timed out after 10 seconds".to_string()),
+    }
 }
 
 #[tauri::command]

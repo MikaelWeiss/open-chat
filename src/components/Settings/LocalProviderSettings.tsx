@@ -69,6 +69,7 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
   const [discoveredModels, setDiscoveredModels] = useState<LocalModel[]>([]);
   const [libraryModels, setLibraryModels] = useState<OllamaLibraryModel[]>([]);
   const [systemResources, setSystemResources] = useState<SystemResources | null>(null);
+  const [systemInfoError, setSystemInfoError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState<'installed' | 'available' | 'system'>('installed');
   const [isLoading, setIsLoading] = useState(false);
@@ -100,10 +101,13 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
 
   const getSystemInfo = async () => {
     try {
+      setSystemInfoError(null);
       const resources = await invoke<SystemResources>('get_system_info');
       setSystemResources(resources);
     } catch (err) {
       console.error('Failed to get system info:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setSystemInfoError(errorMessage);
     }
   };
 
@@ -598,9 +602,32 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
 
           {selectedTab === 'system' && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium">System Information</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">System Information</h3>
+                <button
+                  onClick={getSystemInfo}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh
+                </button>
+              </div>
               
-              {systemResources ? (
+              {systemInfoError ? (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                    <h4 className="font-medium text-red-800 dark:text-red-200">Failed to Load System Information</h4>
+                  </div>
+                  <p className="text-sm text-red-700 dark:text-red-300">{systemInfoError}</p>
+                  <button
+                    onClick={getSystemInfo}
+                    className="mt-3 px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : systemResources ? (
                 <div className="grid gap-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
