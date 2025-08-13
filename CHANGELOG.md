@@ -2,9 +2,12 @@
 
 All notable changes to Open Chat will be documented in this file.
 
-## [0.1.8] - 2025-08-12
+## [0.1.9] - 2025-08-13
 ### Added
 - Added local LLM support
+
+## [0.1.8] - 2025-08-12
+### Added
 - Multi-model query support: Send the same message to multiple AI models simultaneously
 
 ### Changed
