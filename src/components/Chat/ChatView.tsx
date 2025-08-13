@@ -1,4 +1,5 @@
 import { ChevronDown, Copy, Eye, Volume2, FileText, Search, Plus, Check } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
 import ModelLoadingBanner from './ModelLoadingBanner'
@@ -97,6 +98,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const [conversationSettings, setConversationSettings] = useState<ConversationSettings | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const modelSelectorButtonRef = useRef<HTMLButtonElement>(null)
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
   
   // Model loading banner state
   const [showModelBanner, setShowModelBanner] = useState(false)
@@ -854,9 +857,19 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                   <span>Add Provider</span>
                 </button>
               ) : (
-                <div className="relative" ref={dropdownRef}>
+                <div className="relative">
                   <button
-                    onClick={() => setShowModelSelector(!showModelSelector)}
+                    ref={modelSelectorButtonRef}
+                    onClick={() => {
+                      if (!showModelSelector && modelSelectorButtonRef.current) {
+                        const rect = modelSelectorButtonRef.current.getBoundingClientRect()
+                        setDropdownPosition({
+                          top: rect.bottom + 8,
+                          right: window.innerWidth - rect.right
+                        })
+                      }
+                      setShowModelSelector(!showModelSelector)
+                    }}
                     className="flex items-center gap-2 px-4 py-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 text-sm shadow-elegant border border-border/20 text-muted-foreground hover:text-primary hover:border-primary/30"
                     aria-label={selectedModel && selectedModel.model ? `Selected model: ${selectedModel.model}` : 'Select AI model'}
                     aria-expanded={showModelSelector}
@@ -867,114 +880,6 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </button>
-              
-              {showModelSelector && (
-                <div ref={dropdownRef} className="absolute right-0 top-full mt-2 w-80 glass-effect border border-border/20 rounded-2xl shadow-elegant-xl z-[9999] max-h-80 overflow-y-auto overflow-x-hidden elegant-scrollbar">
-                  {/* Search bar - frozen at top */}
-                  <div className="sticky top-0 glass-nav backdrop-blur-strong border-b border-border/10 p-3 z-10">
-                    <div className="elegant-input-container flex items-center gap-2 px-3 py-2">
-                      <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <input
-                        ref={searchInputRef}
-                        type="text"
-                        placeholder="Search models..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                          const compatibleModels = allFilteredModels.filter(m => isModelCompatible(m))
-                          
-                          if (e.key === 'ArrowDown') {
-                            e.preventDefault()
-                            setHighlightedModelIndex(prev => 
-                              prev < compatibleModels.length - 1 ? prev + 1 : 0
-                            )
-                          } else if (e.key === 'ArrowUp') {
-                            e.preventDefault()
-                            setHighlightedModelIndex(prev => 
-                              prev > 0 ? prev - 1 : compatibleModels.length - 1
-                            )
-                          } else if (e.key === 'Enter') {
-                            e.preventDefault()
-                            if (highlightedModelIndex >= 0 && highlightedModelIndex < compatibleModels.length) {
-                              const selectedModel = compatibleModels[highlightedModelIndex]
-                              handleModelSelect({ provider: selectedModel.provider, model: selectedModel.model })
-                            }
-                          } else if (e.key === 'Escape') {
-                            e.preventDefault()
-                            setShowModelSelector(false)
-                          }
-                        }}
-                        className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground text-foreground"
-                      />
-                    </div>
-                  </div>
-                  
-                  {Object.entries(filteredModelsByProvider).length === 0 ? (
-                    <div className="py-4">
-                      <EmptyState
-                        type="no-results"
-                        title={searchQuery ? "No models found" : "No models available"}
-                        description={searchQuery ? `No models matching "${searchQuery}"` : "Check your provider settings"}
-                        className="scale-75"
-                      />
-                    </div>
-                  ) : (
-                    Object.entries(filteredModelsByProvider).map(([providerName, models]) => (
-                      <div key={providerName} className="mb-2">
-                        <div className="px-4 py-3 text-xs font-semibold text-muted-foreground glass-nav backdrop-blur-strong border-b border-border/10 tracking-wide">
-                          {providerName.toUpperCase()}
-                        </div>
-                        <div className="p-1">
-                          {models.map((model) => {
-                            const compatible = isModelCompatible(model)
-                            const incompatibilityReason = getIncompatibilityReason(model)
-                            const isSelected = selectedModel?.provider === model.provider && selectedModel?.model === model.model
-                            const isHighlighted = isModelHighlighted(model)
-                            
-                            return (
-                              <button
-                                key={`${model.provider}-${model.model}`}
-                                onClick={() => {
-                                  if (!compatible) return
-                                  handleModelSelect({ provider: model.provider, model: model.model })
-                                }}
-                                onMouseEnter={() => handleModelMouseEnter(model)}
-                                className={clsx(
-                                  'w-full text-left px-3 py-2 transition-all duration-200 rounded-xl mx-1 my-0.5',
-                                  !compatible 
-                                    ? 'cursor-not-allowed opacity-50' 
-                                    : 'cursor-pointer elegant-hover',
-                                  isSelected
-                                    ? 'bg-gradient-subtle border border-primary/20'
-                                    : isHighlighted
-                                    ? 'bg-surface-hover'
-                                    : ''
-                                )}
-                                disabled={!compatible}
-                                title={incompatibilityReason || undefined}
-                                data-model-id={`${model.provider}-${model.model}`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className={clsx(
-                                    "font-medium text-sm",
-                                    !compatible ? "text-muted-foreground" : "text-foreground/90"
-                                  )}>
-                                    {model.model}
-                                  </div>
-                                  <ModelCapabilityIcons 
-                                    capabilities={model.capabilities} 
-                                    className={!compatible ? "opacity-50" : ""}
-                                  />
-                                </div>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
                 </div>
               )
             )}
@@ -1055,6 +960,126 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         onSave={handleSaveConversationSettings}
         conversationId={conversationId || null}
       />
+
+      {/* Model Selector Dropdown - Rendered as Portal */}
+      {showModelSelector && createPortal(
+        <div 
+          ref={dropdownRef} 
+          className="w-80 glass-effect border border-border/20 rounded-2xl shadow-elegant-xl z-[99999] max-h-80 overflow-y-auto overflow-x-hidden"
+          style={{ 
+            position: 'fixed', 
+            top: dropdownPosition.top, 
+            right: dropdownPosition.right,
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}
+        >
+          {/* Search bar - frozen at top */}
+          <div className="sticky top-0 glass-nav backdrop-blur-strong border-b border-border/10 p-3 z-10">
+            <div className="elegant-input-container flex items-center gap-2 px-3 py-2">
+              <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search models..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  const compatibleModels = allFilteredModels.filter(m => isModelCompatible(m))
+                  
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    setHighlightedModelIndex(prev => 
+                      prev < compatibleModels.length - 1 ? prev + 1 : 0
+                    )
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    setHighlightedModelIndex(prev => 
+                      prev > 0 ? prev - 1 : compatibleModels.length - 1
+                    )
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault()
+                    if (highlightedModelIndex >= 0 && highlightedModelIndex < compatibleModels.length) {
+                      const selectedModel = compatibleModels[highlightedModelIndex]
+                      handleModelSelect({ provider: selectedModel.provider, model: selectedModel.model })
+                    }
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault()
+                    setShowModelSelector(false)
+                  }
+                }}
+                className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground text-foreground"
+              />
+            </div>
+          </div>
+          
+          {Object.entries(filteredModelsByProvider).length === 0 ? (
+            <div className="py-4">
+              <EmptyState
+                type="no-results"
+                title={searchQuery ? "No models found" : "No models available"}
+                description={searchQuery ? `No models matching "${searchQuery}"` : "Check your provider settings"}
+                className="scale-75"
+              />
+            </div>
+          ) : (
+            Object.entries(filteredModelsByProvider).map(([providerName, models]) => (
+              <div key={providerName} className="mb-2">
+                <div className="px-4 py-3 text-xs font-semibold text-muted-foreground glass-nav backdrop-blur-strong border-b border-border/10 tracking-wide">
+                  {providerName.toUpperCase()}
+                </div>
+                <div className="p-1 pr-3">
+                  {models.map((model) => {
+                    const compatible = isModelCompatible(model)
+                    const incompatibilityReason = getIncompatibilityReason(model)
+                    const isSelected = selectedModel?.provider === model.provider && selectedModel?.model === model.model
+                    const isHighlighted = isModelHighlighted(model)
+                    
+                    return (
+                      <button
+                        key={`${model.provider}-${model.model}`}
+                        onClick={() => {
+                          if (!compatible) return
+                          handleModelSelect({ provider: model.provider, model: model.model })
+                        }}
+                        onMouseEnter={() => handleModelMouseEnter(model)}
+                        className={clsx(
+                          'w-full text-left px-3 py-2 transition-all duration-200 rounded-xl mx-1 my-0.5',
+                          !compatible 
+                            ? 'cursor-not-allowed opacity-50' 
+                            : 'cursor-pointer elegant-hover',
+                          isSelected
+                            ? 'bg-gradient-subtle border border-primary/20'
+                            : isHighlighted
+                            ? 'bg-surface-hover'
+                            : ''
+                        )}
+                        disabled={!compatible}
+                        title={incompatibilityReason || undefined}
+                        data-model-id={`${model.provider}-${model.model}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className={clsx(
+                            "font-medium text-sm",
+                            !compatible ? "text-muted-foreground" : "text-foreground/90"
+                          )}>
+                            {model.model}
+                          </div>
+                          <ModelCapabilityIcons 
+                            capabilities={model.capabilities} 
+                            className={!compatible ? "opacity-50" : ""}
+                          />
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
