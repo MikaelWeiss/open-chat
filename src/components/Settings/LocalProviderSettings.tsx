@@ -74,6 +74,7 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
   const [isLoading, setIsLoading] = useState(false);
   const [downloads, setDownloads] = useState<Record<string, DownloadProgress>>({});
   const [error, setError] = useState<string | null>(null);
+  const [modelToDelete, setModelToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -190,14 +191,26 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
     }
   };
 
-  const deleteModel = async (modelName: string) => {
+  const confirmDeleteModel = (modelName: string) => {
+    setModelToDelete(modelName);
+  };
+
+  const deleteModel = async () => {
+    if (!modelToDelete) return;
+    
     try {
-      await ollamaService.deleteModel(modelName);
+      await ollamaService.deleteModel(modelToDelete);
       await loadInstalledModels();
+      setModelToDelete(null);
     } catch (err) {
       console.error('Failed to delete model:', err);
       setError(`Failed to delete model: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setModelToDelete(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setModelToDelete(null);
   };
 
 
@@ -517,7 +530,7 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
                         </div>
                         <div className="flex items-center gap-2 ml-4">
                           <button
-                            onClick={() => deleteModel(model.name)}
+                            onClick={() => confirmDeleteModel(model.name)}
                             className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                             title="Delete model"
                           >
@@ -654,6 +667,38 @@ export default function LocalProviderSettings({ isOpen, onClose }: LocalProvider
             </div>
           )}
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {modelToDelete && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md mx-4">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-500" />
+                <h3 className="text-lg font-semibold">Delete Model</h3>
+              </div>
+              
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Are you sure you want to delete <span className="font-medium">{modelToDelete}</span>? 
+                This action cannot be undone and will free up disk space.
+              </p>
+              
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={cancelDelete}
+                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={deleteModel}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Error Toast */}
         {error && (
