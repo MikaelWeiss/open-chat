@@ -14,12 +14,14 @@ import { getDefaultSearchProvider, formatResultsForPrompt } from '../../services
 import { telemetryService } from '../../services/telemetryService'
 import clsx from 'clsx'
 import EmptyState from '../EmptyState/EmptyState'
+import { getConversationModelDisplay } from '../../utils/conversationUtils'
 
 interface ChatViewProps {
   conversationId?: number | 'pending' | null
   onOpenSettings?: () => void
   messageInputRef?: RefObject<MessageInputHandle>
   onSelectConversation?: (conversationId: number | 'pending' | null) => void
+  isMiniWindow?: boolean
 }
 
 interface ModelCapabilityIconsProps {
@@ -80,7 +82,7 @@ function ModelCapabilityIcons({ capabilities, className = '' }: ModelCapabilityI
   )
 }
 
-export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef, onSelectConversation }: ChatViewProps) {
+export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef, onSelectConversation, isMiniWindow = false }: ChatViewProps) {
   const internalMessageInputRef = useRef<MessageInputHandle>(null)
   const messageInputRef = externalMessageInputRef || internalMessageInputRef
   const [isLoading, setIsLoading] = useState(false)
@@ -91,17 +93,21 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const [searchQuery, setSearchQuery] = useState('')
   const [highlightedModelIndex, setHighlightedModelIndex] = useState(0)
   const [selectedModel, setSelectedModel] = useState<{provider: string, model: string} | null>(null)
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
+  const [selectedModels, setSelectedModels] = useState<Array<{provider: string, model: string}>>([])
   const [copiedConversation, setCopiedConversation] = useState(false)
   const [searchEnabled, setSearchEnabled] = useState(false)
   const [showConversationSettings, setShowConversationSettings] = useState(false)
   const [conversationSettings, setConversationSettings] = useState<ConversationSettings | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
   
   // Use Zustand stores
   const { 
     messages, 
     streamingMessage: zustandStreamingMessage,
+    streamingMessagesByModel,
     addMessage: addMessageToStore,
     loadMessages,
     setStreamingMessage,
@@ -288,8 +294,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         setShowModelSelector(prev => !prev)
       }
       
-      // Open model selector and focus search when Cmd+F is pressed
-      if (e.key === 'f' && (e.metaKey || e.ctrlKey)) {
+      // Open model selector and focus search when Shift+Cmd+M is pressed
+      if (e.key === 'm' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
         e.preventDefault()
         if (!showModelSelector) {
           setShowModelSelector(true)
@@ -310,7 +316,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   // Click outside to close model selector
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showModelSelector && dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (showModelSelector && dropdownRef.current && buttonRef.current && 
+          !dropdownRef.current.contains(event.target as Node) && 
+          !buttonRef.current.contains(event.target as Node)) {
         setShowModelSelector(false)
       }
     }
@@ -682,53 +690,83 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       }
       
       // Add user message to store (which handles both draft and persistent)
-      await addMessageToStore(activeConversationId, userMessage)
+      const userMessageId = await addMessageToStore(activeConversationId, userMessage)
       
       // Track message sent event
       telemetryService.trackMessageSent(effectiveProvider, effectiveModel, message.length)
       
-      // Get API key for the provider
-      const apiKey = await getProviderApiKey(effectiveProvider)
-      
-      // Send to AI provider with streaming
+      // Create model configurations for the new interface
+      const modelConfigs = await chatService.createModelConfigs(
+        isMultiSelectMode && selectedModels.length > 0
+          ? selectedModels
+          : [{ provider: effectiveProvider, model: effectiveModel }],
+        providers,
+        getProviderApiKey,
+        {
+          ...(conversationSettings && {
+            temperature: conversationSettings.temperature,
+            maxTokens: conversationSettings.max_tokens,
+            topP: conversationSettings.top_p,
+            frequencyPenalty: conversationSettings.frequency_penalty,
+            presencePenalty: conversationSettings.presence_penalty,
+            stop: conversationSettings.stop.length > 0 ? conversationSettings.stop : undefined,
+            n: conversationSettings.n,
+            seed: conversationSettings.seed,
+          }),
+          reasoningEffort
+        }
+      )
+
+      // Send to AI provider(s) with streaming
       await chatService.sendMessage({
         conversationId: activeConversationId,
-        userMessage: sendUserMessage,
+        userMessage,
+        userMessageId: typeof userMessageId === 'number' ? userMessageId : undefined,
         systemPrompt: currentConversation?.system_prompt || undefined,
-        provider: effectiveProvider,
-        endpoint: provider.endpoint,
-        model: effectiveModel,
-        apiKey: apiKey || undefined,
-        isLocal: provider.isLocal,
-        reasoningEffort,
+        models: modelConfigs,
         signal: controller.signal,
-        // Pass conversation settings only if they exist
-        ...(conversationSettings && {
-          temperature: conversationSettings.temperature,
-          maxTokens: conversationSettings.max_tokens,
-          topP: conversationSettings.top_p,
-          frequencyPenalty: conversationSettings.frequency_penalty,
-          presencePenalty: conversationSettings.presence_penalty,
-          stop: conversationSettings.stop.length > 0 ? conversationSettings.stop : undefined,
-          n: conversationSettings.n,
-          seed: conversationSettings.seed,
-        }),
-        onStreamChunk: (content: string) => {
-          setStreamingMessage(activeConversationId, content)
+        onStreamChunk: (content: string, modelId: string) => {
+          // Handle multiple concurrent streams per model
+          setStreamingMessage(activeConversationId, content, modelId)
+          console.log(`Streaming from ${modelId}: ${content.slice(0, 50)}...`)
         },
-        onStreamComplete: async (message: CreateMessageInput) => {
+        onStreamComplete: async (message: CreateMessageInput, modelId: string) => {
           // Add complete assistant message to store
           try {
-            const assistantWithRefs: CreateMessageInput = searchEnabled && searchReferences
-              ? { ...message, references: searchReferences }
-              : message
-            await addMessageToStore(activeConversationId, assistantWithRefs)
+            // Store model info for display in UI
+            const [provider, modelWithSuffix] = modelId.split(':')
+            // Handle both format: 'provider:model' and 'provider:model#2'
+            const model = modelWithSuffix?.includes('#') ? modelWithSuffix.split('#')[0] : modelWithSuffix
+            message.metadata = {
+              ...message.metadata,
+              modelId: `${provider}/${model}`
+            }
+            await addMessageToStore(activeConversationId, message)
+            
             // Track message received event
-            telemetryService.trackMessageReceived(effectiveProvider, effectiveModel, message.text?.length || 0)
+            telemetryService.trackMessageReceived(provider, model, message.text?.length || 0)
           } catch (err) {
             console.error('Failed to save assistant message:', err)
           }
-          clearStreamingMessage(activeConversationId)
+          clearStreamingMessage(activeConversationId, modelId)
+        },
+        onModelStreamStart: (modelId: string) => {
+          console.log(`Model ${modelId} started streaming`)
+        },
+        onModelError: (error: Error, modelId: string) => {
+          console.error(`Model ${modelId} error:`, error)
+          // Show error toast for individual model failures
+          if ((window as any).showToast) {
+            const [provider, modelWithSuffix] = modelId.split(':')
+            // Handle both format: 'provider:model' and 'provider:model#2'
+            const model = modelWithSuffix?.includes('#') ? modelWithSuffix.split('#')[0] : modelWithSuffix
+            const suffix = modelWithSuffix?.includes('#') ? modelWithSuffix.split('#')[1] : ''
+            ;(window as any).showToast({
+              type: 'error',
+              title: `${provider}/${model}${suffix ? `#${suffix}` : ''} failed`,
+              message: error.message
+            })
+          }
         }
       })
       
@@ -803,7 +841,16 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
               {currentConversation?.title || 'New Conversation'}
             </h2>
             <p className="text-sm text-muted-foreground/80 truncate">
-              {currentConversation?.provider || selectedModel?.provider || 'No Provider'} • {currentConversation?.model || selectedModel?.model || 'No Model'}
+              {isMultiSelectMode && selectedModels.length > 0 
+                ? `Multi-Model (${selectedModels.length} selected)` 
+                : (() => {
+                    const modelDisplay = getConversationModelDisplay(currentConversation?.model || selectedModel?.model, messages)
+                    const provider = currentConversation?.provider || selectedModel?.provider || 'No Provider'
+                    return modelDisplay === 'Multi-Model' 
+                      ? modelDisplay
+                      : `${provider} • ${modelDisplay}`
+                  })()
+              }
             </p>
           </div>
           
@@ -841,16 +888,24 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                   <span>Add Provider</span>
                 </button>
               ) : (
-                <div className="relative" ref={dropdownRef}>
+                <div className="relative">
                   <button
+                    ref={buttonRef}
                     onClick={() => setShowModelSelector(!showModelSelector)}
                     className="flex items-center gap-2 px-4 py-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 text-sm shadow-elegant border border-border/20 text-muted-foreground hover:text-primary hover:border-primary/30"
                     aria-label={selectedModel && selectedModel.model ? `Selected model: ${selectedModel.model}` : 'Select AI model'}
                     aria-expanded={showModelSelector}
                     aria-haspopup="listbox"
                   >
-                    <span className={!selectedModel || !selectedModel.model ? 'text-muted-foreground' : 'text-foreground/90'}>
-                      {selectedModel && selectedModel.model ? selectedModel.model : 'Select Model'}
+                    <span className={(!selectedModel || !selectedModel.model) && (!isMultiSelectMode || selectedModels.length === 0) ? 'text-muted-foreground' : 'text-foreground/90'}>
+                      {isMultiSelectMode 
+                        ? selectedModels.length > 0 
+                          ? `${selectedModels.length} model${selectedModels.length !== 1 ? 's' : ''}`
+                          : 'Select Models'
+                        : selectedModel && selectedModel.model 
+                          ? selectedModel.model 
+                          : 'Select Model'
+                      }
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </button>
@@ -896,6 +951,53 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                     </div>
                   </div>
                   
+                  {/* Multi-Select option at top - hidden in mini window */}
+                  {!isMiniWindow && (
+                    <div className="border-b border-border/10">
+                      <button
+                        onClick={() => {
+                          setIsMultiSelectMode(!isMultiSelectMode)
+                          if (!isMultiSelectMode && selectedModel) {
+                            // When entering multi-select, add current model to selection
+                            setSelectedModels([selectedModel])
+                          } else if (isMultiSelectMode) {
+                            // When exiting multi-select, clear selections and use first selected model
+                            if (selectedModels.length > 0) {
+                              setSelectedModel(selectedModels[0])
+                            }
+                            setSelectedModels([])
+                          }
+                        }}
+                        className={clsx(
+                          'w-full text-left px-4 py-3 transition-all duration-200 elegant-hover flex items-center justify-between',
+                          isMultiSelectMode 
+                            ? 'bg-gradient-subtle border-l-2 border-l-primary text-primary' 
+                            : 'text-foreground/90 hover:bg-surface-hover'
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={clsx(
+                            "w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200",
+                            isMultiSelectMode 
+                              ? "bg-primary border-primary" 
+                              : "border-border hover:border-primary/50"
+                          )}>
+                            {isMultiSelectMode && <Check className="w-3 h-3 text-primary-foreground" />}
+                          </div>
+                          <div>
+                            <div className="font-medium text-sm">Multi-Select</div>
+                            <div className="text-xs text-muted-foreground">
+                              {isMultiSelectMode 
+                                ? `${selectedModels.length}/5 model${selectedModels.length !== 1 ? 's' : ''} selected`
+                                : 'Message multiple models at once (max 5)'
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                  
                   {Object.entries(filteredModelsByProvider).length === 0 ? (
                     <div className="py-4">
                       <EmptyState
@@ -916,37 +1018,60 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                             const compatible = isModelCompatible(model)
                             const incompatibilityReason = getIncompatibilityReason(model)
                             const isSelected = selectedModel?.provider === model.provider && selectedModel?.model === model.model
+                            const isSelectedInMulti = selectedModels.some(m => m.provider === model.provider && m.model === model.model)
                             const isHighlighted = isModelHighlighted(model)
+                            const isAtMaxSelection = isMultiSelectMode && selectedModels.length >= 5 && !isSelectedInMulti
                             
                             return (
                               <button
                                 key={`${model.provider}-${model.model}`}
                                 onClick={() => {
                                   if (!compatible) return
-                                  handleModelSelect({ provider: model.provider, model: model.model })
+                                  if (isMultiSelectMode) {
+                                    // In multi-select mode, toggle selection
+                                    if (isSelectedInMulti) {
+                                      setSelectedModels(prev => prev.filter(m => !(m.provider === model.provider && m.model === model.model)))
+                                    } else if (selectedModels.length < 5) {
+                                      setSelectedModels(prev => [...prev, { provider: model.provider, model: model.model }])
+                                    }
+                                  } else {
+                                    handleModelSelect({ provider: model.provider, model: model.model })
+                                  }
                                 }}
                                 onMouseEnter={() => handleModelMouseEnter(model)}
                                 className={clsx(
                                   'w-full text-left px-3 py-2 transition-all duration-200 rounded-xl mx-1 my-0.5',
-                                  !compatible 
+                                  !compatible || isAtMaxSelection
                                     ? 'cursor-not-allowed opacity-50' 
                                     : 'cursor-pointer elegant-hover',
-                                  isSelected
+                                  (isSelected && !isMultiSelectMode) || (isSelectedInMulti && isMultiSelectMode)
                                     ? 'bg-gradient-subtle border border-primary/20'
                                     : isHighlighted
                                     ? 'bg-surface-hover'
                                     : ''
                                 )}
-                                disabled={!compatible}
-                                title={incompatibilityReason || undefined}
+                                disabled={!compatible || isAtMaxSelection}
+                                title={incompatibilityReason || (isAtMaxSelection ? 'Maximum 5 models can be selected' : undefined)}
                                 data-model-id={`${model.provider}-${model.model}`}
                               >
                                 <div className="flex items-center justify-between">
-                                  <div className={clsx(
-                                    "font-medium text-sm",
-                                    !compatible ? "text-muted-foreground" : "text-foreground/90"
-                                  )}>
-                                    {model.model}
+                                  <div className="flex items-center gap-2">
+                                    {isMultiSelectMode && (
+                                      <div className={clsx(
+                                        "w-4 h-4 rounded border flex items-center justify-center transition-all duration-200",
+                                        isSelectedInMulti 
+                                          ? "bg-primary border-primary" 
+                                          : "border-border"
+                                      )}>
+                                        {isSelectedInMulti && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                                      </div>
+                                    )}
+                                    <div className={clsx(
+                                      "font-medium text-sm",
+                                      !compatible || isAtMaxSelection ? "text-muted-foreground" : "text-foreground/90"
+                                    )}>
+                                      {model.model}
+                                    </div>
                                   </div>
                                   <ModelCapabilityIcons 
                                     capabilities={model.capabilities} 
@@ -987,7 +1112,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         <MessageList 
           messages={messages}
           streamingMessage={zustandStreamingMessage}
+          streamingMessagesByModel={streamingMessagesByModel}
           isLoading={isLoading}
+          expectedModels={isMultiSelectMode && selectedModels.length > 0 ? selectedModels : []}
         />
       </div>
 
