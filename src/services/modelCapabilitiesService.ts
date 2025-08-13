@@ -319,13 +319,11 @@ export class ModelCapabilitiesService {
     );
 
     if (matchingFamily) {
-      // Create a copy of the capabilities and potentially adjust based on specific model variants
+      // Create a copy of the capabilities and adjust based on specific model variants
       const capabilities = { ...matchingFamily.capabilities };
       
       // Adjust capabilities based on specific model variants
-      this.adjustCapabilitiesForVariant(normalizedName, capabilities);
-      
-      return capabilities;
+      return this.adjustCapabilitiesForVariant(normalizedName, capabilities);
     }
 
     // Default capabilities for unknown models
@@ -423,34 +421,39 @@ export class ModelCapabilitiesService {
     return 'medium'; // Default assumption
   }
 
-  private static adjustCapabilitiesForVariant(modelName: string, capabilities: ModelCapabilities): void {
+  private static adjustCapabilitiesForVariant(modelName: string, capabilities: ModelCapabilities): ModelCapabilities {
+    // Create a shallow copy to avoid mutating the input
+    const adjusted: ModelCapabilities = { ...capabilities };
+
     // Adjust based on specific model variants or quantization
     if (modelName.includes('vision') || modelName.includes('multimodal')) {
-      capabilities.vision = true;
-      capabilities.multimodal = true;
+      adjusted.vision = true;
+      adjusted.multimodal = true;
     }
     
     if (modelName.includes('instruct') || modelName.includes('chat')) {
-      capabilities.reasoning = true;
+      adjusted.reasoning = true;
     }
     
     if (modelName.includes('code') || modelName.includes('coder')) {
-      capabilities.codeGeneration = true;
+      adjusted.codeGeneration = true;
     }
     
     if (modelName.includes('tool') || modelName.includes('function')) {
-      capabilities.functionCalling = true;
-      capabilities.tools = true;
+      adjusted.functionCalling = true;
+      adjusted.tools = true;
     }
     
     // Adjust context length based on model name hints
     if (modelName.includes('32k')) {
-      capabilities.contextLength = 32768;
+      adjusted.contextLength = 32768;
     } else if (modelName.includes('128k')) {
-      capabilities.contextLength = 131072;
+      adjusted.contextLength = 131072;
     } else if (modelName.includes('1m')) {
-      capabilities.contextLength = 1048576;
+      adjusted.contextLength = 1048576;
     }
+
+    return adjusted;
   }
 
   private static getDefaultCapabilities(): ModelCapabilities {

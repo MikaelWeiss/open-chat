@@ -74,17 +74,22 @@ export default function LocalProviderSettings({ providerId, isOpen, onClose, onR
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState<'installed' | 'available' | 'system'>('installed');
   const [isLoading, setIsLoading] = useState(false);
-  const [downloads, setDownloads] = useState<Record<string, DownloadProgress>>(() => {
-    try {
-      const stored = localStorage.getItem('ollama-downloads');
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [downloads, setDownloads] = useState<Record<string, DownloadProgress>>({});
   const [error, setError] = useState<string | null>(null);
   const [modelToDelete, setModelToDelete] = useState<string | null>(null);
   const [showRemoveProviderConfirm, setShowRemoveProviderConfirm] = useState(false);
+
+  // Load downloads from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('ollama-downloads');
+      if (stored) {
+        setDownloads(JSON.parse(stored));
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, []);
 
   // Persist downloads to localStorage whenever it changes
   useEffect(() => {

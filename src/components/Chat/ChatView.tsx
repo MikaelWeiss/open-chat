@@ -84,6 +84,13 @@ function ModelCapabilityIcons({ capabilities, className = '' }: ModelCapabilityI
   )
 }
 
+function getModelButtonTooltip(incompatibilityReason?: string | null, isAtMaxSelection?: boolean, isAtMaxLocalSelection?: boolean): string | undefined {
+  if (incompatibilityReason) return incompatibilityReason;
+  if (isAtMaxSelection) return 'Maximum 5 models can be selected';
+  if (isAtMaxLocalSelection) return 'Maximum 1 local model can be selected';
+  return undefined;
+}
+
 export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef, onSelectConversation, isMiniWindow = false }: ChatViewProps) {
   const internalMessageInputRef = useRef<MessageInputHandle>(null)
   const messageInputRef = externalMessageInputRef || internalMessageInputRef
@@ -1193,7 +1200,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                             : ''
                         )}
                         disabled={!compatible || isAtMaxSelection || isAtMaxLocalSelection}
-                        title={incompatibilityReason || (isAtMaxSelection ? 'Maximum 5 models can be selected' : isAtMaxLocalSelection ? 'Maximum 1 local model can be selected' : undefined)}
+                        title={getModelButtonTooltip(incompatibilityReason, isAtMaxSelection, isAtMaxLocalSelection)}
                         data-model-id={`${model.provider}-${model.model}`}
                       >
                         <div className="flex items-center justify-between">

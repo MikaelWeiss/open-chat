@@ -16,7 +16,8 @@
       "Bash(gh release view:*)",
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:github.com)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(gh api:*)"
     ],
     "deny": []
   }

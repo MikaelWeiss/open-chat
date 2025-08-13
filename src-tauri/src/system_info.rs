@@ -403,20 +403,24 @@ async fn get_available_storage_for_path(path: &str) -> Result<u64, String> {
         
         // df output can vary in format, but available space is typically the 4th field (index 3)
         // Sometimes filesystem name spans multiple lines, so check for various field counts
-        if fields.len() >= 4 {
-            if let Ok(available_kb) = fields[3].parse::<u64>() {
-                return Ok(available_kb * 1024); // Convert KB to bytes
-            }
-        } else if fields.len() >= 3 {
-            // Sometimes available space is in the 3rd field
-            if let Ok(available_kb) = fields[2].parse::<u64>() {
-                return Ok(available_kb * 1024); // Convert KB to bytes
-            }
+        if let Some(bytes) = parse_available_storage_kb_field(&fields, 3) {
+            return Ok(bytes);
+        } else if let Some(bytes) = parse_available_storage_kb_field(&fields, 2) {
+            return Ok(bytes);
         }
     }
     
     
     Err(format!("Could not parse df output. Lines count: {}, Raw output: '{}'", lines.len(), output_str))
+}
+
+fn parse_available_storage_kb_field(fields: &[&str], index: usize) -> Option<u64> {
+    if fields.len() > index {
+        if let Ok(available_kb) = fields[index].parse::<u64>() {
+            return Some(available_kb * 1024); // Convert KB to bytes
+        }
+    }
+    None
 }
 
 #[cfg(target_os = "linux")]
