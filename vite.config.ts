@@ -29,4 +29,24 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  resolve: {
+    alias: {
+      // Use lottie-web/build/player/lottie_light to avoid eval usage
+      'lottie-web': 'lottie-web/build/player/lottie_light.js'
+    }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split large dependencies into separate chunks
+          'react-vendor': ['react', 'react-dom'],
+          'markdown': ['react-markdown', 'remark-gfm'],
+          'syntax-highlighter': ['react-syntax-highlighter'],
+          'tauri': ['@tauri-apps/api'],
+          'utilities': ['date-fns', 'clsx', 'zustand']
+        }
+      }
+    }
+  },
 }));
