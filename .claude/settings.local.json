@@ -20,6 +20,11 @@
       "Bash(gh api:*)"
       "WebFetch(domain:github.com)",
       "WebFetch(domain:chat-sdk.dev)"
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "WebFetch(domain:docs.rs)",
+      "Bash(rm:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

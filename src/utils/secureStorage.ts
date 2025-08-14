@@ -1,4 +1,6 @@
+// Platform-specific keychain imports
 import { getPassword, setPassword, deletePassword } from "tauri-plugin-keyring-api"
+import { invoke } from '@tauri-apps/api/core'
 import { BaseDirectory, readTextFile, writeTextFile, exists } from '@tauri-apps/plugin-fs'
 
 const SERVICE_NAME = "open-chat"
@@ -6,6 +8,23 @@ const KEYS_FILE = "keys.enc"
 
 // Check if we're in development mode
 const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development'
+
+// Platform detection
+async function getPlatform(): Promise<string> {
+  try {
+    const { platform } = await import('@tauri-apps/plugin-os')
+    return await platform()
+  } catch {
+    // Fallback for older versions or if plugin not available
+    return 'unknown'
+  }
+}
+
+// Check if we're on mobile platform
+async function isMobilePlatform(): Promise<boolean> {
+  const platformName = await getPlatform()
+  return platformName === 'ios' || platformName === 'android'
+}
 
 // Simple XOR encryption for dev mode storage
 const ENCRYPTION_KEY = "open-chat-2024-secure-key-storage-v1-dev-only"
@@ -92,10 +111,20 @@ export async function saveApiKey(providerId: string, apiKey: string): Promise<vo
       await saveDevKeys()
       console.log(`[DEV MODE] Saved API key for ${providerId} to encrypted file`)
     } else {
-      // Production: Use system keychain
-      await setPassword(SERVICE_NAME, key, apiKey)
-      keyCache.set(key, apiKey) // Cache for performance
-      console.log(`Saved API key for ${providerId} to system keychain`)
+      // Production: Use platform-specific keychain
+      const isMobile = await isMobilePlatform()
+      
+      if (isMobile) {
+        // Mobile: Use keychain plugin (iOS/Android)
+        await invoke('plugin:keychain|save_item', { key, password: apiKey })
+        keyCache.set(key, apiKey)
+        console.log(`Saved API key for ${providerId} to mobile keychain`)
+      } else {
+        // Desktop: Use keyring plugin (Windows/macOS/Linux)
+        await setPassword(SERVICE_NAME, key, apiKey)
+        keyCache.set(key, apiKey)
+        console.log(`Saved API key for ${providerId} to desktop keyring`)
+      }
     }
   } catch (error) {
     console.error(`Failed to save API key for provider ${providerId}:`, error)
@@ -124,12 +153,24 @@ export async function getApiKey(providerId: string): Promise<string | null> {
       }
       return value
     } else {
-      // Production: Use system keychain
-      const value = await getPassword(SERVICE_NAME, key)
-      if (value) {
-        keyCache.set(key, value) // Cache for performance
+      // Production: Use platform-specific keychain
+      const isMobile = await isMobilePlatform()
+      
+      if (isMobile) {
+        // Mobile: Use keychain plugin (iOS/Android)
+        const result = await invoke<string>('plugin:keychain|get_item', { key })
+        if (result) {
+          keyCache.set(key, result)
+        }
+        return result || null
+      } else {
+        // Desktop: Use keyring plugin (Windows/macOS/Linux)
+        const value = await getPassword(SERVICE_NAME, key)
+        if (value) {
+          keyCache.set(key, value)
+        }
+        return value
       }
-      return value
     }
   } catch (error) {
     console.error(`Failed to get API key for provider ${providerId}:`, error)
@@ -153,9 +194,18 @@ export async function deleteApiKey(providerId: string): Promise<void> {
       await saveDevKeys()
       console.log(`[DEV MODE] Deleted API key for ${providerId} from encrypted file`)
     } else {
-      // Production: Use system keychain
-      await deletePassword(SERVICE_NAME, key)
-      console.log(`Deleted API key for ${providerId} from system keychain`)
+      // Production: Use platform-specific keychain
+      const isMobile = await isMobilePlatform()
+      
+      if (isMobile) {
+        // Mobile: Use keychain plugin (iOS/Android)
+        await invoke('plugin:keychain|remove_item', { key })
+        console.log(`Deleted API key for ${providerId} from mobile keychain`)
+      } else {
+        // Desktop: Use keyring plugin (Windows/macOS/Linux)
+        await deletePassword(SERVICE_NAME, key)
+        console.log(`Deleted API key for ${providerId} from desktop keyring`)
+      }
     }
   } catch (error) {
     console.error(`Failed to delete API key for provider ${providerId}:`, error)
@@ -180,9 +230,18 @@ export async function hasApiKey(providerId: string): Promise<boolean> {
       await ensureDevInitialized()
       return key in devKeysData
     } else {
-      // Production: Use system keychain
-      const apiKey = await getPassword(SERVICE_NAME, key)
-      return apiKey !== null && apiKey !== undefined && apiKey.trim() !== ''
+      // Production: Use platform-specific keychain
+      const isMobile = await isMobilePlatform()
+      
+      if (isMobile) {
+        // Mobile: Use keychain plugin (iOS/Android)
+        const result = await invoke<string>('plugin:keychain|get_item', { key })
+        return result !== null && result !== undefined && result.trim() !== ''
+      } else {
+        // Desktop: Use keyring plugin (Windows/macOS/Linux)
+        const apiKey = await getPassword(SERVICE_NAME, key)
+        return apiKey !== null && apiKey !== undefined && apiKey.trim() !== ''
+      }
     }
   } catch (error) {
     return false

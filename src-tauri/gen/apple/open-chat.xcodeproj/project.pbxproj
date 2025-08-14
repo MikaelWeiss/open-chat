@@ -16,6 +16,7 @@
 		6C68F46ADB8840E2F4853638 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72A37ADB07A0BB20592A4855 /* Metal.framework */; };
 		B6D4D3E52790D5E4158C3F18 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AA8BEBA73EAD66C0011F051 /* CoreGraphics.framework */; };
 		D085E5D7EE3645A8224D74E5 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC1D9E4D7E290ADAB5972E64 /* QuartzCore.framework */; };
+		D43240DA2E4CEDE3003CB27A /* OpenChat.icon in Resources */ = {isa = PBXBuildFile; fileRef = D43240D92E4CEDE3003CB27A /* OpenChat.icon */; };
 		F3D245EACD514A1EF9C6282C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2D92B8DD2AA1394245FB960A /* Assets.xcassets */; };
 		F4A18A187F4AA227A29B96CE /* assets in Resources */ = {isa = PBXBuildFile; fileRef = F131D4B434CEDC3FB5E08244 /* assets */; };
 		F55BBA8690CB685EEF187273 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = D23C0E057AF1F8158C05DFB6 /* main.mm */; };
@@ -38,6 +39,7 @@
 		72A37ADB07A0BB20592A4855 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		AC1D9E4D7E290ADAB5972E64 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		D23C0E057AF1F8158C05DFB6 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		D43240D92E4CEDE3003CB27A /* OpenChat.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = OpenChat.icon; sourceTree = "<group>"; };
 		E9305D0D0E5E8936FF1D7CC5 /* Open Chat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Open Chat.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F131D4B434CEDC3FB5E08244 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -105,6 +107,7 @@
 		8F50D6D7B1D9C1E8F62C915C = {
 			isa = PBXGroup;
 			children = (
+				D43240D92E4CEDE3003CB27A /* OpenChat.icon */,
 				F131D4B434CEDC3FB5E08244 /* assets */,
 				2D92B8DD2AA1394245FB960A /* Assets.xcassets */,
 				1CCCA00313E7D4E302B2E8BE /* LaunchScreen.storyboard */,
@@ -180,7 +183,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 2600;
 			};
 			buildConfigurationList = C84E8B5C79465795F9ECA244 /* Build configuration list for PBXProject "open-chat" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -207,6 +210,7 @@
 			files = (
 				F3D245EACD514A1EF9C6282C /* Assets.xcassets in Resources */,
 				4036922C4AE61287744AFBF4 /* LaunchScreen.storyboard in Resources */,
+				D43240DA2E4CEDE3003CB27A /* OpenChat.icon in Resources */,
 				F4A18A187F4AA227A29B96CE /* assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -284,8 +288,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 976SMHMA6R;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -306,6 +312,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -315,19 +322,20 @@
 		385CC46FEFC9162ADBDBC840 /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "open-chat_iOS/open-chat_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 976SMHMA6R;
+				DEVELOPMENT_TEAM = "976SMHMA6R";
 				ENABLE_BITCODE = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\".\"",
 				);
 				INFOPLIST_FILE = "open-chat_iOS/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Open Chat";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -357,19 +365,20 @@
 		88EF8E16D37ECDD57F8F29DE /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "open-chat_iOS/open-chat_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 976SMHMA6R;
+				DEVELOPMENT_TEAM = "976SMHMA6R";
 				ENABLE_BITCODE = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\".\"",
 				);
 				INFOPLIST_FILE = "open-chat_iOS/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Open Chat";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -431,8 +440,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 976SMHMA6R;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -446,6 +457,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;

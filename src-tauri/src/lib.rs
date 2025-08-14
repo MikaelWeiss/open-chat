@@ -8,13 +8,19 @@ fn greet(name: &str) -> String {
 }
 
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, Position, LogicalPosition, AppHandle};
+#[cfg(desktop)]
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+#[cfg(desktop)]
 use std::str::FromStr;
+#[cfg(desktop)]
 use std::sync::Mutex;
 
-// Track registered shortcuts for proper cleanup
+// Track registered shortcuts for proper cleanup (desktop only)
+#[cfg(desktop)]
 static REGISTERED_SHORTCUTS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
+// Desktop implementation with full window management
+#[cfg(desktop)]
 #[tauri::command]
 async fn toggle_mini_window(app: tauri::AppHandle) -> Result<bool, String> {
     if let Some(window) = app.get_webview_window("mini-chat") {
@@ -90,15 +96,34 @@ async fn toggle_mini_window(app: tauri::AppHandle) -> Result<bool, String> {
     }
 }
 
+// Mobile implementation - mini windows don't make sense on mobile
+#[cfg(mobile)]
+#[tauri::command]
+async fn toggle_mini_window(_app: tauri::AppHandle) -> Result<bool, String> {
+    // Mini windows are not supported on mobile platforms
+    // Mobile apps typically use a single webview
+    Err("Mini windows are not supported on mobile platforms".to_string())
+}
+
+#[cfg(desktop)]
 #[tauri::command]
 async fn close_mini_window(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("mini-chat") {
+        // Use close() method for desktop
         window.close()
             .map_err(|e| format!("Failed to close mini window: {}", e))?;
     }
     Ok(())
 }
 
+#[cfg(mobile)]
+#[tauri::command]
+async fn close_mini_window(_app: tauri::AppHandle) -> Result<(), String> {
+    // Mini windows are not supported on mobile platforms
+    Err("Mini windows are not supported on mobile platforms".to_string())
+}
+
+#[cfg(desktop)]
 #[tauri::command]
 async fn register_global_shortcut(app: AppHandle, shortcut: String) -> Result<(), String> {
     // Handle empty shortcuts gracefully
@@ -138,6 +163,14 @@ async fn register_global_shortcut(app: AppHandle, shortcut: String) -> Result<()
     Ok(())
 }
 
+#[cfg(mobile)]
+#[tauri::command]
+async fn register_global_shortcut(_app: AppHandle, _shortcut: String) -> Result<(), String> {
+    // Global shortcuts are not supported on mobile platforms
+    Err("Global shortcuts are not supported on mobile platforms".to_string())
+}
+
+#[cfg(desktop)]
 #[tauri::command]
 async fn unregister_global_shortcut(app: AppHandle, shortcut: String) -> Result<(), String> {
     if shortcut.trim().is_empty() {
@@ -161,7 +194,15 @@ async fn unregister_global_shortcut(app: AppHandle, shortcut: String) -> Result<
     Ok(())
 }
 
-// Helper function to unregister all shortcuts with proper error handling
+#[cfg(mobile)]
+#[tauri::command]
+async fn unregister_global_shortcut(_app: AppHandle, _shortcut: String) -> Result<(), String> {
+    // Global shortcuts are not supported on mobile platforms
+    Err("Global shortcuts are not supported on mobile platforms".to_string())
+}
+
+// Helper function to unregister all shortcuts with proper error handling (desktop only)
+#[cfg(desktop)]
 fn unregister_all_shortcuts(app: &AppHandle) -> Result<(), String> {
     if let Err(e) = app.global_shortcut().unregister_all() {
         eprintln!("Warning: Failed to unregister all shortcuts: {}", e);
@@ -178,17 +219,34 @@ fn unregister_all_shortcuts(app: &AppHandle) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_sql::Builder::default().build())
-        .plugin(tauri_plugin_keyring::init())
+        .plugin(tauri_plugin_sql::Builder::default().build());
+    
+    // Platform-specific keychain/keyring plugins
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        builder = builder.plugin(tauri_plugin_keychain::init());
+    }
+    
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        builder = builder.plugin(tauri_plugin_keyring::init());
+    }
+    
+    builder = builder
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .plugin(
+        .plugin(tauri_plugin_os::init());
+    
+    // Add global shortcut plugin for desktop only
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     // Only handle key press events, ignore key release
@@ -204,7 +262,10 @@ pub fn run() {
                     }
                 })
                 .build()
-        )
+        );
+    }
+    
+    builder
         .invoke_handler(tauri::generate_handler![
             greet,
             toggle_mini_window,

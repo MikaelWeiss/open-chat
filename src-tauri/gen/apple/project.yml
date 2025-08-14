@@ -10,7 +10,7 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: open-chat
+      PRODUCT_NAME: Open Chat
       PRODUCT_BUNDLE_IDENTIFIER: org.weisssolutions.openchat
 targetTemplates:
   app:
@@ -51,8 +51,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 0.1.0
-        CFBundleVersion: "0.1.0"
+        CFBundleShortVersionString: 0.1.8
+        CFBundleVersion: "0.1.8"
     entitlements:
       path: open-chat_iOS/open-chat_iOS.entitlements
     scheme:

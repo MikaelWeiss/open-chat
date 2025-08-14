@@ -51,6 +51,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "iOS": {
+      "developmentTeam": "976SMHMA6R"
+    },
     "macOS": {
       "dmg": {
         "background": "./images/dmg-background.png"
