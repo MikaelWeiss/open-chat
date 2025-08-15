@@ -5,6 +5,7 @@ import SettingsModal from './components/Settings/SettingsModal'
 import ShortcutsModal from './components/Shortcuts/ShortcutsModal'
 import ToastContainer from './components/Toast/Toast'
 import OnboardingModal from './components/Onboarding/OnboardingModal'
+import IntroAnimation from './components/IntroAnimation/IntroAnimation'
 import { DEFAULT_SIDEBAR_WIDTH, TELEMETRY_CONFIG } from './shared/constants'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { MessageInputHandle } from './components/Chat/MessageInput'
@@ -22,6 +23,7 @@ function App() {
   // Check if we're in mini window mode
   const isMiniWindow = new URLSearchParams(window.location.search).get('window') === 'mini'
   
+  const [showIntroAnimation, setShowIntroAnimation] = useState(!isMiniWindow) // Show intro for testing (not in mini window)
   const [sidebarOpen, setSidebarOpen] = useState(!isMiniWindow) // Hide sidebar in mini window
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -416,57 +418,63 @@ function App() {
   })
 
   return (
-    <div className={`flex h-screen bg-background text-foreground overflow-hidden ${isMiniWindow ? 'mini-window' : ''}`}>
-      {!isMiniWindow && (
-        <Sidebar
-          isOpen={sidebarOpen}
-          width={sidebarWidth}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-          onWidthChange={setSidebarWidth}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onOpenShortcuts={() => setShortcutsOpen(true)}
-          selectedConversationId={selectedConversationId}
-          onSelectConversation={setSelectedConversation}
-          onDeleteConversation={handleConversationDeleted}
-        />
+    <>
+      {showIntroAnimation && (
+        <IntroAnimation onComplete={() => setShowIntroAnimation(false)} />
       )}
       
-      <div className={`flex-1 min-w-0 flex ${!sidebarOpen ? '' : ''}`}>
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden w-full">
-          <ChatView 
-            conversationId={selectedConversationId}
-            onOpenSettings={isMiniWindow ? () => {} : () => setSettingsOpen(true)} 
-            messageInputRef={messageInputRef}
+      <div className={`flex h-screen bg-background text-foreground overflow-hidden ${isMiniWindow ? 'mini-window' : ''}`}>
+        {!isMiniWindow && (
+          <Sidebar
+            isOpen={sidebarOpen}
+            width={sidebarWidth}
+            onToggle={() => setSidebarOpen(!sidebarOpen)}
+            onWidthChange={setSidebarWidth}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenShortcuts={() => setShortcutsOpen(true)}
+            selectedConversationId={selectedConversationId}
             onSelectConversation={setSelectedConversation}
-            isMiniWindow={isMiniWindow}
-            modelSelectorOpen={modelSelectorOpen}
-            onToggleModelSelector={handleToggleModelSelector}
+            onDeleteConversation={handleConversationDeleted}
           />
+        )}
+        
+        <div className={`flex-1 min-w-0 flex ${!sidebarOpen ? '' : ''}`}>
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden w-full">
+            <ChatView 
+              conversationId={selectedConversationId}
+              onOpenSettings={isMiniWindow ? () => {} : () => setSettingsOpen(true)} 
+              messageInputRef={messageInputRef}
+              onSelectConversation={setSelectedConversation}
+              isMiniWindow={isMiniWindow}
+              modelSelectorOpen={modelSelectorOpen}
+              onToggleModelSelector={handleToggleModelSelector}
+            />
+          </div>
         </div>
-      </div>
-      
-      {!isMiniWindow && (
-        <>
-          <SettingsModal
-            isOpen={settingsOpen}
-            onClose={() => setSettingsOpen(false)}
-            initialSection={settingsSection}
-          />
-          
-          <ShortcutsModal
-            isOpen={shortcutsOpen}
-            onClose={() => setShortcutsOpen(false)}
-          />
-          
-          <OnboardingModal
-            isOpen={onboardingOpen}
-            onClose={() => setOnboardingOpen(false)}
-          />
-        </>
-      )}
+        
+        {!isMiniWindow && (
+          <>
+            <SettingsModal
+              isOpen={settingsOpen}
+              onClose={() => setSettingsOpen(false)}
+              initialSection={settingsSection}
+            />
+            
+            <ShortcutsModal
+              isOpen={shortcutsOpen}
+              onClose={() => setShortcutsOpen(false)}
+            />
+            
+            <OnboardingModal
+              isOpen={onboardingOpen}
+              onClose={() => setOnboardingOpen(false)}
+            />
+          </>
+        )}
 
-      <ToastContainer />
-    </div>
+        <ToastContainer />
+      </div>
+    </>
   )
 }
 
