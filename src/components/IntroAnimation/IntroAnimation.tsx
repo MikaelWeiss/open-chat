@@ -53,14 +53,14 @@ export default function IntroAnimation({ onComplete }: IntroAnimationProps) {
   useEffect(() => {
     const textTimer = setTimeout(() => {
       setShowText(true)
-      // Animate letters one by one
+      // Animate letters one by one with reduced delay for smoother animation
       const letters = text.split('')
       letters.forEach((letter, index) => {
         setTimeout(() => {
           setTextLetters(prev => [...prev, letter])
-        }, index * 50)
+        }, index * 30) // Reduced from 50ms to 30ms for faster, smoother animation
       })
-    }, 5000)
+    }, 4500)
 
     return () => clearTimeout(textTimer)
   }, [])
@@ -69,7 +69,7 @@ export default function IntroAnimation({ onComplete }: IntroAnimationProps) {
   useEffect(() => {
     const buttonTimer = setTimeout(() => {
       setShowButton(true)
-    }, 12000)
+    }, 10000)
 
     return () => clearTimeout(buttonTimer)
   }, [])
