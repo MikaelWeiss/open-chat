@@ -28,6 +28,7 @@ function App() {
   const [settingsSection, setSettingsSection] = useState<'general' | 'models' | 'about'>('general')
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false)
   
   // Use Zustand store for conversations
   const { 
@@ -326,14 +327,37 @@ function App() {
   }
 
   const handleToggleSettings = () => {
-    setSettingsOpen(!settingsOpen)
-    if (!settingsOpen) {
+    if (settingsOpen) {
+      setSettingsOpen(false)
+    } else {
+      // Close other modals when opening settings
+      setShortcutsOpen(false)
+      setModelSelectorOpen(false)
+      setSettingsOpen(true)
       telemetryService.trackSettingsOpened('general')
     }
   }
 
   const handleToggleShortcuts = () => {
-    setShortcutsOpen(!shortcutsOpen)
+    if (shortcutsOpen) {
+      setShortcutsOpen(false)
+    } else {
+      // Close other modals when opening shortcuts
+      setSettingsOpen(false)
+      setModelSelectorOpen(false)
+      setShortcutsOpen(true)
+    }
+  }
+
+  const handleToggleModelSelector = () => {
+    if (modelSelectorOpen) {
+      setModelSelectorOpen(false)
+    } else {
+      // Close other modals when opening model selector
+      setSettingsOpen(false)
+      setShortcutsOpen(false)
+      setModelSelectorOpen(true)
+    }
   }
 
   const handleSendFeedback = () => {
@@ -350,6 +374,8 @@ function App() {
       setSettingsOpen(false)
     } else if (shortcutsOpen) {
       setShortcutsOpen(false)
+    } else if (modelSelectorOpen) {
+      setModelSelectorOpen(false)
     }
   }
 
@@ -379,12 +405,14 @@ function App() {
     onToggleSidebar: isMiniWindow ? () => {} : handleToggleSidebar,
     onToggleSettings: isMiniWindow ? () => {} : handleToggleSettings,
     onToggleShortcuts: isMiniWindow ? () => {} : handleToggleShortcuts,
+    onToggleModelSelector: isMiniWindow ? () => {} : handleToggleModelSelector,
     onSendFeedback: handleSendFeedback,
     onFocusInput: handleFocusInput,
     onCloseModal: handleCloseModal,
     onToggleTheme: handleToggleTheme,
     settingsOpen,
-    shortcutsOpen
+    shortcutsOpen,
+    modelSelectorOpen
   })
 
   return (
@@ -411,6 +439,8 @@ function App() {
             messageInputRef={messageInputRef}
             onSelectConversation={setSelectedConversation}
             isMiniWindow={isMiniWindow}
+            modelSelectorOpen={modelSelectorOpen}
+            onToggleModelSelector={handleToggleModelSelector}
           />
         </div>
       </div>

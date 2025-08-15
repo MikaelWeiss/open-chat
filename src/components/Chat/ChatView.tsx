@@ -24,6 +24,8 @@ interface ChatViewProps {
   messageInputRef?: RefObject<MessageInputHandle>
   onSelectConversation?: (conversationId: number | 'pending' | null) => void
   isMiniWindow?: boolean
+  modelSelectorOpen?: boolean
+  onToggleModelSelector?: () => void
 }
 
 interface ModelCapabilityIconsProps {
@@ -91,14 +93,13 @@ function getModelButtonTooltip(incompatibilityReason?: string | null, isAtMaxSel
   return undefined;
 }
 
-export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef, onSelectConversation, isMiniWindow = false }: ChatViewProps) {
+export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef, onSelectConversation, isMiniWindow = false, modelSelectorOpen = false, onToggleModelSelector }: ChatViewProps) {
   const internalMessageInputRef = useRef<MessageInputHandle>(null)
   const messageInputRef = externalMessageInputRef || internalMessageInputRef
   const [isLoading, setIsLoading] = useState(false)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
   
-  // Model selector state
-  const [showModelSelector, setShowModelSelector] = useState(false)
+  // Model selector state (now managed by parent App component)
   const [searchQuery, setSearchQuery] = useState('')
   const [highlightedModelIndex, setHighlightedModelIndex] = useState(0)
   const [selectedModel, setSelectedModel] = useState<{provider: string, model: string} | null>(null)
@@ -286,11 +287,11 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   useEffect(() => {
     const compatibleModels = allFilteredModels.filter(m => isModelCompatible(m))
     setHighlightedModelIndex(compatibleModels.length > 0 ? 0 : -1) // Start with first model if available
-  }, [searchQuery, showModelSelector, allFilteredModels])
+  }, [searchQuery, modelSelectorOpen, allFilteredModels])
   
   // Clear search when model selector closes and auto-focus when it opens
   useEffect(() => {
-    if (!showModelSelector) {
+    if (!modelSelectorOpen) {
       setSearchQuery('')
     } else {
       // Auto-focus the search input when model selector opens
@@ -298,54 +299,28 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         searchInputRef.current?.focus()
       }, 100)
     }
-  }, [showModelSelector])
+  }, [modelSelectorOpen])
   
-  // Keyboard shortcuts for model selector
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Toggle model selector (Cmd+. or Ctrl+.)
-      if (e.key === '.' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        setShowModelSelector(prev => !prev)
-      }
-      
-      // Open model selector and focus search when Shift+Cmd+M is pressed
-      if (e.key === 'm' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
-        e.preventDefault()
-        if (!showModelSelector) {
-          setShowModelSelector(true)
-          // Focus will be handled by the auto-focus effect when selector opens
-        } else {
-          searchInputRef.current?.focus()
-          searchInputRef.current?.select()
-        }
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [showModelSelector])
+  // Model selector keyboard shortcuts are now handled by the global keyboard shortcut hook in App.tsx
 
   // Click outside to close model selector
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showModelSelector && dropdownRef.current && modelSelectorButtonRef.current && 
+      if (modelSelectorOpen && dropdownRef.current && modelSelectorButtonRef.current && 
           !dropdownRef.current.contains(event.target as Node) && 
           !modelSelectorButtonRef.current.contains(event.target as Node)) {
-        setShowModelSelector(false)
+        onToggleModelSelector?.()
       }
     }
 
-    if (showModelSelector) {
+    if (modelSelectorOpen) {
       document.addEventListener('mousedown', handleClickOutside)
     }
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showModelSelector])
+  }, [modelSelectorOpen])
   
   // Auto-select model logic: always ensure a model is selected
   useEffect(() => {
@@ -532,7 +507,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   // Handle model selection
   const handleModelSelect = async (model: {provider: string, model: string}) => {
     setSelectedModel(model)
-    setShowModelSelector(false)
+    onToggleModelSelector?.()
     
     // Update conversation with new model
     if (conversationId) {
@@ -937,18 +912,18 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                   <button
                     ref={modelSelectorButtonRef}
                     onClick={() => {
-                      if (!showModelSelector && modelSelectorButtonRef.current) {
+                      if (!modelSelectorOpen && modelSelectorButtonRef.current) {
                         const rect = modelSelectorButtonRef.current.getBoundingClientRect()
                         setDropdownPosition({
                           top: rect.bottom + 8,
                           right: window.innerWidth - rect.right
                         })
                       }
-                      setShowModelSelector(!showModelSelector)
+                      onToggleModelSelector?.()
                     }}
                     className="flex items-center gap-2 px-4 py-2 elegant-hover rounded-xl transition-all duration-200 hover:scale-105 text-sm shadow-elegant border border-border/20 text-muted-foreground hover:text-primary hover:border-primary/30"
                     aria-label={selectedModel && selectedModel.model ? `Selected model: ${selectedModel.model}` : 'Select AI model'}
-                    aria-expanded={showModelSelector}
+                    aria-expanded={modelSelectorOpen}
                     aria-haspopup="listbox"
                   >
                     <span className={(!selectedModel || !selectedModel.model) && (!isMultiSelectMode || selectedModels.length === 0) ? 'text-muted-foreground' : 'text-foreground/90'}>
@@ -1047,7 +1022,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       />
 
       {/* Model Selector Dropdown - Rendered as Portal */}
-      {showModelSelector && createPortal(
+      {modelSelectorOpen && createPortal(
         <div 
           ref={dropdownRef} 
           className="w-80 glass-effect border border-border/20 rounded-2xl shadow-elegant-xl z-[99999] max-h-80 overflow-y-auto overflow-x-hidden"
@@ -1067,6 +1042,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search models..."
+                data-model-search-input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -1090,7 +1066,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
                     }
                   } else if (e.key === 'Escape') {
                     e.preventDefault()
-                    setShowModelSelector(false)
+                    onToggleModelSelector?.()
                   }
                 }}
                 className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground text-foreground"

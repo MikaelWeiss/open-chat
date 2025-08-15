@@ -5,12 +5,14 @@ interface KeyboardShortcutsProps {
   onToggleSidebar: () => void
   onToggleSettings: () => void
   onToggleShortcuts: () => void
+  onToggleModelSelector: () => void
   onSendFeedback: () => void
   onFocusInput: () => void
   onCloseModal: () => void
   onToggleTheme: () => void
   settingsOpen: boolean
   shortcutsOpen: boolean
+  modelSelectorOpen: boolean
 }
 
 export const useKeyboardShortcuts = ({
@@ -18,17 +20,19 @@ export const useKeyboardShortcuts = ({
   onToggleSidebar,
   onToggleSettings,
   onToggleShortcuts,
+  onToggleModelSelector,
   onSendFeedback,
   onFocusInput,
   onCloseModal,
   onToggleTheme,
   settingsOpen,
-  shortcutsOpen
+  shortcutsOpen,
+  modelSelectorOpen
 }: KeyboardShortcutsProps) => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Handle Escape key - should work even in input fields when modals are open
-      if (event.key === 'Escape' && (settingsOpen || shortcutsOpen)) {
+      if (event.key === 'Escape' && (settingsOpen || shortcutsOpen || modelSelectorOpen)) {
         event.preventDefault()
         onCloseModal()
         return
@@ -91,6 +95,28 @@ export const useKeyboardShortcuts = ({
           event.preventDefault()
           onFocusInput()
           break
+          
+        case '.':
+          // Cmd/Ctrl + . - Toggle model selector
+          event.preventDefault()
+          onToggleModelSelector()
+          break
+          
+        case 'm':
+          // Cmd/Ctrl + Shift + M - Toggle model selector (alternative)
+          if (event.shiftKey) {
+            event.preventDefault()
+            onToggleModelSelector()
+            // Auto-focus the search input when model selector opens with this shortcut
+            setTimeout(() => {
+              const searchInput = document.querySelector('[data-model-search-input]') as HTMLInputElement
+              if (searchInput) {
+                searchInput.focus()
+                searchInput.select()
+              }
+            }, 100)
+          }
+          break
       }
     }
     
@@ -104,11 +130,13 @@ export const useKeyboardShortcuts = ({
     onToggleSidebar,
     onToggleSettings,
     onToggleShortcuts,
+    onToggleModelSelector,
     onSendFeedback,
     onFocusInput,
     onCloseModal,
     onToggleTheme,
     settingsOpen,
-    shortcutsOpen
+    shortcutsOpen,
+    modelSelectorOpen
   ])
 }
