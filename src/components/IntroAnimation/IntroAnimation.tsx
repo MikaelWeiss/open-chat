@@ -118,7 +118,8 @@ export default function IntroAnimation({ onComplete }: IntroAnimationProps) {
           position: 'absolute',
           top: 0,
           left: 0,
-          zIndex: 0
+          zIndex: 0,
+          backgroundColor: '#000'
         }}
         title="Background Animation"
       />
