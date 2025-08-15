@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { ArrowRight } from 'lucide-react'
-import { GradientAnimation } from './gradientAnimation'
 import audioFile from '../../assets/logo-sting.mp3'
+import backgroundUrl from './background.html?url'
 import './IntroAnimation.css'
 
 interface IntroAnimationProps {
@@ -9,8 +9,6 @@ interface IntroAnimationProps {
 }
 
 export default function IntroAnimation({ onComplete }: IntroAnimationProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animationRef = useRef<GradientAnimation | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   
   const [showText, setShowText] = useState(false)
@@ -19,33 +17,6 @@ export default function IntroAnimation({ onComplete }: IntroAnimationProps) {
   const [fadeOut, setFadeOut] = useState(false)
 
   const text = "Welcome to Open Chat"
-
-  // Initialize canvas animation
-  useEffect(() => {
-    if (!canvasRef.current) return
-
-    const animation = new GradientAnimation(canvasRef.current)
-    animationRef.current = animation
-    animation.start()
-
-    // Update theme if it changes
-    const handleThemeChange = () => {
-      const isDark = document.documentElement.classList.contains('dark')
-      animation.updateTheme(isDark)
-    }
-
-    // Watch for theme changes
-    const observer = new MutationObserver(handleThemeChange)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class']
-    })
-
-    return () => {
-      animation.destroy()
-      observer.disconnect()
-    }
-  }, [])
 
   // Load and play audio
   useEffect(() => {
@@ -138,9 +109,18 @@ export default function IntroAnimation({ onComplete }: IntroAnimationProps) {
 
   return (
     <div className={`intro-animation-overlay ${fadeOut ? 'fade-out' : ''}`}>
-      <canvas
-        ref={canvasRef}
-        className="intro-canvas"
+      <iframe 
+        src={backgroundUrl}
+        style={{
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          zIndex: 0
+        }}
+        title="Background Animation"
       />
       
       <div className="intro-content">
