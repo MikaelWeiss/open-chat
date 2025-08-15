@@ -1,0 +1,312 @@
+/* iOS Theme Adaptations */
+
+/* iOS System Colors */
+:root {
+  /* iOS Light Mode Colors */
+  --ios-blue: #007AFF;
+  --ios-green: #34C759;
+  --ios-indigo: #5856D6;
+  --ios-orange: #FF9500;
+  --ios-pink: #FF2D92;
+  --ios-purple: #AF52DE;
+  --ios-red: #FF3B30;
+  --ios-teal: #5AC8FA;
+  --ios-yellow: #FFCC00;
+  
+  /* iOS Gray Scale */
+  --ios-gray: #8E8E93;
+  --ios-gray2: #AEAEB2;
+  --ios-gray3: #C7C7CC;
+  --ios-gray4: #D1D1D6;
+  --ios-gray5: #E5E5EA;
+  --ios-gray6: #F2F2F7;
+  
+  /* iOS Background Colors */
+  --ios-system-background: #FFFFFF;
+  --ios-secondary-system-background: #F2F2F7;
+  --ios-tertiary-system-background: #FFFFFF;
+  
+  /* iOS Grouped Background */
+  --ios-system-grouped-background: #F2F2F7;
+  --ios-secondary-system-grouped-background: #FFFFFF;
+  --ios-tertiary-system-grouped-background: #F2F2F7;
+  
+  /* iOS Label Colors */
+  --ios-label: #000000;
+  --ios-secondary-label: #3C3C43;
+  --ios-tertiary-label: #3C3C43;
+  --ios-quaternary-label: #3C3C43;
+  
+  /* iOS Fill Colors */
+  --ios-system-fill: #78788033;
+  --ios-secondary-system-fill: #78788028;
+  --ios-tertiary-system-fill: #7676801E;
+  --ios-quaternary-system-fill: #74748014;
+}
+
+.dark {
+  /* iOS Dark Mode Colors */
+  --ios-gray: #8E8E93;
+  --ios-gray2: #636366;
+  --ios-gray3: #48484A;
+  --ios-gray4: #3A3A3C;
+  --ios-gray5: #2C2C2E;
+  --ios-gray6: #1C1C1E;
+  
+  /* iOS Dark Background Colors */
+  --ios-system-background: #000000;
+  --ios-secondary-system-background: #1C1C1E;
+  --ios-tertiary-system-background: #2C2C2E;
+  
+  /* iOS Dark Grouped Background */
+  --ios-system-grouped-background: #000000;
+  --ios-secondary-system-grouped-background: #1C1C1E;
+  --ios-tertiary-system-grouped-background: #2C2C2E;
+  
+  /* iOS Dark Label Colors */
+  --ios-label: #FFFFFF;
+  --ios-secondary-label: #EBEBF5;
+  --ios-tertiary-label: #EBEBF5;
+  --ios-quaternary-label: #EBEBF5;
+  
+  /* iOS Dark Fill Colors */
+  --ios-system-fill: #78788041;
+  --ios-secondary-system-fill: #78788034;
+  --ios-tertiary-system-fill: #7676802E;
+  --ios-quaternary-system-fill: #74748028;
+}
+
+/* iOS Typography Scale */
+.ios-device {
+  /* Large Title */
+  --ios-font-large-title: -apple-system-headline, system-ui, -apple-system, sans-serif;
+  --ios-font-large-title-size: 34px;
+  --ios-font-large-title-weight: 700;
+  
+  /* Title 1 */
+  --ios-font-title1: -apple-system-headline, system-ui, -apple-system, sans-serif;
+  --ios-font-title1-size: 28px;
+  --ios-font-title1-weight: 700;
+  
+  /* Title 2 */
+  --ios-font-title2: -apple-system-headline, system-ui, -apple-system, sans-serif;
+  --ios-font-title2-size: 22px;
+  --ios-font-title2-weight: 700;
+  
+  /* Title 3 */
+  --ios-font-title3: -apple-system-headline, system-ui, -apple-system, sans-serif;
+  --ios-font-title3-size: 20px;
+  --ios-font-title3-weight: 600;
+  
+  /* Headline */
+  --ios-font-headline: -apple-system-headline, system-ui, -apple-system, sans-serif;
+  --ios-font-headline-size: 17px;
+  --ios-font-headline-weight: 600;
+  
+  /* Body */
+  --ios-font-body: -apple-system-body, system-ui, -apple-system, sans-serif;
+  --ios-font-body-size: 17px;
+  --ios-font-body-weight: 400;
+  
+  /* Callout */
+  --ios-font-callout: -apple-system-body, system-ui, -apple-system, sans-serif;
+  --ios-font-callout-size: 16px;
+  --ios-font-callout-weight: 400;
+  
+  /* Subhead */
+  --ios-font-subhead: -apple-system-body, system-ui, -apple-system, sans-serif;
+  --ios-font-subhead-size: 15px;
+  --ios-font-subhead-weight: 400;
+  
+  /* Footnote */
+  --ios-font-footnote: -apple-system-footnote, system-ui, -apple-system, sans-serif;
+  --ios-font-footnote-size: 13px;
+  --ios-font-footnote-weight: 400;
+  
+  /* Caption 1 */
+  --ios-font-caption1: -apple-system-caption1, system-ui, -apple-system, sans-serif;
+  --ios-font-caption1-size: 12px;
+  --ios-font-caption1-weight: 400;
+  
+  /* Caption 2 */
+  --ios-font-caption2: -apple-system-caption2, system-ui, -apple-system, sans-serif;
+  --ios-font-caption2-size: 11px;
+  --ios-font-caption2-weight: 400;
+}
+
+/* iOS Component Styles */
+.ios-device .ios-navigation-bar {
+  background-color: var(--ios-system-background);
+  border-bottom: 0.5px solid var(--ios-gray4);
+  backdrop-filter: blur(20px);
+}
+
+.ios-device .ios-table-view {
+  background-color: var(--ios-system-grouped-background);
+}
+
+.ios-device .ios-table-cell {
+  background-color: var(--ios-secondary-system-grouped-background);
+  border-bottom: 0.5px solid var(--ios-gray5);
+}
+
+.ios-device .ios-table-cell:last-child {
+  border-bottom: none;
+}
+
+.ios-device .ios-button-primary {
+  background-color: var(--ios-blue);
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: var(--ios-font-body-size);
+}
+
+.ios-device .ios-button-secondary {
+  background-color: var(--ios-secondary-system-fill);
+  color: var(--ios-blue);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: var(--ios-font-body-size);
+}
+
+.ios-device .ios-text-field {
+  background-color: var(--ios-tertiary-system-fill);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: var(--ios-font-body-size);
+  color: var(--ios-label);
+}
+
+.ios-device .ios-text-field:focus {
+  background-color: var(--ios-secondary-system-fill);
+  outline: none;
+}
+
+/* iOS Message Bubbles */
+.ios-device .ios-message-bubble-sent {
+  background-color: var(--ios-blue);
+  color: white;
+  border-radius: 18px;
+  padding: 8px 12px;
+  max-width: 70%;
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.ios-device .ios-message-bubble-received {
+  background-color: var(--ios-gray5);
+  color: var(--ios-label);
+  border-radius: 18px;
+  padding: 8px 12px;
+  max-width: 70%;
+  margin-left: 8px;
+  margin-right: auto;
+}
+
+.dark .ios-device .ios-message-bubble-received {
+  background-color: var(--ios-gray4);
+}
+
+/* iOS-specific animations */
+.ios-device .ios-spring-animation {
+  transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.ios-device .ios-smooth-animation {
+  transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* iOS-specific touch interactions */
+.ios-device .ios-touch-highlight {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.ios-device .ios-button-touch {
+  position: relative;
+  overflow: hidden;
+}
+
+.ios-device .ios-button-touch:active {
+  transform: scale(0.95);
+  opacity: 0.8;
+}
+
+/* iOS-specific scrolling */
+.ios-device .ios-scroll-container {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* iOS Dynamic Type Support */
+@media (prefers-reduced-motion: no-preference) {
+  .ios-device * {
+    transition-duration: 0.2s;
+    transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ios-device * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* iOS Accessibility - High Contrast */
+@media (prefers-contrast: high) {
+  .ios-device {
+    --ios-gray: #000000;
+    --ios-gray2: #000000;
+    --ios-gray3: #000000;
+  }
+  
+  .dark.ios-device {
+    --ios-gray: #FFFFFF;
+    --ios-gray2: #FFFFFF;
+    --ios-gray3: #FFFFFF;
+  }
+}
+
+/* iOS Accessibility - Large Text */
+@media (prefers-font-size: large) {
+  .ios-device {
+    --ios-font-body-size: 20px;
+    --ios-font-headline-size: 20px;
+    --ios-font-callout-size: 19px;
+    --ios-font-subhead-size: 18px;
+    --ios-font-footnote-size: 16px;
+    --ios-font-caption1-size: 15px;
+    --ios-font-caption2-size: 14px;
+  }
+}
+
+/* iOS Haptic Feedback Simulation */
+.ios-device .haptic-light:active::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: var(--ios-system-fill);
+  border-radius: inherit;
+  opacity: 0;
+  animation: ios-haptic-feedback 0.15s ease-out;
+  pointer-events: none;
+}
+
+@keyframes ios-haptic-feedback {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}

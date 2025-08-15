@@ -24,6 +24,7 @@ interface ChatViewProps {
   messageInputRef?: RefObject<MessageInputHandle>
   onSelectConversation?: (conversationId: number | 'pending' | null) => void
   isMiniWindow?: boolean
+  isMobile?: boolean
 }
 
 interface ModelCapabilityIconsProps {

@@ -21,6 +21,10 @@
     "sql:allow-load",
     "sql:allow-select",
     "sql:allow-execute",
+    "keychain:default",
+    "keychain:allow-get-password",
+    "keychain:allow-set-password",
+    "keychain:allow-delete-password",
     "dialog:default",
     "dialog:allow-open",
     "dialog:allow-ask",
@@ -28,18 +32,6 @@
     "process:default",
     "process:allow-restart",
     "fs:default",
-    "fs:allow-read-file",
-    {
-      "identifier": "fs:allow-exists",
-      "allow": [{ "path": "$APPDATA/keys.enc" }]
-    },
-    {
-      "identifier": "fs:allow-read-text-file",
-      "allow": [{ "path": "$APPDATA/keys.enc" }]
-    },
-    {
-      "identifier": "fs:allow-write-text-file",
-      "allow": [{ "path": "$APPDATA/keys.enc" }]
-    }
+    "fs:allow-read-file"
   ]
 }

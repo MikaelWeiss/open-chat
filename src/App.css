@@ -1,3 +1,6 @@
+@import './styles/safe-area.css';
+@import './styles/ios-theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -32,6 +35,31 @@
 .mini-window .message-bubble-assistant,
 .mini-window .message-bubble-user {
   @apply rounded-xl mb-2;
+}
+
+/* Mobile device styles */
+.mobile-device {
+  @apply touch-pan-y;
+}
+
+.ios-device {
+  @apply touch-pan-y;
+  /* iOS-specific styling */
+}
+
+/* Mobile-optimized elements */
+@media (max-width: 768px) {
+  .touch-target {
+    @apply min-h-11 min-w-11; /* iOS minimum touch target 44px */
+  }
+  
+  .mobile-text-input {
+    @apply text-base; /* Prevent zoom on iOS */
+  }
+  
+  .mobile-safe-bottom {
+    @apply pb-safe-bottom;
+  }
 }
 
 @layer base {

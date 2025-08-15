@@ -11,6 +11,7 @@ interface KeyboardShortcutsProps {
   onToggleTheme: () => void
   settingsOpen: boolean
   shortcutsOpen: boolean
+  disabled?: boolean
 }
 
 export const useKeyboardShortcuts = ({
@@ -23,9 +24,12 @@ export const useKeyboardShortcuts = ({
   onCloseModal,
   onToggleTheme,
   settingsOpen,
-  shortcutsOpen
+  shortcutsOpen,
+  disabled = false
 }: KeyboardShortcutsProps) => {
   useEffect(() => {
+    if (disabled) return
+    
     const handleKeyDown = (event: KeyboardEvent) => {
       // Handle Escape key - should work even in input fields when modals are open
       if (event.key === 'Escape' && (settingsOpen || shortcutsOpen)) {

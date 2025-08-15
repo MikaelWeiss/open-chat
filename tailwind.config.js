@@ -63,6 +63,12 @@ export default {
         'glow': '0 0 20px hsl(var(--primary) / 0.3)',
         'glow-strong': '0 0 30px hsl(var(--primary) / 0.4)',
       },
+      padding: {
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+        'safe-left': 'env(safe-area-inset-left)',
+        'safe-right': 'env(safe-area-inset-right)',
+      },
       animation: {
         'slide-in': 'slide-in 0.2s ease-out',
         'slide-out': 'slide-out 0.2s ease-out',

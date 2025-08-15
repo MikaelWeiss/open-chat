@@ -5,6 +5,10 @@ import SettingsModal from './components/Settings/SettingsModal'
 import ShortcutsModal from './components/Shortcuts/ShortcutsModal'
 import ToastContainer from './components/Toast/Toast'
 import OnboardingModal from './components/Onboarding/OnboardingModal'
+import { MobileOnboardingFlow } from './components/Mobile/Onboarding/MobileOnboardingFlow'
+import { NavigationStack } from './components/Mobile/NavigationStack'
+import { ConversationListView } from './components/Mobile/ConversationListView'
+import { MobileSettingsView } from './components/Mobile/Settings/MobileSettingsView'
 import { DEFAULT_SIDEBAR_WIDTH, TELEMETRY_CONFIG } from './shared/constants'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { MessageInputHandle } from './components/Chat/MessageInput'
@@ -17,17 +21,24 @@ import { ollamaService } from './services/ollamaService'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { isMobile, isIOS } from './utils/platformDetection'
+import { features, mobileFeatures } from './utils/featureFlags'
 
 function App() {
   // Check if we're in mini window mode
   const isMiniWindow = new URLSearchParams(window.location.search).get('window') === 'mini'
+  const isMobileDevice = isMobile()
+  const isIOSDevice = isIOS()
   
-  const [sidebarOpen, setSidebarOpen] = useState(!isMiniWindow) // Hide sidebar in mini window
+  const [sidebarOpen, setSidebarOpen] = useState(!isMiniWindow && !isMobileDevice) // Hide sidebar in mini window and mobile
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState<'general' | 'models' | 'about'>('general')
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
+  
+  // Mobile navigation state  
+  const [mobileView, setMobileView] = useState<'conversations' | 'chat' | 'settings'>('conversations')
   
   // Use Zustand store for conversations
   const { 
@@ -59,16 +70,18 @@ function App() {
       // Initialize store
       await initializeAppStore()
       
-      // Auto-start Ollama (non-blocking)
-      ollamaService.autoStartOllama().then(result => {
-        if (result.success) {
-          console.log('Ollama auto-start:', result.message)
-        } else {
-          console.warn('Ollama auto-start failed:', result.message)
-        }
-      }).catch(error => {
-        console.warn('Ollama auto-start error:', error)
-      })
+      // Auto-start Ollama (non-blocking) - disabled on mobile
+      if (features.localModels) {
+        ollamaService.autoStartOllama().then(result => {
+          if (result.success) {
+            console.log('Ollama auto-start:', result.message)
+          } else {
+            console.warn('Ollama auto-start failed:', result.message)
+          }
+        }).catch(error => {
+          console.warn('Ollama auto-start error:', error)
+        })
+      }
       
       // Set up sync listeners
       await messageSync.setupListeners(
@@ -95,8 +108,10 @@ function App() {
     }
   }, [])
 
-  // Setup cleanup handler for app shutdown
+  // Setup cleanup handler for app shutdown (desktop only)
   useEffect(() => {
+    if (!features.windowManagement) return
+    
     let unlisten: (() => void) | null = null
 
     const setupCleanup = async () => {
@@ -108,15 +123,17 @@ function App() {
           console.log('App close requested, stopping Ollama...')
           
           // Stop Ollama completely (this automatically unloads all models)
-          try {
-            const result = await ollamaService.stopOllama()
-            if (result.success) {
-              console.log('Ollama cleanup completed:', result.message)
-            } else {
-              console.warn('Ollama cleanup warning:', result.message)
+          if (features.localModels) {
+            try {
+              const result = await ollamaService.stopOllama()
+              if (result.success) {
+                console.log('Ollama cleanup completed:', result.message)
+              } else {
+                console.warn('Ollama cleanup warning:', result.message)
+              }
+            } catch (error) {
+              console.warn('Failed to stop Ollama:', error)
             }
-          } catch (error) {
-            console.warn('Failed to stop Ollama:', error)
           }
           
           // Allow the window to close after cleanup
@@ -137,10 +154,10 @@ function App() {
     }
   }, [])  // No dependencies needed - this is a one-time setup
 
-  // Check for app updates on startup
+  // Check for app updates on startup (desktop only)
   useEffect(() => {
-    // Don't check for updates in mini window mode
-    if (isMiniWindow) {
+    // Don't check for updates in mini window mode or mobile
+    if (isMiniWindow || !features.autoUpdater) {
       return
     }
 
@@ -234,6 +251,13 @@ function App() {
       setOnboardingOpen(true)
     }
   }, [settingsLoading, hasCompletedOnboarding, isMiniWindow])
+  
+  // Mobile navigation effects
+  useEffect(() => {
+    if (isMobileDevice && selectedConversationId) {
+      setMobileView('chat')
+    }
+  }, [selectedConversationId, isMobileDevice])
 
   // Listen for restart onboarding event
   useEffect(() => {
@@ -373,23 +397,96 @@ function App() {
     }
   }, [isMiniWindow])
   
-  // Initialize keyboard shortcuts (disabled in mini window for certain shortcuts)
+  // Initialize keyboard shortcuts (disabled on mobile and in mini window for certain shortcuts)
   useKeyboardShortcuts({
     onNewChat: handleNewChat,
-    onToggleSidebar: isMiniWindow ? () => {} : handleToggleSidebar,
-    onToggleSettings: isMiniWindow ? () => {} : handleToggleSettings,
-    onToggleShortcuts: isMiniWindow ? () => {} : handleToggleShortcuts,
+    onToggleSidebar: (isMiniWindow || isMobileDevice) ? () => {} : handleToggleSidebar,
+    onToggleSettings: (isMiniWindow || isMobileDevice) ? () => {} : handleToggleSettings,
+    onToggleShortcuts: (isMiniWindow || isMobileDevice) ? () => {} : handleToggleShortcuts,
     onSendFeedback: handleSendFeedback,
     onFocusInput: handleFocusInput,
     onCloseModal: handleCloseModal,
     onToggleTheme: handleToggleTheme,
     settingsOpen,
-    shortcutsOpen
+    shortcutsOpen,
+    disabled: isMobileDevice && !features.keyboardShortcuts
   })
 
+  // Mobile layout
+  if (isMobileDevice && mobileFeatures.iosNavigation) {
+    // Show mobile onboarding if not completed
+    if (!settingsLoading && !hasCompletedOnboarding) {
+      return (
+        <div className={`flex h-screen bg-background text-foreground overflow-hidden safe-area-full ${isIOSDevice ? 'ios-device' : 'mobile-device'}`}>
+          <MobileOnboardingFlow
+            onComplete={() => setOnboardingOpen(false)}
+          />
+          <ToastContainer />
+        </div>
+      )
+    }
+    
+    return (
+      <div className={`flex h-screen bg-background text-foreground overflow-hidden safe-area-full ${isIOSDevice ? 'ios-device' : 'mobile-device'}`}>
+        {mobileView === 'conversations' && (
+          <NavigationStack
+            title="Conversations"
+            rightButton={
+              <button
+                onClick={() => setMobileView('settings')}
+                className="text-base text-blue-500 font-normal"
+              >
+                Settings
+              </button>
+            }
+          >
+            <ConversationListView
+              selectedConversationId={selectedConversationId}
+              onSelectConversation={(id) => {
+                setSelectedConversation(id)
+                setMobileView('chat')
+              }}
+              onDeleteConversation={handleConversationDeleted}
+              onCreateNew={() => setMobileView('chat')}
+            />
+          </NavigationStack>
+        )}
+        
+        {mobileView === 'chat' && (
+          <NavigationStack
+            title={conversations.find(c => c.id === selectedConversationId)?.title || 'New Chat'}
+            onBack={() => setMobileView('conversations')}
+            showBackButton
+          >
+            <ChatView 
+              conversationId={selectedConversationId}
+              onOpenSettings={() => setMobileView('settings')}
+              messageInputRef={messageInputRef}
+              onSelectConversation={setSelectedConversation}
+              isMiniWindow={false}
+              isMobile
+            />
+          </NavigationStack>
+        )}
+        
+        {mobileView === 'settings' && (
+          <MobileSettingsView
+            onClose={() => {
+              const targetView = selectedConversationId ? 'chat' : 'conversations'
+              setMobileView(targetView)
+            }}
+          />
+        )}
+
+        <ToastContainer />
+      </div>
+    )
+  }
+
+  // Desktop layout
   return (
     <div className={`flex h-screen bg-background text-foreground overflow-hidden ${isMiniWindow ? 'mini-window' : ''}`}>
-      {!isMiniWindow && (
+      {!isMiniWindow && features.sidebar && (
         <Sidebar
           isOpen={sidebarOpen}
           width={sidebarWidth}
@@ -415,7 +512,7 @@ function App() {
         </div>
       </div>
       
-      {!isMiniWindow && (
+      {!isMiniWindow && features.desktopModals && (
         <>
           <SettingsModal
             isOpen={settingsOpen}
