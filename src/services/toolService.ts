@@ -64,11 +64,19 @@ class ToolService {
           throw new Error(`Unknown tool: ${func.name}`)
       }
       
+      // Format search results to encourage proper citations
+      let formattedContent: string
+      if (func.name === 'web_search' && result && result.results) {
+        formattedContent = this.formatSearchResults(result)
+      } else {
+        formattedContent = JSON.stringify(result)
+      }
+
       const toolResult = {
         tool_call_id: toolCall.id,
         role: 'tool' as const,
         name: func.name,
-        content: JSON.stringify(result)
+        content: formattedContent
       }
       
       console.log('Tool execution successful, returning:', toolResult)
@@ -157,6 +165,34 @@ class ToolService {
   async isWebSearchAvailable(): Promise<boolean> {
     const searchStore = useSearchStore.getState()
     return await searchStore.hasValidEngine()
+  }
+
+  /**
+   * Format search results to encourage proper citations
+   */
+  private formatSearchResults(searchOutput: WebSearchOutput): string {
+    const { results } = searchOutput
+    
+    if (!results || results.length === 0) {
+      return 'No search results found.'
+    }
+
+    let formatted = `Found ${results.length} search result${results.length > 1 ? 's' : ''}:\n\n`
+    
+    results.forEach((result, index) => {
+      formatted += `**Result ${index + 1}:**\n`
+      formatted += `**Title:** ${result.title}\n`
+      formatted += `**URL:** ${result.url}\n`
+      formatted += `**Content:** ${result.snippet}\n`
+      formatted += `**Source Engine:** ${result.engine}\n\n`
+    })
+    
+    formatted += '\n---\n'
+    formatted += 'IMPORTANT: When using information from these search results in your response, you MUST cite your sources. '
+    formatted += 'For each piece of information you use, include in text citations as numbers like [1] with all the urls at the end of your message like this: [1](url1) [2](url2) [3](url3).\n'
+    formatted += 'Always provide clickable links to your sources so users can verify the information.'
+    
+    return formatted
   }
 }
 
