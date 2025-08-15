@@ -4,6 +4,22 @@ import { BaseDirectory, readTextFile, writeTextFile, exists } from '@tauri-apps/
 const SERVICE_NAME = "open-chat"
 const KEYS_FILE = "keys.enc"
 
+// Key format helpers
+function formatKey(providerId: string): string {
+  return `provider-${providerId}`
+}
+
+function formatDevKey(providerId: string): string {
+  return formatKey(providerId)
+}
+
+function formatProdKey(providerId: string): { service: string, account: string } {
+  return {
+    service: SERVICE_NAME,
+    account: formatKey(providerId)
+  }
+}
+
 // Check if we're in development mode
 const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development'
 
@@ -81,20 +97,20 @@ async function ensureDevInitialized() {
  * Save an API key - uses encrypted file in dev, keychain in prod
  */
 export async function saveApiKey(providerId: string, apiKey: string): Promise<void> {
-  const key = `provider-${providerId}`
-  
   try {
     if (isDev) {
       // Development: Use encrypted file storage
       await ensureDevInitialized()
+      const key = formatDevKey(providerId)
       devKeysData[key] = apiKey
       keyCache.set(key, apiKey)
       await saveDevKeys()
       console.log(`[DEV MODE] Saved API key for ${providerId} to encrypted file`)
     } else {
       // Production: Use system keychain
-      await setPassword(SERVICE_NAME, key, apiKey)
-      keyCache.set(key, apiKey) // Cache for performance
+      const { service, account } = formatProdKey(providerId)
+      await setPassword(service, account, apiKey)
+      keyCache.set(account, apiKey) // Cache for performance
       console.log(`Saved API key for ${providerId} to system keychain`)
     }
   } catch (error) {
@@ -107,7 +123,7 @@ export async function saveApiKey(providerId: string, apiKey: string): Promise<vo
  * Retrieve an API key - uses encrypted file in dev, keychain in prod
  */
 export async function getApiKey(providerId: string): Promise<string | null> {
-  const key = `provider-${providerId}`
+  const key = formatDevKey(providerId)
   
   // Check cache first (for both dev and prod)
   if (keyCache.has(key)) {
@@ -125,9 +141,10 @@ export async function getApiKey(providerId: string): Promise<string | null> {
       return value
     } else {
       // Production: Use system keychain
-      const value = await getPassword(SERVICE_NAME, key)
+      const { service, account } = formatProdKey(providerId)
+      const value = await getPassword(service, account)
       if (value) {
-        keyCache.set(key, value) // Cache for performance
+        keyCache.set(account, value) // Cache for performance
       }
       return value
     }
@@ -141,7 +158,7 @@ export async function getApiKey(providerId: string): Promise<string | null> {
  * Delete an API key - uses encrypted file in dev, keychain in prod
  */
 export async function deleteApiKey(providerId: string): Promise<void> {
-  const key = `provider-${providerId}`
+  const key = formatDevKey(providerId)
   
   try {
     keyCache.delete(key) // Clear cache in both modes
@@ -154,7 +171,8 @@ export async function deleteApiKey(providerId: string): Promise<void> {
       console.log(`[DEV MODE] Deleted API key for ${providerId} from encrypted file`)
     } else {
       // Production: Use system keychain
-      await deletePassword(SERVICE_NAME, key)
+      const { service, account } = formatProdKey(providerId)
+      await deletePassword(service, account)
       console.log(`Deleted API key for ${providerId} from system keychain`)
     }
   } catch (error) {
@@ -167,7 +185,7 @@ export async function deleteApiKey(providerId: string): Promise<void> {
  * Check if an API key exists - uses encrypted file in dev, keychain in prod
  */
 export async function hasApiKey(providerId: string): Promise<boolean> {
-  const key = `provider-${providerId}`
+  const key = formatDevKey(providerId)
   
   // Check cache first
   if (keyCache.has(key)) {
@@ -181,7 +199,8 @@ export async function hasApiKey(providerId: string): Promise<boolean> {
       return key in devKeysData
     } else {
       // Production: Use system keychain
-      const apiKey = await getPassword(SERVICE_NAME, key)
+      const { service, account } = formatProdKey(providerId)
+      const apiKey = await getPassword(service, account)
       return apiKey !== null && apiKey !== undefined && apiKey.trim() !== ''
     }
   } catch (error) {

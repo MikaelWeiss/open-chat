@@ -14,6 +14,9 @@ import { type CreateMessageInput } from '../../shared/messageStore'
 import { chatService } from '../../services/chatService'
 import { telemetryService } from '../../services/telemetryService'
 import { ollamaService } from '../../services/ollamaService'
+import { toolService } from '../../services/toolService'
+import { shouldSearch } from '../../types/search'
+import { useSearchStore } from '../../stores/searchStore'
 import clsx from 'clsx'
 import EmptyState from '../EmptyState/EmptyState'
 import { getConversationModelDisplay } from '../../utils/conversationUtils'
@@ -617,7 +620,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     }
   }
   
-  const handleSend = async (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>, reasoningEffort?: 'none' | 'low' | 'medium' | 'high') => {
+  const handleSend = async (message: string, attachments?: Array<{path: string, base64: string, mimeType: string, name: string, type: 'image' | 'audio' | 'file'}>, reasoningEffort?: 'none' | 'low' | 'medium' | 'high', enableSearch?: boolean) => {
     if (!conversationId || !message.trim()) return
     
     // Get effective provider and model (prefer conversation, fallback to selected)
@@ -740,6 +743,19 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       // Track message sent event
       telemetryService.trackMessageSent(effectiveProvider, effectiveModel, message.length)
       
+      // Determine if tools should be enabled
+      const searchStore = useSearchStore.getState()
+      const shouldEnableSearch = enableSearch || (searchStore.settings.autoDetectNeeded && shouldSearch(message))
+      let availableTools: any[] = []
+      
+      if (shouldEnableSearch) {
+        try {
+          availableTools = await toolService.getAvailableTools()
+        } catch (error) {
+          console.error('Failed to get available tools:', error)
+        }
+      }
+
       // Create model configurations for the new interface
       const modelConfigs = await chatService.createModelConfigs(
         isMultiSelectMode && selectedModels.length > 0
@@ -761,6 +777,13 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           reasoningEffort
         }
       )
+
+      // Add tools to model configs if available
+      if (availableTools.length > 0) {
+        modelConfigs.forEach(config => {
+          config.tools = availableTools
+        })
+      }
 
       // Send to AI provider(s) with streaming
       await chatService.sendMessage({

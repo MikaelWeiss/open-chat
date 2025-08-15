@@ -1,12 +1,23 @@
 import { type CreateMessageInput, messageStore } from '../shared/messageStore'
+import { functionCallingService } from './functionCallingService'
 
 interface OpenAIMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string | Array<{
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content?: string | Array<{
     type: 'text' | 'image_url'
     text?: string
     image_url?: { url: string }
   }>
+  tool_calls?: Array<{
+    id: string
+    type: 'function'
+    function: {
+      name: string
+      arguments: string
+    }
+  }>
+  tool_call_id?: string
+  name?: string
 }
 
 
@@ -28,6 +39,14 @@ export interface ModelConfig {
   stop?: string[]
   n?: number
   seed?: number
+  tools?: Array<{
+    type: 'function'
+    function: {
+      name: string
+      description: string
+      parameters: any
+    }
+  }>
 }
 
 export interface SendMessageOptions {
@@ -350,6 +369,7 @@ class ChatService {
       max_tokens: modelConfig.maxTokens || 1024,
       ...(modelConfig.temperature !== undefined && { temperature: modelConfig.temperature }),
       ...(modelConfig.topP !== undefined && { top_p: modelConfig.topP }),
+      ...(modelConfig.tools && modelConfig.tools.length > 0 && { tools: modelConfig.tools }),
     } : {
       model: modelConfig.model,
       messages,
@@ -363,6 +383,7 @@ class ChatService {
       ...(modelConfig.n !== undefined && { n: modelConfig.n }),
       ...(modelConfig.seed !== undefined && { seed: modelConfig.seed }),
       ...(modelConfig.reasoningEffort !== undefined && modelConfig.reasoningEffort !== 'none' && { reasoning_effort: modelConfig.reasoningEffort }),
+      ...(modelConfig.tools && modelConfig.tools.length > 0 && { tools: modelConfig.tools }),
     }
 
     // Build headers
@@ -418,6 +439,39 @@ class ChatService {
     }
 
     const processingTime = Date.now() - startTime
+
+    // Check if this request has tools - if so, use function calling service
+    if (modelConfig.tools && modelConfig.tools.length > 0) {
+      console.log('Using function calling service for request with tools')
+      
+      try {
+        const result = await functionCallingService.executeWithFunctionCalling({
+          messages,
+          modelConfig,
+          maxToolCalls: 3,
+          onStreamChunk: onStreamChunk ? (content: string) => onStreamChunk(content, modelId) : undefined,
+          signal
+        })
+        
+        // Update with correct metadata
+        const finalResult = {
+          ...result,
+          processing_time_ms: processingTime,
+          previous_message_id: userMessageId,
+          provider: modelConfig.provider,
+          model: modelConfig.model
+        }
+        
+        if (onStreamComplete) {
+          onStreamComplete(finalResult, modelId)
+        }
+        
+        return finalResult
+      } catch (error) {
+        console.error('Function calling failed, falling back to regular response:', error)
+        // Fall through to regular handling
+      }
+    }
 
     if (requestPayload.stream) {
       return this.handleStreamResponse(response, {

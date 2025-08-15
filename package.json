@@ -32,6 +32,7 @@
     "remark-gfm": "^4.0.1",
     "tauri-plugin-keyring-api": "^0.1.1",
     "tiktoken": "^1.0.22",
+    "zod": "^4.0.17",
     "zustand": "^5.0.7"
   },
   "devDependencies": {
