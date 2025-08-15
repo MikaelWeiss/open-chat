@@ -65,11 +65,11 @@ export default function IntroAnimation({ onComplete }: IntroAnimationProps) {
     return () => clearTimeout(textTimer)
   }, [])
 
-  // Show continue button after audio ends (16 seconds)
+  // Show continue button after 12 seconds
   useEffect(() => {
     const buttonTimer = setTimeout(() => {
       setShowButton(true)
-    }, 16000)
+    }, 12000)
 
     return () => clearTimeout(buttonTimer)
   }, [])

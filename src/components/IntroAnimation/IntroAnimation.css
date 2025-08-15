@@ -47,23 +47,28 @@
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
-  z-index: 2;
+  z-index: 100;
   pointer-events: none;
+  filter: none;
+  backdrop-filter: none;
 }
 
 .intro-title {
   font-size: clamp(2rem, 6vw, 4rem);
-  font-weight: 200;
+  font-weight: 700;
   letter-spacing: 0.05em;
-  color: transparent;
-  background: linear-gradient(135deg, #00BF9C, #8b5cf6, #00BF9C);
-  background-size: 200% 200%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: gradientShift 3s ease-in-out infinite;
+  color: #ffffff;
+  text-shadow: 
+    0 0 10px rgba(255, 255, 255, 0.8),
+    0 0 20px rgba(0, 191, 156, 0.6),
+    0 0 30px rgba(139, 92, 246, 0.4);
   opacity: 0;
   transform: translateY(20px);
   transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(0px);
+  position: relative;
+  z-index: 100;
+  white-space: nowrap;
 }
 
 @keyframes gradientShift {
@@ -177,26 +182,35 @@
 /* Shimmer effect for text */
 @keyframes shimmer {
   0% {
-    background-position: -1000px 0;
+    background-position: -200% 0;
   }
   100% {
-    background-position: 1000px 0;
+    background-position: 200% 0;
   }
 }
 
 .intro-title.shimmer {
-  background: linear-gradient(
-    90deg,
-    #00BF9C 0%,
-    #8b5cf6 25%,
-    #00BF9C 50%,
-    #8b5cf6 75%,
-    #00BF9C 100%
-  );
-  background-size: 1000px 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: shimmer 3s linear infinite;
+  color: #ffffff;
+  text-shadow: 
+    0 0 15px rgba(255, 255, 255, 1),
+    0 0 25px rgba(0, 191, 156, 0.8),
+    0 0 35px rgba(139, 92, 246, 0.6);
+  animation: textGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes textGlow {
+  0% {
+    text-shadow: 
+      0 0 15px rgba(255, 255, 255, 1),
+      0 0 25px rgba(0, 191, 156, 0.8),
+      0 0 35px rgba(139, 92, 246, 0.6);
+  }
+  100% {
+    text-shadow: 
+      0 0 20px rgba(255, 255, 255, 1),
+      0 0 30px rgba(0, 191, 156, 1),
+      0 0 40px rgba(139, 92, 246, 0.8);
+  }
 }
 
 /* Accessibility */
