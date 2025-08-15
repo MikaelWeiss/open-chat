@@ -87,6 +87,8 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
         { keys: [modKey, 'Shift', 'F'], description: 'Send feedback' },
         { keys: [modKey, 'L'], description: 'Focus message input' },
         { keys: [modKey, '.'], description: 'Toggle model selector' },
+        { keys: [modKey, 'J'], description: 'Switch to next model' },
+        { keys: [modKey, 'K'], description: 'Switch to previous model' },
       ]
     },
     {

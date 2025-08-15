@@ -4,7 +4,7 @@ import MessageList from './MessageList'
 import MessageInput, { MessageInputHandle } from './MessageInput'
 import ModelLoadingBanner from './ModelLoadingBanner'
 import ConversationSettingsModal, { ConversationSettings } from './ConversationSettingsModal'
-import { useRef, RefObject, useState, useEffect, useMemo } from 'react'
+import { useRef, RefObject, useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useSettings } from '../../hooks/useSettings'
 import { useProviders, useMessages, useConversations } from '../../stores/appStore'
@@ -91,7 +91,12 @@ function getModelButtonTooltip(incompatibilityReason?: string | null, isAtMaxSel
   return undefined;
 }
 
-export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef, onSelectConversation, isMiniWindow = false }: ChatViewProps) {
+export interface ChatViewHandle {
+  handleNextModel: () => void
+  handlePreviousModel: () => void
+}
+
+const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatView({ conversationId, messageInputRef: externalMessageInputRef, onSelectConversation, isMiniWindow = false }, ref) {
   const internalMessageInputRef = useRef<MessageInputHandle>(null)
   const messageInputRef = externalMessageInputRef || internalMessageInputRef
   const [isLoading, setIsLoading] = useState(false)
@@ -240,6 +245,35 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     })
     return models
   }, [filteredModelsByProvider])
+
+  // Function to navigate to next/previous model
+  const navigateToModel = (direction: 'next' | 'previous') => {
+    const compatibleModels = availableModels.filter(m => isModelCompatible(m))
+    if (compatibleModels.length === 0) return
+    
+    const currentModelIndex = compatibleModels.findIndex(m => 
+      m.provider === selectedModel?.provider && m.model === selectedModel?.model
+    )
+    
+    let nextIndex: number
+    if (direction === 'next') {
+      nextIndex = currentModelIndex === -1 ? 0 : (currentModelIndex + 1) % compatibleModels.length
+    } else {
+      nextIndex = currentModelIndex === -1 ? compatibleModels.length - 1 : 
+                 currentModelIndex === 0 ? compatibleModels.length - 1 : currentModelIndex - 1
+    }
+    
+    const nextModel = compatibleModels[nextIndex]
+    if (nextModel) {
+      handleModelSelect({ provider: nextModel.provider, model: nextModel.model })
+    }
+  }
+
+  // Expose navigation functions to parent via ref
+  useImperativeHandle(ref, () => ({
+    handleNextModel: () => navigateToModel('next'),
+    handlePreviousModel: () => navigateToModel('previous')
+  }), [availableModels, selectedModel, requiredCapabilities])
 
   // Load current conversation details
   useEffect(() => {
@@ -1239,4 +1273,6 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       )}
     </div>
   )
-}
+})
+
+export default ChatView

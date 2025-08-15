@@ -38,6 +38,7 @@ function App() {
     deleteConversation: deleteConversationFromStore
   } = useConversations()
   const messageInputRef = useRef<MessageInputHandle>(null)
+  const chatViewRef = useRef<any>(null)
   
   // Initialize settings (theme will be applied in useSettings hook)
   const { handleThemeChange, theme, hasCompletedOnboarding, isLoading: settingsLoading } = useSettings()
@@ -360,6 +361,14 @@ function App() {
     telemetryService.trackThemeChanged(newTheme)
   }
 
+  const handleNextModel = () => {
+    chatViewRef.current?.handleNextModel?.()
+  }
+
+  const handlePreviousModel = () => {
+    chatViewRef.current?.handlePreviousModel?.()
+  }
+
   // Add escape key handler for mini window
   useEffect(() => {
     if (isMiniWindow) {
@@ -383,6 +392,8 @@ function App() {
     onFocusInput: handleFocusInput,
     onCloseModal: handleCloseModal,
     onToggleTheme: handleToggleTheme,
+    onNextModel: handleNextModel,
+    onPreviousModel: handlePreviousModel,
     settingsOpen,
     shortcutsOpen
   })
@@ -406,6 +417,7 @@ function App() {
       <div className={`flex-1 min-w-0 flex ${!sidebarOpen ? '' : ''}`}>
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden w-full">
           <ChatView 
+            ref={chatViewRef}
             conversationId={selectedConversationId}
             onOpenSettings={isMiniWindow ? () => {} : () => setSettingsOpen(true)} 
             messageInputRef={messageInputRef}
