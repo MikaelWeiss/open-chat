@@ -45,7 +45,7 @@ export class GradientAnimation {
   }
 
   private animate = () => {
-    this.time += 0.005
+    this.time += 0.01
     this.draw()
     this.animationId = requestAnimationFrame(this.animate)
   }
@@ -65,20 +65,20 @@ export class GradientAnimation {
 
     // Draw animated gradient blobs
     this.gradientPositions.forEach((pos, index) => {
-      const animSpeed = 0.3 + index * 0.1
+      const animSpeed = 0.5 + index * 0.15
       const xOffset = Math.sin(this.time * animSpeed) * 0.1
       const yOffset = Math.cos(this.time * animSpeed * 0.8) * 0.1
       
       const x = (pos.x + xOffset) * width
       const y = (pos.y + yOffset) * height
-      const radius = pos.radius * Math.min(width, height) * (1 + Math.sin(this.time * 0.5 + index) * 0.2)
+      const radius = pos.radius * Math.min(width, height) * (1 + Math.sin(this.time * 0.8 + index) * 0.2)
 
       // Create radial gradient for each blob
       const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, radius)
       
       // Adjust opacity and saturation based on animation
-      const opacity = 0.15 + Math.sin(this.time + index * Math.PI / 2) * 0.05
-      const saturation = 100 - (Math.sin(this.time * 0.7 + index) * 20)
+      const opacity = 0.15 + Math.sin(this.time * 1.2 + index * Math.PI / 2) * 0.05
+      const saturation = 100 - (Math.sin(this.time * 1.1 + index) * 20)
       
       gradient.addColorStop(0, `hsla(${pos.hue}, ${saturation}%, 37%, ${opacity})`)
       gradient.addColorStop(0.5, `hsla(${pos.hue}, ${saturation}%, 45%, ${opacity * 0.5})`)
@@ -90,7 +90,7 @@ export class GradientAnimation {
     })
 
     // Add subtle light sweep effect
-    const sweepX = (Math.sin(this.time * 0.2) + 1) * width * 0.5
+    const sweepX = (Math.sin(this.time * 0.3) + 1) * width * 0.5
     const sweepGradient = this.ctx.createLinearGradient(
       sweepX - width * 0.3, 
       0, 
