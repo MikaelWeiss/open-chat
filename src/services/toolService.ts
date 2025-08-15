@@ -188,9 +188,11 @@ class ToolService {
     })
     
     formatted += '\n---\n'
-    formatted += 'IMPORTANT: When using information from these search results in your response, you MUST cite your sources. '
-    formatted += 'For each piece of information you use, include in text citations as numbers like [1] with all the urls at the end of your message like this: [1](url1) [2](url2) [3](url3).\n'
-    formatted += 'Always provide clickable links to your sources so users can verify the information.'
+    formatted += 'You are using search results to answer a user query. Follow these rules:\n'
+    formatted += '1. Include all relevant information from the results to answer accurately.\n'
+    formatted += '2. For every factual statement, you MUST add an in-text citation in the format [number].\n'
+    formatted += '4. Maintain clarity and conciseness; summarize results where appropriate.\n'
+    formatted += '5. Always make it easy for a user to verify the information via the provided sources.\n'
     
     return formatted
   }

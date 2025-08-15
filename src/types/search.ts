@@ -98,7 +98,7 @@ export function createWebSearchTool(): WebSearchTool {
     type: 'function',
     function: {
       name: 'web_search',
-      description: 'Search the web for current information and real-time data. When using search results in your response, ALWAYS cite your sources by including the title and URL of each source you reference. Format citations as numbered references like [1] with the full URL listed at the end.',
+      description: 'Search the web for current information and real-time data. When using search results in your response, ALWAYS cite your sources. Format citations as numbered references like [1]',
       parameters: {
         type: 'object',
         properties: {
