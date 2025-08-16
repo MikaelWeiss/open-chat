@@ -356,12 +356,10 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                   {copiedMessageId === message.id.toString() ? (
                     <>
                       <Check className="h-3 w-3" />
-                      Copied
                     </>
                   ) : (
                     <>
                       <Copy className="h-3 w-3" />
-                      Copy
                     </>
                   )}
                   </button>
