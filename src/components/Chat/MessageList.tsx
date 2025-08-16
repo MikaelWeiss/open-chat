@@ -240,7 +240,7 @@ export default function MessageList({ messages = [], isLoading = false, streamin
   }, [isLoading])
   
   const extractCitations = (text: string) => {
-    const citations: Array<{ number: number, url: string, domain?: string }> = []
+    const citationMap = new Map<number, { number: number, url: string, domain?: string }>()
     const citationRegex = /\[(\d+)\]\((https?:\/\/[^\s)]+)\)/g
     const xmlCitationRegex = /<citation number="(\d+)" url="(https?:\/\/[^\s"]+)"( domain="([^"]+)")?\/>/g
     const simpleCitationRegex = /\[(\d+)\]/g
@@ -248,20 +248,22 @@ export default function MessageList({ messages = [], isLoading = false, streamin
     // Handle markdown citations [1](url)
     let match
     while ((match = citationRegex.exec(text)) !== null) {
-      citations.push({
+      const citation = {
         number: parseInt(match[1]),
         url: match[2],
         domain: new URL(match[2]).hostname.replace(/^www\./, '')
-      })
+      }
+      citationMap.set(citation.number, citation)
     }
     
     // Handle XML citations
     while ((match = xmlCitationRegex.exec(text)) !== null) {
-      citations.push({
+      const citation = {
         number: parseInt(match[1]),
         url: match[2],
         domain: match[4] || new URL(match[2]).hostname.replace(/^www\./, '')
-      })
+      }
+      citationMap.set(citation.number, citation)
     }
     
     // Handle simple citations [1] by mapping to search results
@@ -269,26 +271,63 @@ export default function MessageList({ messages = [], isLoading = false, streamin
     while ((match = simpleCitationRegex.exec(text)) !== null) {
       const number = parseInt(match[1])
       // Only add if not already handled by other formats
-      if (!citations.some(c => c.number === number)) {
+      if (!citationMap.has(number)) {
         numbers.add(number)
       }
     }
     
     // Map simple citations to search result URLs
-    const resultRegex = /\*\*Result (\d+):\*\*\n\*\*Title:\*\* .+\n\*\*URL:\*\* (https?:\/\/[^\s\n]+)/g
+    // More robust pattern that accounts for any content between Title and URL lines
+    const resultRegex = /\*\*Result (\d+):\*\*\n\*\*Title:\*\* [^\n]*\n\*\*URL:\*\* (https?:\/\/[^\s\n]+)/g
     while ((match = resultRegex.exec(text)) !== null) {
       const number = parseInt(match[1])
       if (numbers.has(number)) {
         const url = match[2]
-        citations.push({
+        const citation = {
           number,
           url,
           domain: new URL(url).hostname.replace(/^www\./, '')
-        })
+        }
+        citationMap.set(number, citation)
       }
     }
     
-    return citations.sort((a, b) => a.number - b.number)
+    // Fallback: if we still have unmapped simple citations, extract all URLs from the search results section
+    if (numbers.size > 0 && citationMap.size < numbers.size) {
+      // Look for the search results section
+      const resultsSectionMatch = text.match(/Found \d+ search result.*?:\n\n(.*?)\n---\n/s);
+      if (resultsSectionMatch) {
+        const resultsSection = resultsSectionMatch[1];
+        // Extract all URLs from result blocks
+        const urlPattern = /\*\*Result (\d+):\*\*\n\*\*Title:\*\* [^\n]*\n\*\*URL:\*\* (https?:\/\/[^\s\n]+)/g;
+        const urlMatches: { number: number; url: string }[] = [];
+        let urlMatch;
+        while ((urlMatch = urlPattern.exec(resultsSection)) !== null) {
+          urlMatches.push({
+            number: parseInt(urlMatch[1]),
+            url: urlMatch[2]
+          });
+        }
+        
+        // Map any remaining simple citations
+        for (const number of numbers) {
+          if (!citationMap.has(number)) {
+            const urlMatch = urlMatches.find(m => m.number === number);
+            if (urlMatch) {
+              const citation = {
+                number,
+                url: urlMatch.url,
+                domain: new URL(urlMatch.url).hostname.replace(/^www\./, '')
+              }
+              citationMap.set(number, citation);
+            }
+          }
+        }
+      }
+    }
+    
+    // Convert map to array and sort by number
+    return Array.from(citationMap.values()).sort((a, b) => a.number - b.number)
   }
 
   const markdownComponents = {
@@ -373,7 +412,8 @@ export default function MessageList({ messages = [], isLoading = false, streamin
       
       // Helper function to find URL for a citation number
       const findUrlForCitation = (number: number): { url?: string, domain?: string } => {
-        const resultRegex = new RegExp(`\\*\\*Result ${number}:\\*\\*\\n\\*\\*Title:\\*\\* .+\\n\\*\\*URL:\\*\\* (https?:\\/\\/[^\\s\\n]+)`, 'g')
+        // More robust pattern that accounts for any content between Title and URL lines
+        const resultRegex = new RegExp(`\\*\\*Result ${number}:\\*\\*\\n\\*\\*Title:\\*\\* [^\\n]*\\n\\*\\*URL:\\*\\* (https?:\\/\\/[^\\s\\n]+)`, 'g')
         const resultMatch = resultRegex.exec(fullMessageText)
         if (resultMatch) {
           const url = resultMatch[1]
@@ -386,6 +426,27 @@ export default function MessageList({ messages = [], isLoading = false, streamin
             return { url }
           }
         }
+        
+        // Fallback: look for the search results section and extract all URLs
+        const resultsSectionMatch = fullMessageText.match(/Found \d+ search result.*?:\n\n(.*?)\n---\n/s)
+        if (resultsSectionMatch) {
+          const resultsSection = resultsSectionMatch[1]
+          // Extract all URLs from result blocks
+          const urlPattern = new RegExp(`\\*\\*Result ${number}:\\*\\*\\n\\*\\*Title:\\*\\* [^\\n]*\\n\\*\\*URL:\\*\\* (https?:\\/\\/[^\\s\\n]+)`, 'g')
+          const urlMatch = urlPattern.exec(resultsSection)
+          if (urlMatch) {
+            const url = urlMatch[1]
+            try {
+              return {
+                url,
+                domain: new URL(url).hostname.replace(/^www\./, '')
+              }
+            } catch {
+              return { url }
+            }
+          }
+        }
+        
         return {}
       }
       

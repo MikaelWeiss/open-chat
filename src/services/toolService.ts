@@ -190,10 +190,11 @@ class ToolService {
     formatted += '\n---\n'
     formatted += 'You are using search results to answer a user query. Follow these rules:\n'
     formatted += '1. Include all relevant information from the results to answer accurately.\n'
-    formatted += '2. For every factual statement, you MUST add an in-text citation in the format [number](url).\n'
-    formatted += '3. Do not include URLs in citations - just use the [number] format.\n'
+    formatted += '2. For every factual statement, you MUST add an in-text citation in the format [number](url), for example: [1](https://example.com).\n'
+    formatted += '3. Each citation number corresponds to a search result above (Result 1, Result 2, etc.).\n'
     formatted += '4. Maintain clarity and conciseness; summarize results where appropriate.\n'
     formatted += '5. Always make it easy for a user to verify the information via the provided sources.\n'
+    formatted += '6. NEVER use simple citations like [1] without the URL - always use the format [number](url).\n'
     
     return formatted
   }

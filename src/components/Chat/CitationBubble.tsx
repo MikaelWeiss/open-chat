@@ -1,5 +1,6 @@
 import React from 'react'
 import { ExternalLink, Sparkles } from 'lucide-react'
+import { openUrl } from '@tauri-apps/plugin-opener'
 
 interface CitationBubbleProps {
   number: number
@@ -10,10 +11,16 @@ interface CitationBubbleProps {
 }
 
 export function CitationBubble({ number, url, domain, isInline = false, onClick }: CitationBubbleProps) {
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault()
     if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer')
+      try {
+        await openUrl(url)
+      } catch (error) {
+        console.error('Failed to open URL:', error)
+        // Fallback to window.open if the Tauri opener fails
+        window.open(url, '_blank', 'noopener,noreferrer')
+      }
     }
     onClick?.()
   }
