@@ -109,7 +109,7 @@ export function createWebSearchTool(): WebSearchTool {
           engine: {
             type: 'string',
             enum: ['tavily', 'google', 'bing', 'duckduckgo', 'brave'],
-            description: 'The search engine to use (optional, defaults to user preference)'
+            description: 'The search engine to use. Put Tavily'
           },
           topK: {
             type: 'number',
