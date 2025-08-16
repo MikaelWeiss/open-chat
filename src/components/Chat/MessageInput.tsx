@@ -158,14 +158,16 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     // Tauri drag and drop event listener
     useEffect(() => {
-      let unlisten: (() => void) | null = null
+      let unlisten: (() => void) | undefined
+      let isCleanedUp = false
       
       const setupListener = async () => {        
         try {
           const webview = getCurrentWebview()
           
           const unlistenFn = await webview.onDragDropEvent(async (event) => {
-            if (disabledRef.current || isLoadingRef.current) return
+            // Check if component has been cleaned up or is disabled
+            if (isCleanedUp || disabledRef.current || isLoadingRef.current) return
             
             // Handle different drag and drop event types
             if (event.payload.type === 'over') {
@@ -278,8 +280,8 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 }
               }
               
-              // Add all new attachments
-              if (newAttachments.length > 0) {
+              // Add all new attachments - only if not cleaned up
+              if (newAttachments.length > 0 && !isCleanedUp) {
                 setAttachments(prev => [...prev, ...newAttachments])
               }
             } else {
@@ -288,7 +290,13 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             }
           })
           
-          unlisten = unlistenFn
+          // Only store unlisten if not cleaned up
+          if (!isCleanedUp) {
+            unlisten = unlistenFn
+          } else {
+            // If already cleaned up, immediately unlisten
+            unlistenFn()
+          }
         } catch (error) {
           console.error('Failed to setup Tauri drag drop listener:', error)
         }
@@ -297,11 +305,13 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       setupListener()
       
       return () => {
+        isCleanedUp = true
         if (unlisten) {
           unlisten()
+          unlisten = undefined
         }
       }
-    }, [disabled, isLoading, modelCapabilities])
+    }, []) // Remove dependencies to prevent recreating listener
 
     const handlePaste = async (e: React.ClipboardEvent) => {
       if (disabled || isLoading) return
