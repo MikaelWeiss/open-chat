@@ -574,6 +574,12 @@ export const initializeAppStore = async () => {
       store.loadConversations(),
       store.loadProviders()
     ])
+    
+    // Subscribe to conversation store changes to keep app store in sync
+    conversationStore.subscribe(() => {
+      const currentStore = useAppStore.getState()
+      currentStore.loadConversations()
+    })
   } catch (error) {
     console.error('Failed to initialize app store:', error)
   }

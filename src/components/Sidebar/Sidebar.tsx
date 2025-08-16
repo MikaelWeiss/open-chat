@@ -19,6 +19,7 @@ import { useState, useEffect } from 'react'
 import ContextMenu from '../ContextMenu/ContextMenu'
 import EmptyState from '../EmptyState/EmptyState'
 import { ConversationListSkeleton } from '../Skeleton/Skeleton'
+import RenameModal from '../RenameModal/RenameModal'
 import Logo from '../../assets/Logo.svg'
 
 interface SidebarProps {
@@ -44,13 +45,14 @@ export default function Sidebar({
   onSelectConversation,
   onDeleteConversation,
 }: SidebarProps) {
-  const { conversations, deleteConversation, toggleConversationFavorite, createPendingConversation } = useConversations()
+  const { conversations, deleteConversation, toggleConversationFavorite, createPendingConversation, updateConversation } = useConversations()
   const getMessages = useAppStore((state) => state.getMessages)
   
   // For now, disable loading/error states - can be added back later
   const loading = false
   const error = null
   const [confirmDelete, setConfirmDelete] = useState<{ id: number | 'pending'; title: string } | null>(null)
+  const [renameModal, setRenameModal] = useState<{ id: number | 'pending'; title: string } | null>(null)
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
@@ -134,6 +136,17 @@ export default function Sidebar({
       await toggleConversationFavorite(conversationId)
     } catch (err) {
       console.error('Failed to toggle favorite:', err)
+    }
+  }
+
+  const handleRename = async (id: number | 'pending', newTitle: string) => {
+    if (!newTitle.trim()) return
+    
+    try {
+      await updateConversation(id, { title: newTitle.trim() })
+      setRenameModal(null)
+    } catch (err) {
+      console.error('Failed to rename conversation:', err)
     }
   }
   
@@ -474,6 +487,16 @@ export default function Sidebar({
         </div>
       )}
 
+      {/* Rename Modal */}
+      {renameModal && (
+        <RenameModal
+          isOpen={!!renameModal}
+          currentTitle={renameModal.title}
+          onClose={() => setRenameModal(null)}
+          onRename={(newTitle) => handleRename(renameModal.id, newTitle)}
+        />
+      )}
+
       {/* Context Menu */}
       <ContextMenu
         x={contextMenu?.x || 0}
@@ -489,6 +512,14 @@ export default function Sidebar({
         onDelete={() => {
           if (contextMenu) {
             setConfirmDelete({
+              id: contextMenu.conversation.id,
+              title: contextMenu.conversation.title,
+            });
+          }
+        }}
+        onRename={() => {
+          if (contextMenu) {
+            setRenameModal({
               id: contextMenu.conversation.id,
               title: contextMenu.conversation.title,
             });

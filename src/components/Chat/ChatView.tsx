@@ -136,6 +136,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     return streamingMessagesByModel.size > 0
   }, [conversationId, streamingMessagesByModel])
   const { 
+    conversations,
     getConversation,
     updateConversation, 
     createPendingConversation,
@@ -287,7 +288,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       }
     }
     loadConversation()
-  }, [conversationId, getConversation, loadMessages])
+  }, [conversationId, getConversation, loadMessages, conversations])
   
   // Reset highlighted index when search query changes or model selector opens/closes
   useEffect(() => {
