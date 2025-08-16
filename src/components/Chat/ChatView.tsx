@@ -96,8 +96,6 @@ function getModelButtonTooltip(incompatibilityReason?: string | null, isAtMaxSel
 export default function ChatView({ conversationId, messageInputRef: externalMessageInputRef, onSelectConversation, isMiniWindow = false, modelSelectorOpen = false, onToggleModelSelector }: ChatViewProps) {
   const internalMessageInputRef = useRef<MessageInputHandle>(null)
   const messageInputRef = externalMessageInputRef || internalMessageInputRef
-  const [isLoading, setIsLoading] = useState(false)
-  const [abortController, setAbortController] = useState<AbortController | null>(null)
   
   // Model selector state (now managed by parent App component)
   const [searchQuery, setSearchQuery] = useState('')
@@ -127,8 +125,16 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     addMessage: addMessageToStore,
     loadMessages,
     setStreamingMessage,
-    clearStreamingMessage
+    clearStreamingMessage,
+    setStreamingAbortController,
+    getStreamingAbortController
   } = useMessages(conversationId ?? null)
+  
+  // Derive isLoading from whether this specific conversation has streaming messages
+  const isLoading = useMemo(() => {
+    if (!conversationId) return false
+    return streamingMessagesByModel.size > 0
+  }, [conversationId, streamingMessagesByModel])
   const { 
     getConversation,
     updateConversation, 
@@ -615,7 +621,6 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     let activeConversationId = conversationId
     
     try {
-      setIsLoading(true)
       clearStreamingMessage(conversationId)
       
       // If this is a pending conversation, commit it to persistent before sending message
@@ -658,7 +663,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       
       // Create abort controller for cancellation
       const controller = new AbortController()
-      setAbortController(controller)
+      setStreamingAbortController(activeConversationId, controller)
       
       // Build user message with attachments
       const userMessage: CreateMessageInput = {
@@ -840,33 +845,34 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         })
       }
     } finally {
-      setIsLoading(false)
       clearStreamingMessage(activeConversationId)
-      setAbortController(null)
+      setStreamingAbortController(activeConversationId, null)
     }
   }
   
   const handleCancel = async () => {
-    if (abortController && conversationId) {
-      abortController.abort()
-      
-      // Save partial message if there's content
-      if (zustandStreamingMessage.trim()) {
-        try {
-          const partialMessage: CreateMessageInput = {
-            role: 'assistant',
-            text: zustandStreamingMessage,
-            processing_time_ms: Date.now() // We don't track start time, so use current time
+    if (conversationId) {
+      const abortController = getStreamingAbortController(conversationId)
+      if (abortController) {
+        abortController.abort()
+        
+        // Save partial message if there's content
+        if (zustandStreamingMessage.trim()) {
+          try {
+            const partialMessage: CreateMessageInput = {
+              role: 'assistant',
+              text: zustandStreamingMessage,
+              processing_time_ms: Date.now() // We don't track start time, so use current time
+            }
+            await addMessageToStore(conversationId, partialMessage)
+          } catch (err) {
+            console.error('Failed to save partial message:', err)
           }
-          await addMessageToStore(conversationId, partialMessage)
-        } catch (err) {
-          console.error('Failed to save partial message:', err)
         }
+        
+        setStreamingAbortController(conversationId, null)
+        clearStreamingMessage(conversationId)
       }
-      
-      setAbortController(null)
-      setIsLoading(false)
-      clearStreamingMessage(conversationId)
     }
   }
 
