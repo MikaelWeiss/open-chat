@@ -737,6 +737,9 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         }
       )
 
+      // Track API performance per model
+      const modelStartTimes = new Map<string, number>()
+      
       // Send to AI provider(s) with streaming
       await chatService.sendMessage({
         conversationId: activeConversationId,
@@ -763,8 +766,13 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             }
             await addMessageToStore(activeConversationId, message)
             
-            // Track message received event
-            telemetryService.trackMessageReceived(provider, model, message.text?.length || 0)
+            // Track API performance
+            const startTime = modelStartTimes.get(modelId)
+            if (startTime) {
+              const duration = Date.now() - startTime
+              telemetryService.trackAPIPerformance(provider, model, duration, true)
+              modelStartTimes.delete(modelId)
+            }
           } catch (err) {
             console.error('Failed to save assistant message:', err)
           }
@@ -772,14 +780,41 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         },
         onModelStreamStart: (modelId: string) => {
           console.log(`Model ${modelId} started streaming`)
+          // Record start time for this model
+          modelStartTimes.set(modelId, Date.now())
         },
         onModelError: (error: Error, modelId: string) => {
           console.error(`Model ${modelId} error:`, error)
+          
+          // Track API error and performance
+          const [provider, modelWithSuffix] = modelId.split(':')
+          const model = modelWithSuffix?.includes('#') ? modelWithSuffix.split('#')[0] : modelWithSuffix
+          
+          // Track performance (failed)
+          const startTime = modelStartTimes.get(modelId)
+          if (startTime) {
+            const duration = Date.now() - startTime
+            telemetryService.trackAPIPerformance(provider, model, duration, false)
+            modelStartTimes.delete(modelId)
+          }
+          
+          // Track error type
+          let errorType = 'unknown'
+          const errorMessage = error.message.toLowerCase()
+          if (errorMessage.includes('rate limit')) {
+            errorType = 'rate_limit'
+            telemetryService.trackRateLimitError(provider, model)
+          } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+            errorType = 'network'
+          } else if (errorMessage.includes('auth') || errorMessage.includes('api key') || errorMessage.includes('unauthorized')) {
+            errorType = 'auth'
+          } else if (errorMessage.includes('timeout')) {
+            errorType = 'timeout'
+          }
+          telemetryService.trackAPIError(provider, model, errorType)
+          
           // Show error toast for individual model failures
           if ((window as any).showToast) {
-            const [provider, modelWithSuffix] = modelId.split(':')
-            // Handle both format: 'provider:model' and 'provider:model#2'
-            const model = modelWithSuffix?.includes('#') ? modelWithSuffix.split('#')[0] : modelWithSuffix
             const suffix = modelWithSuffix?.includes('#') ? modelWithSuffix.split('#')[1] : ''
             ;(window as any).showToast({
               type: 'error',

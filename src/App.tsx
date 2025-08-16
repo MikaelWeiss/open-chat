@@ -32,6 +32,7 @@ function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false)
+  const [appStartTime] = useState(() => Date.now())
   
   // Use Zustand store for conversations
   const { 
@@ -69,6 +70,9 @@ function App() {
       }).then(() => {
         // Track app launch after initialization
         telemetryService.trackAppLaunched()
+        // Track app startup time
+        const startupTime = Date.now() - appStartTime
+        telemetryService.trackAppStartupTime(startupTime)
       }).catch(error => {
         console.warn('Telemetry initialization failed:', error)
       })
@@ -123,6 +127,13 @@ function App() {
         // Listen for the window close event
         unlisten = await appWindow.onCloseRequested(async () => {
           console.log('App close requested, stopping Ollama...')
+          
+          // Track session end
+          try {
+            await telemetryService.trackSessionEnd()
+          } catch (error) {
+            console.warn('Failed to track session end:', error)
+          }
           
           // Stop Ollama completely (this automatically unloads all models)
           try {
@@ -350,10 +361,6 @@ function App() {
     }
   }
 
-  const handleToggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen)
-  }
-
   const handleToggleSettings = () => {
     if (settingsOpen) {
       setSettingsOpen(false)
@@ -430,7 +437,7 @@ function App() {
   // Initialize keyboard shortcuts (disabled in mini window for certain shortcuts)
   useKeyboardShortcuts({
     onNewChat: handleNewChat,
-    onToggleSidebar: isMiniWindow ? () => {} : handleToggleSidebar,
+    onToggleSidebar: () => setSidebarOpen(!sidebarOpen),
     onToggleSettings: isMiniWindow ? () => {} : handleToggleSettings,
     onToggleShortcuts: isMiniWindow ? () => {} : handleToggleShortcuts,
     onToggleModelSelector: isMiniWindow ? () => {} : handleToggleModelSelector,
