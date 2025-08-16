@@ -55,4 +55,5 @@ export const SETTINGS_KEYS = {
   PROVIDERS: 'providers',
   HAS_COMPLETED_ONBOARDING: 'hasCompletedOnboarding',
   USER_NAME: 'userName',
+  HAS_SHOWN_INTRO: 'hasShownIntro',
 } as const

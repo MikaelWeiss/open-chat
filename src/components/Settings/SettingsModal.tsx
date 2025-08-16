@@ -532,6 +532,26 @@ function GeneralSettings({ theme, setTheme, sendKey, setSendKey, showPricing, se
               </button>
             </div>
           </div>
+          
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <label className="text-sm font-medium">Replay Intro Animation</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Watch the welcome animation again.
+              </p>
+            </div>
+            <div className="ml-4">
+              <button
+                onClick={() => {
+                  // Dispatch event to replay intro
+                  window.dispatchEvent(new CustomEvent('replayIntro'))
+                }}
+                className="px-4 py-2 text-sm bg-secondary text-foreground rounded-md hover:bg-accent transition-colors"
+              >
+                Replay Intro
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

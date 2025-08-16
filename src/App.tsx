@@ -18,12 +18,13 @@ import { ollamaService } from './services/ollamaService'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { settings, SETTINGS_KEYS } from './shared/settingsStore'
 
 function App() {
   // Check if we're in mini window mode
   const isMiniWindow = new URLSearchParams(window.location.search).get('window') === 'mini'
   
-  const [showIntroAnimation, setShowIntroAnimation] = useState(!isMiniWindow) // Show intro for testing (not in mini window)
+  const [showIntroAnimation, setShowIntroAnimation] = useState(false) // Will be set based on settings
   const [sidebarOpen, setSidebarOpen] = useState(!isMiniWindow) // Hide sidebar in mini window
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -44,6 +45,19 @@ function App() {
   
   // Initialize settings (theme will be applied in useSettings hook)
   const { handleThemeChange, theme, hasCompletedOnboarding, isLoading: settingsLoading } = useSettings()
+  
+  // Check if intro has been shown before
+  useEffect(() => {
+    const checkIntroShown = async () => {
+      if (isMiniWindow) return // Never show intro in mini window
+      
+      const hasShownIntro = await settings.get<boolean>(SETTINGS_KEYS.HAS_SHOWN_INTRO)
+      if (!hasShownIntro) {
+        setShowIntroAnimation(true)
+      }
+    }
+    checkIntroShown()
+  }, [isMiniWindow])
   
   // Initialize Zustand store and message sync
   useEffect(() => {
@@ -250,6 +264,18 @@ function App() {
     }
   }, [])
   
+  // Listen for replay intro event
+  useEffect(() => {
+    const handleReplayIntro = () => {
+      setShowIntroAnimation(true)
+    }
+    
+    window.addEventListener('replayIntro', handleReplayIntro)
+    return () => {
+      window.removeEventListener('replayIntro', handleReplayIntro)
+    }
+  }, [])
+  
   // Create initial pending conversation when app starts and no conversation is selected
   useEffect(() => {
     // Only create a new pending conversation if there's no selected conversation and no existing conversations
@@ -420,7 +446,11 @@ function App() {
   return (
     <>
       {showIntroAnimation && (
-        <IntroAnimation onComplete={() => setShowIntroAnimation(false)} />
+        <IntroAnimation onComplete={async () => {
+          setShowIntroAnimation(false)
+          // Save that the intro has been shown
+          await settings.set(SETTINGS_KEYS.HAS_SHOWN_INTRO, true)
+        }} />
       )}
       
       <div className={`flex h-screen bg-background text-foreground overflow-hidden ${isMiniWindow ? 'mini-window' : ''}`}>
