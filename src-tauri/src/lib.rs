@@ -38,22 +38,29 @@ async fn toggle_mini_window(app: tauri::AppHandle) -> Result<bool, String> {
         }
     } else {
         // Create new mini window with query parameter
-        let mini_window = WebviewWindowBuilder::new(
+        let mut window_builder = WebviewWindowBuilder::new(
             &app,
             "mini-chat",
             WebviewUrl::App("index.html?window=mini".into())
         )
         .title("Mini Chat")
-        .hidden_title(true)
         .inner_size(400.0, 600.0)
         .min_inner_size(400.0, 400.0)
         .max_inner_size(600.0, 1200.0)
         .resizable(true)
         .always_on_top(true)
         .skip_taskbar(true)
-        .decorations(true)
-        .build()
-        .map_err(|e| format!("Failed to create mini window: {}", e))?;
+        .decorations(true);
+
+        // Apply platform-specific settings
+        #[cfg(target_os = "macos")]
+        {
+            window_builder = window_builder.hidden_title(true);
+        }
+
+        let mini_window = window_builder
+            .build()
+            .map_err(|e| format!("Failed to create mini window: {}", e))?;
 
         // Set window to appear on all workspaces (macOS)
         if let Err(e) = mini_window.set_visible_on_all_workspaces(true) {
