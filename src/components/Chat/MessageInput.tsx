@@ -42,7 +42,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const [message, setMessage] = useState('')
     const [attachments, setAttachments] = useState<FileAttachment[]>([])
-    const [reasoningEffort, setReasoningEffort] = useState<'none' | 'low' | 'medium' | 'high'>('medium')
+    const [reasoningEffort, setReasoningEffort] = useState<'none' | 'low' | 'medium' | 'high'>('none')
     const [isReasoningDropdownOpen, setIsReasoningDropdownOpen] = useState(false)
     
     // Array of 25 different placeholder text presets
@@ -372,8 +372,12 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       if (isLoading) {
         onCancel?.()
       } else {
-        console.log('Sending message:', message, attachments, 'reasoning effort:', reasoningEffort)
-        onSend(message, attachments.length > 0 ? attachments : undefined, reasoningEffort)
+        console.log('Sending message:', message, attachments, 'reasoning effort:', reasoningEffort !== 'none' ? reasoningEffort : undefined)
+        onSend(
+          message,
+          attachments.length > 0 ? attachments : undefined,
+          reasoningEffort !== 'none' ? reasoningEffort : undefined
+        )
         setMessage('')
         setAttachments([])
       }
