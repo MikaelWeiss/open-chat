@@ -34,6 +34,7 @@
     "process:allow-restart",
     "fs:default",
     "fs:allow-read-file",
+    "core:window:allow-destroy",
     {
       "identifier": "fs:allow-exists",
       "allow": [{ "path": "$APPDATA/keys.enc" }]
