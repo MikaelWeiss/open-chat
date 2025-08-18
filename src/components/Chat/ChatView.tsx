@@ -792,7 +792,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         
         // Enhance system prompt to explicitly instruct the AI to use search when available
         if (shouldEnableSearch) {
-          const searchInstruction = "You have access to a web search tool. When the user enables web search (indicated by the globe icon), you MUST use the web_search function to find current information before responding. This is especially important for questions about recent events, current information, or facts that may have changed.\n\nWhen using search results in your response:\n1. ALWAYS cite your sources using the format [number](url)\n2. Include all relevant information from the search results\n3. Make it easy for the user to verify information via the provided sources"
+          const searchInstruction = "You have access to a web search tool. You MUST use the web_search function to find current information before responding. This is especially important for questions about recent events, current information, or facts that may have changed.\n\nWhen using search results in your response:\n1. ALWAYS cite your sources using the format [number](url)\n2. Include all relevant information from the search results\n3. Make it easy for the user to verify information via the provided sources"
           
           effectiveSystemPrompt = effectiveSystemPrompt 
             ? `${effectiveSystemPrompt}\n\n${searchInstruction}`

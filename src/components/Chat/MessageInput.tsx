@@ -367,7 +367,6 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         onSend(message, attachments.length > 0 ? attachments : undefined, reasoningEffort, searchEnabled)
         setMessage('')
         setAttachments([])
-        setSearchEnabled(false) // Reset search state after sending
       }
     }
 
