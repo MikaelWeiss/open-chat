@@ -779,6 +779,11 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
       )
 
       // Add tools to model configs if available
+      const currentDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
       let effectiveSystemPrompt = currentConversation?.system_prompt || undefined
       if (availableTools.length > 0) {
         modelConfigs.forEach(config => {
@@ -794,6 +799,12 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             : searchInstruction
         }
       }
+
+      // Always add the current date to the system prompt
+      const dateInstruction = `For your information, the current date is ${currentDate}`;
+      effectiveSystemPrompt = effectiveSystemPrompt
+        ? `${effectiveSystemPrompt}\n\n${dateInstruction}`
+        : dateInstruction;
 
       // Send to AI provider(s) with streaming
       await chatService.sendMessage({
