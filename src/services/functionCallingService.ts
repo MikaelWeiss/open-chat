@@ -3,19 +3,19 @@ import { type CreateMessageInput } from '../shared/messageStore'
 
 interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
-  content?: string | Array<{
+  content?: string | Array<{ 
     type: 'text' | 'image_url'
     text?: string
     image_url?: { url: string }
-  }>
-  tool_calls?: Array<{
+  }> 
+  tool_calls?: Array<{ 
     id: string
     type: 'function'
     function: {
       name: string
       arguments: string
     }
-  }>
+  }> 
   tool_call_id?: string
   name?: string
 }
@@ -29,14 +29,14 @@ interface ModelConfig {
   temperature?: number
   maxTokens?: number
   topP?: number
-  tools?: Array<{
+  tools?: Array<{ 
     type: 'function'
     function: {
       name: string
       description: string
       parameters: any
     }
-  }>
+  }> 
 }
 
 class FunctionCallingService {
@@ -49,7 +49,7 @@ class FunctionCallingService {
     maxToolCalls = 3,
     onStreamChunk,
     signal
-  }: {
+  }: { 
     messages: OpenAIMessage[]
     modelConfig: ModelConfig
     maxToolCalls?: number
@@ -59,6 +59,7 @@ class FunctionCallingService {
     let currentMessages = [...messages]
     let toolCallCount = 0
     let finalContent = ''
+    let searchResultStartIndex = 1
 
     while (toolCallCount < maxToolCalls) {
       const response = await this.callModel({
@@ -105,9 +106,19 @@ class FunctionCallingService {
 
         // Add tool results to messages
         for (const result of toolResults) {
+          let content = result.content
+          if (result.name === 'web_search') {
+            try {
+              const searchOutput = JSON.parse(result.content)
+              content = toolService.formatSearchResults(searchOutput, searchResultStartIndex)
+              searchResultStartIndex += searchOutput.results.length
+            } catch (e) {
+              console.error('Could not parse search result content', e)
+            }
+          }
           currentMessages.push({
             role: 'tool',
-            content: result.content,
+            content: content,
             tool_call_id: result.tool_call_id,
             name: result.name
           })
@@ -144,20 +155,20 @@ class FunctionCallingService {
     messages,
     modelConfig,
     signal
-  }: {
+  }: { 
     messages: OpenAIMessage[]
     modelConfig: ModelConfig
     signal?: AbortSignal
-  }): Promise<{
+  }): Promise<{ 
     content?: string
-    tool_calls?: Array<{
+    tool_calls?: Array<{ 
       id: string
       type: 'function'
       function: {
         name: string
         arguments: string
       }
-    }>
+    }> 
   }> {
     const isAnthropic = modelConfig.endpoint.includes('anthropic.com')
     

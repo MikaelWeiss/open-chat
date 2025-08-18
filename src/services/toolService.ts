@@ -64,10 +64,10 @@ class ToolService {
           throw new Error(`Unknown tool: ${func.name}`)
       }
       
-      // Format search results to encourage proper citations
       let formattedContent: string
       if (func.name === 'web_search' && result && result.results) {
-        formattedContent = this.formatSearchResults(result)
+        // Return raw results for formatting by the calling service
+        formattedContent = JSON.stringify(result)
       } else {
         formattedContent = JSON.stringify(result)
       }
@@ -170,7 +170,7 @@ class ToolService {
   /**
    * Format search results to encourage proper citations
    */
-  private formatSearchResults(searchOutput: WebSearchOutput): string {
+  formatSearchResults(searchOutput: WebSearchOutput, startIndex: number = 1): string {
     const { results } = searchOutput
     
     if (!results || results.length === 0) {
@@ -180,7 +180,7 @@ class ToolService {
     let formatted = `Found ${results.length} search result${results.length > 1 ? 's' : ''}:\n\n`
     
     results.forEach((result, index) => {
-      formatted += `**Result ${index + 1}:**\n`
+      formatted += `**Result ${startIndex + index}:**\n`
       formatted += `**Title:** ${result.title}\n`
       formatted += `**URL:** ${result.url}\n`
       formatted += `**Content:** ${result.snippet}\n`
