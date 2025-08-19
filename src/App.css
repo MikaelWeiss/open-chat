@@ -95,6 +95,7 @@
     --gradient-start: 169 100% 37%; /* Logo color */
     --gradient-end: 259 100% 65%; /* Purple accent */
     --shadow: 222 84% 4.9% / 0.3; /* Enhanced shadows */
+    --citation-background: 220 13% 18%; /* Lighter gray for dark mode citations */
   }
 }
 
@@ -589,30 +590,25 @@ a,
 
 /* ✨ ENHANCED CITATION STYLES ✨ */
 
-/* Inline citations - elegant numbered bubbles with sparkle effect */
 .citation-inline {
-  position: relative;
-  height: 18px;
-  width: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 6px;
+  border-radius: 12px;
+  background-color: hsl(var(--citation-background, var(--muted)));
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  transition: all 0.2s ease-in-out;
   margin: 0 2px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--accent) / 0.15));
-  border: 1px solid hsl(var(--primary) / 0.3);
-  backdrop-filter: blur(8px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 
-    0 2px 8px hsl(var(--primary) / 0.1),
-    inset 0 1px 0 hsl(var(--background) / 0.1);
 }
 
 .citation-inline:hover {
-  background: linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.25));
-  border-color: hsl(var(--primary) / 0.5);
-  box-shadow: 
-    0 4px 16px hsl(var(--primary) / 0.2),
-    0 0 0 2px hsl(var(--primary) / 0.1),
-    inset 0 1px 0 hsl(var(--background) / 0.2);
-  transform: translateY(-1px) scale(1.05);
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  transform: scale(1.05);
 }
 
 .citation-inline:active {
@@ -620,45 +616,7 @@ a,
   transition: transform 0.1s ease;
 }
 
-.citation-number {
-  font-size: 10px;
-  font-weight: 600;
-  color: hsl(var(--primary));
-  line-height: 1;
-  transition: all 0.3s ease;
-}
 
-.citation-inline:hover .citation-number {
-  color: hsl(var(--primary-foreground));
-  font-weight: 700;
-}
-
-.citation-sparkle {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transform: scale(0) rotate(180deg);
-  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  box-shadow: 0 2px 8px hsl(var(--primary) / 0.3);
-}
-
-.citation-sparkle svg {
-  color: white;
-  filter: drop-shadow(0 0 2px rgba(0,0,0,0.2));
-}
-
-.citation-inline:hover .citation-sparkle {
-  opacity: 1;
-  transform: scale(1) rotate(0deg);
-}
 
 /* Source citations - elegant glassmorphism cards */
 .citation-source {

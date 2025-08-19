@@ -33,9 +33,6 @@ export function CitationBubble({ number, url, domain, isInline = false, onClick 
         title={url ? `Source ${number}: ${domain || new URL(url).hostname}` : `Citation ${number}`}
       >
         <span className="citation-number">{number}</span>
-        <div className="citation-sparkle">
-          <Sparkles className="h-2.5 w-2.5" />
-        </div>
       </button>
     )
   }
