@@ -110,7 +110,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   const dropdownRef = useRef<HTMLDivElement>(null)
   const modelSelectorButtonRef = useRef<HTMLButtonElement>(null)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
-  
+  const [isLoading, setIsLoading] = useState(false)
   // Model loading banner state
   const [showModelBanner, setShowModelBanner] = useState(false)
   
@@ -130,11 +130,6 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     getStreamingAbortController
   } = useMessages(conversationId ?? null)
   
-  // Derive isLoading from whether this specific conversation has streaming messages
-  const isLoading = useMemo(() => {
-    if (!conversationId) return false
-    return streamingMessagesByModel.size > 0
-  }, [conversationId, streamingMessagesByModel])
   const { 
     conversations,
     getConversation,
@@ -144,6 +139,8 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
   } = useConversations()
   const { getProviderApiKey } = useSettings()
   const { providers } = useProviders()
+  const isCurrentConversationWaiting = conversationId ?
+    !!getStreamingAbortController(conversationId) : false
   
   const [currentConversation, setCurrentConversation] = useState<Conversation | PendingConversation | null>(null)
   
@@ -622,6 +619,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
     let activeConversationId = conversationId
     
     try {
+      setIsLoading(true)
       clearStreamingMessage(conversationId)
       
       // If this is a pending conversation, commit it to persistent before sending message
@@ -846,6 +844,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
         })
       }
     } finally {
+      setIsLoading(false)
       clearStreamingMessage(activeConversationId)
       setStreamingAbortController(activeConversationId, null)
     }
@@ -871,6 +870,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           }
         }
         
+        setIsLoading(false)
         setStreamingAbortController(conversationId, null)
         clearStreamingMessage(conversationId)
       }
@@ -1024,7 +1024,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
             messages={messages}
             streamingMessage={zustandStreamingMessage}
             streamingMessagesByModel={streamingMessagesByModel}
-            isLoading={isLoading}
+            isLoading={isLoading && isCurrentConversationWaiting}
             expectedModels={isMultiSelectMode && selectedModels.length > 0 ? selectedModels : []}
           />
         </div>
@@ -1036,7 +1036,7 @@ export default function ChatView({ conversationId, messageInputRef: externalMess
           onSend={handleSend}
           onCancel={handleCancel}
           disabled={!conversationId || (!currentConversation?.provider && !selectedModel?.provider) || (!currentConversation?.model && !selectedModel?.model)}
-          isLoading={isLoading}
+          isLoading={isLoading && isCurrentConversationWaiting}
           noProvider={!currentConversation?.model && !selectedModel?.model}
           messages={messages}
           modelCapabilities={

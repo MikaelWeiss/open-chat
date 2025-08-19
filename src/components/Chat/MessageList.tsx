@@ -119,8 +119,6 @@ export default function MessageList({ messages = [], isLoading = false, streamin
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const { userName } = useSettings()
   
-  
-  
   // Group messages by their relationships for side-by-side display
   const groupedMessages = React.useMemo(() => {
     const groups: Array<{ type: 'single' | 'parallel', messages: Message[], timestamp: string }> = []
