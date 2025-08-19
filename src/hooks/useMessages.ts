@@ -1,33 +1,39 @@
 // Helper function to extract citations from text
 export function extractCitations(text: string): { text: string; citations: any[] } {
   const citationRegex = /\[(\d+)\]\(([^)]+)\)/g
-  const citationsMap = new Map<number, { url: string; domain: string }>()
-  let match
+  const urlToNumberMap = new Map<string, number>()
+  let updatedText = text
+  let nextCitationNumber = 1
 
-  while ((match = citationRegex.exec(text)) !== null) {
-    const number = parseInt(match[1], 10)
+  // First pass: find all unique URLs and assign them a sequential number
+  const matches = Array.from(text.matchAll(citationRegex))
+  matches.forEach(match => {
     const url = match[2]
-
-    if (!citationsMap.has(number)) {
-      try {
-        const domain = new URL(url).hostname.replace(/^www\./, '')
-        citationsMap.set(number, { url, domain })
-      } catch (error) {
-        console.warn(`Invalid URL found in citation: ${url}`, error)
-      }
+    if (!urlToNumberMap.has(url)) {
+      urlToNumberMap.set(url, nextCitationNumber++)
     }
-  }
+  })
 
-  const finalCitations = Array.from(citationsMap.entries())
-    .map(([number, { url, domain }]) => ({
+  // Second pass: replace all citation numbers with the new sequential numbers
+  matches.forEach(match => {
+    const oldNumber = match[1]
+    const url = match[2]
+    const newNumber = urlToNumberMap.get(url)
+    const oldCitation = `[${oldNumber}](${url})`
+    const newCitation = `[${newNumber}](${url})`
+    updatedText = updatedText.replaceAll(oldCitation, newCitation)
+  })
+
+  const finalCitations = Array.from(urlToNumberMap.entries())
+    .map(([url, number]) => ({
       number,
       url,
-      domain,
+      domain: new URL(url).hostname.replace(/^www\./, ''),
     }))
     .sort((a, b) => a.number - b.number)
 
   return {
-    text: text,
+    text: updatedText,
     citations: finalCitations,
   }
 }
