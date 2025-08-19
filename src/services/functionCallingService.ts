@@ -59,7 +59,6 @@ class FunctionCallingService {
     let currentMessages = [...messages]
     let toolCallCount = 0
     let finalContent = ''
-    let searchResultStartIndex = 1
 
     while (toolCallCount < maxToolCalls) {
       const response = await this.callModel({
@@ -106,19 +105,9 @@ class FunctionCallingService {
 
         // Add tool results to messages
         for (const result of toolResults) {
-          let content = result.content
-          if (result.name === 'web_search') {
-            try {
-              const searchOutput = JSON.parse(result.content)
-              content = toolService.formatSearchResults(searchOutput, searchResultStartIndex)
-              searchResultStartIndex += searchOutput.results.length
-            } catch (e) {
-              console.error('Could not parse search result content', e)
-            }
-          }
           currentMessages.push({
             role: 'tool',
-            content: content,
+            content: result.content,
             tool_call_id: result.tool_call_id,
             name: result.name
           })

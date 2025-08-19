@@ -27,7 +27,7 @@ export function extractCitations(text: string): { text: string; citations: any[]
     .sort((a, b) => a.number - b.number)
 
   return {
-    text: text, // Text remains unchanged
+    text: text,
     citations: finalCitations,
   }
 }

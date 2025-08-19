@@ -66,8 +66,7 @@ class ToolService {
       
       let formattedContent: string
       if (func.name === 'web_search' && result && result.results) {
-        // Return raw results for formatting by the calling service
-        formattedContent = JSON.stringify(result)
+        formattedContent = this.formatSearchResults(result)
       } else {
         formattedContent = JSON.stringify(result)
       }
@@ -170,7 +169,7 @@ class ToolService {
   /**
    * Format search results to encourage proper citations
    */
-  formatSearchResults(searchOutput: WebSearchOutput, startIndex: number = 1): string {
+  formatSearchResults(searchOutput: WebSearchOutput): string {
     const { results } = searchOutput
     
     if (!results || results.length === 0) {
@@ -180,7 +179,7 @@ class ToolService {
     let formatted = `Found ${results.length} search result${results.length > 1 ? 's' : ''}:\n\n`
     
     results.forEach((result, index) => {
-      formatted += `**Result ${startIndex + index}:**\n`
+      formatted += `**Result ${index + 1}:**\n`
       formatted += `**Title:** ${result.title}\n`
       formatted += `**URL:** ${result.url}\n`
       formatted += `**Content:** ${result.snippet}\n`
@@ -191,7 +190,7 @@ class ToolService {
     formatted += 'You are using search results to answer a user query. Follow these rules:\n'
     formatted += '1. Include all relevant information from the results to answer accurately.\n'
     formatted += '2. For every factual statement, you MUST add an in-text citation in the format [number](url), for example: [1](https://example.com).\n'
-    formatted += '3. Each citation number corresponds to a search result above (Result 1, Result 2, etc.).\n'
+    formatted += '3. Number the citations sequentially, starting from 1.\n'
     formatted += '4. Maintain clarity and conciseness; summarize results where appropriate.\n'
     formatted += '5. Always make it easy for a user to verify the information via the provided sources.\n'
     formatted += '6. NEVER use simple citations like [1] without the URL - always use the format [number](url).\n'
