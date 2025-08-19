@@ -11,6 +11,8 @@ interface KeyboardShortcutsProps {
   onFocusInput: () => void
   onCloseModal: () => void
   onToggleTheme: () => void
+  onNextModel: () => void
+  onPreviousModel: () => void
   settingsOpen: boolean
   shortcutsOpen: boolean
   modelSelectorOpen: boolean
@@ -26,6 +28,8 @@ export const useKeyboardShortcuts = ({
   onFocusInput,
   onCloseModal,
   onToggleTheme,
+  onNextModel,
+  onPreviousModel,
   settingsOpen,
   shortcutsOpen,
   modelSelectorOpen
@@ -129,6 +133,18 @@ export const useKeyboardShortcuts = ({
             }, 100)
           }
           break
+          
+        case 'j':
+          // Cmd/Ctrl + J - Next model
+          event.preventDefault()
+          onNextModel()
+          break
+          
+        case 'k':
+          // Cmd/Ctrl + K - Previous model
+          event.preventDefault()
+          onPreviousModel()
+          break
       }
     }
     
@@ -147,6 +163,8 @@ export const useKeyboardShortcuts = ({
     onFocusInput,
     onCloseModal,
     onToggleTheme,
+    onNextModel,
+    onPreviousModel,
     settingsOpen,
     shortcutsOpen,
     modelSelectorOpen
