@@ -123,7 +123,7 @@ class ToolService {
 
     // Get search settings to determine engine
     const searchStore = useSearchStore.getState()
-    const engine = args.engine || searchStore.settings.defaultEngine
+    const engine = searchStore.settings.defaultEngine
     
     console.log('Using search engine:', engine)
     console.log('Search settings:', searchStore.settings)
