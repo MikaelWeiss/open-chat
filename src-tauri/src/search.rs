@@ -4,6 +4,8 @@ use std::sync::{Mutex, LazyLock};
 use tauri_plugin_keyring::{KeyringExt};
 use tauri::Manager;
 use base64::Engine;
+use scraper::{Html, Selector};
+
 
 // Cache for search results to avoid repeated API calls
 static SEARCH_CACHE: LazyLock<Mutex<HashMap<String, (SearchOutput, std::time::SystemTime)>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -466,83 +468,47 @@ async fn search_brave(
 
 async fn search_duckduckgo(query: &str, top_k: usize) -> Result<Vec<SearchResultItem>, String> {
     let client = reqwest::Client::new();
-    let url = format!(
-        "https://api.duckduckgo.com/?q={}&format=json&no_redirect=1&no_html=1",
-        urlencoding::encode(query)
-    );
+    let url = format!("https://html.duckduckgo.com/html/?q={}", urlencoding::encode(query));
 
     let response = client
         .get(&url)
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
         .send()
         .await
-        .map_err(|e| format!("DuckDuckGo API request failed: {}", e))?;
+        .map_err(|e| format!("DuckDuckGo request failed: {}", e))?;
 
     if !response.status().is_success() {
         return Err(format!("DuckDuckGo API error: {}", response.status()));
     }
 
-    let json: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse DuckDuckGo response: {}", e))?;
+    let html_content = response.text().await.map_err(|e| format!("Failed to read DuckDuckGo response: {}", e))?;
+    let document = Html::parse_document(&html_content);
+
+    let result_selector = Selector::parse("div.result").unwrap();
+    let title_selector = Selector::parse("h2.result__title > a.result__a").unwrap();
+    let snippet_selector = Selector::parse("a.result__snippet").unwrap();
 
     let mut results = Vec::new();
+    for result_node in document.select(&result_selector).take(top_k) {
+        let title = result_node.select(&title_selector).next().and_then(|n| n.text().next()).unwrap_or("").trim().to_string();
+        let url = result_node.select(&title_selector).next().and_then(|n| n.value().attr("href")).unwrap_or("").to_string();
+        let snippet = result_node.select(&snippet_selector).next().and_then(|n| n.text().next()).unwrap_or("").trim().to_string();
 
-    // Try to get abstract first
-    if let Some(abstract_text) = json.get("AbstractText").and_then(|v| v.as_str()) {
-        if !abstract_text.is_empty() {
+        if !title.is_empty() && !url.is_empty() {
             results.push(SearchResultItem {
-                title: json
-                    .get("Heading")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("DuckDuckGo Answer")
-                    .to_string(),
-                url: json
-                    .get("AbstractURL")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                snippet: abstract_text.to_string(),
+                title,
+                url,
+                snippet,
                 engine: "duckduckgo".to_string(),
             });
         }
     }
 
-    // If no abstract, try related topics
-    if results.is_empty() {
-        if let Some(topics) = json.get("RelatedTopics").and_then(|v| v.as_array()) {
-            for topic in topics.iter().take(top_k) {
-                if let Some(topic_obj) = topic.as_object() {
-                    let title = topic_obj
-                        .get("Text")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string();
-                    let url = topic_obj
-                        .get("FirstURL")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string();
-
-                    if !url.is_empty() {
-                        results.push(SearchResultItem {
-                            title,
-                            url,
-                            snippet: "".to_string(),
-                            engine: "duckduckgo".to_string(),
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    // If still no results, provide a helpful message
     if results.is_empty() {
         results.push(SearchResultItem {
-            title: "No instant answers available".to_string(),
+            title: "No results found on DuckDuckGo".to_string(),
             url: format!("https://duckduckgo.com/?q={}", urlencoding::encode(query)),
-            snippet: "DuckDuckGo's instant answer API didn't find specific results for this query. Try a more specific search or use a different search engine.".to_string(),
+            snippet: "Try a different search engine for better results.".to_string(),
             engine: "duckduckgo".to_string(),
         });
     }
