@@ -54,7 +54,7 @@ export interface WebSearchOutput {
 
 // Tool definition for OpenAI-compatible function calling
 export interface WebSearchTool {
-  type: 'function'
+  type: 'function' | 'web_search_20250305'
   function: {
     name: 'web_search'
     description: string
@@ -95,7 +95,7 @@ export function shouldSearch(utterance: string): boolean {
 // Create web search tool definition
 export function createWebSearchTool(): WebSearchTool {
   return {
-    type: 'function',
+    type: 'web_search_20250305',
     function: {
       name: 'web_search',
       description: 'Search the web for current information and real-time data. USE THIS FUNCTION WHEN THE USER ASKS ABOUT RECENT EVENTS, CURRENT INFORMATION, OR FACTS THAT MAY HAVE CHANGED. This includes latest news, current prices, recent releases, updated information, etc. When using search results in your response, ALWAYS cite your sources. Format citations as numbered references like [1](url)',
