@@ -198,10 +198,9 @@ class ConversationDatabase {
 
   async toggleConversationFavorite(id: number) {
     const db = await this.init()
-    const now = new Date().toISOString()
     const result = await db.execute(
-      'UPDATE conversations SET is_favorite = NOT is_favorite, updated_at = $1 WHERE id = $2',
-      [now, id]
+      'UPDATE conversations SET is_favorite = NOT is_favorite WHERE id = $1',
+      [id]
     )
     this.notifyListeners()
     return result

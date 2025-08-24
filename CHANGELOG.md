@@ -10,6 +10,7 @@ All notable changes to Open Chat will be documented in this file.
 - Added keyboard command to quickly switch the model (command + j and command + k)
 
 ### Fixed
+- Fixed issue where changing the star value of a conversation would change it's last updated date
 - Fixed issue where clicking the x button wouldn't close the app
 - Fixed issue where draging an attachment into the chat would result in multiple duplicates
 - Fixed bug where you couldn't start a new chat while waiting for the assistant to finish responding
