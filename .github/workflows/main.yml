@@ -46,6 +46,40 @@ jobs:
         # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
         run: pnpm install # change this to npm or pnpm depending on which one you use.
 
+      - name: Extract changelog for version
+        id: changelog
+        run: |
+          VERSION=$(grep -m1 'version =' src-tauri/Cargo.toml | sed 's/.*"\([^"]*\)".*/\1/')
+          echo "Extracting changelog for version $VERSION"
+          
+          # Extract changelog content between version headers
+          CHANGELOG_CONTENT=$(awk -v version="$VERSION" '
+            BEGIN { in_section = 0; found = 0 }
+            /^## \[/ {
+              if ($0 ~ "\\[" version "\\]") {
+                in_section = 1
+                found = 1
+                next
+              } else if (in_section) {
+                exit
+              }
+            }
+            in_section { 
+              # Skip empty lines at the start
+              if (NF > 0 || started) {
+                started = 1
+                print $0
+              }
+            }
+            END { if (!found) print "No changelog found for version " version }
+          ' CHANGELOG.md)
+          
+          # Save to file for multiline output
+          echo "$CHANGELOG_CONTENT" > changelog_content.txt
+          echo "CHANGELOG_CONTENT<<EOF" >> $GITHUB_ENV
+          cat changelog_content.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -62,7 +96,7 @@ jobs:
         with:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'v__VERSION__'
-          releaseBody: ''
+          releaseBody: ${{ env.CHANGELOG_CONTENT }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
