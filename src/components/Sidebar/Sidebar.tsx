@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ChevronDown, Settings, Trash2, Star, MessageSquare } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Settings, Trash2, Star, MessageSquare, Search, X } from 'lucide-react'
 import { format } from 'date-fns'
 import clsx from 'clsx'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -63,6 +63,7 @@ export default function Sidebar({
     const saved = localStorage.getItem('favoritesCollapsed')
     return saved === 'true'
   })
+  const [searchQuery, setSearchQuery] = useState('')
   
   useEffect(() => {
     localStorage.setItem('favoritesCollapsed', isFavoritesCollapsed.toString())
@@ -163,9 +164,26 @@ export default function Sidebar({
   
   // Group conversations by date and favorites
   const getConversationsByDate = () => {
-    // Separate conversations by favorite status
-    const favorites = conversations.filter(conv => isPersistentConversation(conv) && conv.is_favorite)
-    const regular = conversations.filter(conv => !isPersistentConversation(conv) || !conv.is_favorite)
+    // Filter conversations based on search query
+    const filteredConversations = conversations.filter(conv => {
+      if (searchQuery === '') return true
+      
+      const query = searchQuery.toLowerCase()
+      
+      // Search in conversation title
+      if (conv.title.toLowerCase().includes(query)) return true
+      
+      // Search in message content
+      const messages = getMessages(conv.id)
+      return messages.some(message => 
+        message.text?.toLowerCase().includes(query) || 
+        message.thinking?.toLowerCase().includes(query)
+      )
+    })
+    
+    // Separate filtered conversations by favorite status
+    const favorites = filteredConversations.filter(conv => isPersistentConversation(conv) && conv.is_favorite)
+    const regular = filteredConversations.filter(conv => !isPersistentConversation(conv) || !conv.is_favorite)
     
     // Group regular conversations by date
     const regularByDate = regular.reduce((acc, conv) => {
@@ -321,8 +339,33 @@ export default function Sidebar({
           !isOpen && "invisible"
         )}
       >
+        {/* Search Bar */}
+        <div className="absolute top-[97px] left-0 right-0 z-20 px-4 pb-3 glass-nav backdrop-blur-strong border-b border-border/10">
+          <div className="relative">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+              <Search className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search conversations..."
+              className="w-full pl-10 pr-10 py-2.5 bg-background/50 border border-border/30 rounded-xl text-sm placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted/20 rounded-md transition-colors"
+                title="Clear search"
+              >
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Conversations List - Now extends full height behind header */}
-        <div className="absolute inset-0 overflow-y-auto elegant-scrollbar pt-24 pb-20 glass-effect"
+        <div className="absolute inset-0 overflow-y-auto elegant-scrollbar pt-36 pb-20 glass-effect"
           style={{
             scrollbarWidth: 'none'
           }}

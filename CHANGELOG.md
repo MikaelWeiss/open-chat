@@ -2,7 +2,11 @@
 
 All notable changes to Open Chat will be documented in this file.
 
-## [0.2.0] - TBD
+## [0.2.1] - TBD
+### Added
+- Added search to the sidebar
+
+## [0.2.0] - 2025-08-25
 ### Added
 - Beautiful app intro animation
 - Added the ability to choose a model for smart title generation
