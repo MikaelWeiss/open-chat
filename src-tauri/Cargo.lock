@@ -3043,7 +3043,7 @@ dependencies = [
 
 [[package]]
 name = "open-chat"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "reqwest 0.11.27",
  "serde",
