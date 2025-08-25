@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import Sidebar from './components/Sidebar/Sidebar'
+import Sidebar, { SidebarHandle } from './components/Sidebar/Sidebar'
 import ChatView from './components/Chat/ChatView'
 import SettingsModal from './components/Settings/SettingsModal'
 import ShortcutsModal from './components/Shortcuts/ShortcutsModal'
@@ -18,6 +18,7 @@ import { ollamaService } from './services/ollamaService'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { open } from '@tauri-apps/plugin-shell'
 import { settings, SETTINGS_KEYS } from './shared/settingsStore'
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
   } = useConversations()
   const messageInputRef = useRef<MessageInputHandle>(null)
   const chatViewRef = useRef<any>(null)
+  const sidebarRef = useRef<SidebarHandle>(null)
   
   // Initialize settings (theme will be applied in useSettings hook)
   const { handleThemeChange, theme, hasCompletedOnboarding, isLoading: settingsLoading } = useSettings()
@@ -396,13 +398,21 @@ function App() {
     }
   }
 
-  const handleSendFeedback = () => {
-    console.log('Send feedback triggered via keyboard shortcut')
-    // Implementation would open feedback dialog or action
-  }
 
   const handleFocusInput = () => {
     messageInputRef.current?.focus()
+  }
+
+  const handleFocusSearch = () => {
+    sidebarRef.current?.focusSearch()
+  }
+
+  const handleSendFeedback = async () => {
+    try {
+      await open('mailto:contact@weisssolutions.org')
+    } catch (error) {
+      console.error('Failed to open email client:', error)
+    }
   }
 
   const handleCloseModal = () => {
@@ -450,6 +460,7 @@ function App() {
     onToggleSettings: isMiniWindow ? () => {} : handleToggleSettings,
     onToggleShortcuts: isMiniWindow ? () => {} : handleToggleShortcuts,
     onToggleModelSelector: isMiniWindow ? () => {} : handleToggleModelSelector,
+    onFocusSearch: handleFocusSearch,
     onSendFeedback: handleSendFeedback,
     onFocusInput: handleFocusInput,
     onCloseModal: handleCloseModal,
@@ -474,6 +485,7 @@ function App() {
       <div className={`flex h-screen bg-background text-foreground overflow-hidden ${isMiniWindow ? 'mini-window' : ''}`}>
         {!isMiniWindow && (
           <Sidebar
+            ref={sidebarRef}
             isOpen={sidebarOpen}
             width={sidebarWidth}
             onToggle={() => setSidebarOpen(!sidebarOpen)}

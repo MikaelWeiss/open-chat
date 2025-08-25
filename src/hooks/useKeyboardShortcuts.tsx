@@ -7,6 +7,7 @@ interface KeyboardShortcutsProps {
   onToggleSettings: () => void
   onToggleShortcuts: () => void
   onToggleModelSelector: () => void
+  onFocusSearch: () => void
   onSendFeedback: () => void
   onFocusInput: () => void
   onCloseModal: () => void
@@ -24,6 +25,7 @@ export const useKeyboardShortcuts = ({
   onToggleSettings,
   onToggleShortcuts,
   onToggleModelSelector,
+  onFocusSearch,
   onSendFeedback,
   onFocusInput,
   onCloseModal,
@@ -95,11 +97,17 @@ export const useKeyboardShortcuts = ({
           break
           
         case 'f':
-          // Cmd/Ctrl + Shift + F - Send feedback
-          if (event.shiftKey) {
+        case 'ƒ': // Mac Option+F produces this character
+          if (event.shiftKey && !event.altKey) {
+            // Cmd/Ctrl + Shift + F - Focus sidebar search
+            event.preventDefault()
+            onFocusSearch()
+            telemetryService.trackKeyboardShortcut(isMac ? '⇧⌘F' : 'Ctrl+Shift+F', 'focus_search')
+          } else if (event.altKey) {
+            // Cmd/Ctrl + Alt + F - Send feedback (handles both 'f' and 'ƒ')
             event.preventDefault()
             onSendFeedback()
-            telemetryService.trackKeyboardShortcut(isMac ? '⇧⌘F' : 'Ctrl+Shift+F', 'send_feedback')
+            telemetryService.trackKeyboardShortcut(isMac ? '⌥⌘F' : 'Ctrl+Alt+F', 'send_feedback')
           }
           break
           
@@ -159,6 +167,7 @@ export const useKeyboardShortcuts = ({
     onToggleSettings,
     onToggleShortcuts,
     onToggleModelSelector,
+    onFocusSearch,
     onSendFeedback,
     onFocusInput,
     onCloseModal,

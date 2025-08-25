@@ -88,41 +88,18 @@ The SQLite database auto-creates tables for:
 ## Build Checks
 - When you're done doing anything, run `pnpm build` to make sure there aren't any errors
 
-## Changelog Maintenance
-
-### Key Rules
-1. **Check first**: Before adding any changelog entry, check if one already exists for this feature in the unreleased section
-2. **One entry per feature**: Each feature gets ONE changelog entry when it's complete, not multiple entries across sessions
-3. **Only log complete work**: Only add entries for features/fixes that are fully implemented and working
-
-### When to Add Changelog Entries
-
-#### ✅ ADD an entry when:
-- Completing a NEW user-facing feature that isn't already in the changelog
-- Fixing a bug that users might encounter (and it's not already logged)
-- Making the FIRST working version of something users will see
-
-#### ❌ DON'T ADD an entry when:
-- The feature is already mentioned in the unreleased changelog section
-- You're refining/tweaking a feature you're still working on
-- The change is internal (refactoring, types, tests)
-- The feature isn't complete yet
-
-### Examples
-
-**Scenario 1: Multi-session feature development**
-- Session 1: Start building search feature → NO ENTRY (incomplete)
-- Session 2: Continue search, fix bugs → NO ENTRY (still incomplete)  
-- Session 3: Finish search, fully working → ADD ENTRY: "Added search to the sidebar"
-
-**Scenario 2: Iterating on existing unreleased feature**
-- Changelog already has: "Added search to the sidebar"
-- Current session: Improve search performance → NO ENTRY (already covered)
-
-### Format
-- Write from user's perspective: "Fixed issue where..." not "Fixed bug in..."
-- One line per change under the appropriate category (Added/Changed/Fixed)
-- Be specific but concise
+<changelog>
+    Before adding a changelog entry, check to see if one already exists for that feature in the unreleased section
+    Add changelog entries for user-facing features
+    Add changelog entries for bug fixes that affect the user
+    Don't add changelog entries for internal non-user facing updates
+    Don't add changelog entries when you're making updates to a feature that's already mentioned in the unreleased section
+    <format>
+        Write from user's perspective: "Fixed issue where..." not "Fixed bug in..."
+        One line per change under the appropriate category (Added/Changed/Fixed)
+        Be specific but concise
+    </format>
+</changelog>
 
 ## Documentation Libraries
 Get documentation using context7 with these library IDs as needed:

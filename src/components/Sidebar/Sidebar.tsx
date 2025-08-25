@@ -15,12 +15,16 @@ type SidebarConversation = Conversation | (PendingConversation & { id: 'pending'
 const isPersistentConversation = (conv: SidebarConversation): conv is Conversation => {
   return typeof conv.id === 'number'
 }
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import ContextMenu from '../ContextMenu/ContextMenu'
 import EmptyState from '../EmptyState/EmptyState'
 import { ConversationListSkeleton } from '../Skeleton/Skeleton'
 import RenameModal from '../RenameModal/RenameModal'
 import Logo from '../../assets/Logo.svg'
+
+export interface SidebarHandle {
+  focusSearch: () => void
+}
 
 interface SidebarProps {
   isOpen: boolean
@@ -34,7 +38,7 @@ interface SidebarProps {
   onDeleteConversation?: (deletedId: number | 'pending') => void
 }
 
-export default function Sidebar({
+const Sidebar = forwardRef<SidebarHandle, SidebarProps>(({
   isOpen,
   width,
   onToggle,
@@ -44,9 +48,10 @@ export default function Sidebar({
   selectedConversationId,
   onSelectConversation,
   onDeleteConversation,
-}: SidebarProps) {
+}, ref) => {
   const { conversations, deleteConversation, toggleConversationFavorite, createPendingConversation, updateConversation } = useConversations()
   const getMessages = useAppStore((state) => state.getMessages)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   
   // For now, disable loading/error states - can be added back later
   const loading = false
@@ -64,6 +69,13 @@ export default function Sidebar({
     return saved === 'true'
   })
   const [searchQuery, setSearchQuery] = useState('')
+  
+  useImperativeHandle(ref, () => ({
+    focusSearch: () => {
+      searchInputRef.current?.focus()
+      searchInputRef.current?.select()
+    }
+  }))
   
   useEffect(() => {
     localStorage.setItem('favoritesCollapsed', isFavoritesCollapsed.toString())
@@ -346,9 +358,16 @@ export default function Sidebar({
               <Search className="h-4 w-4 text-muted-foreground" />
             </div>
             <input
+              ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  searchInputRef.current?.blur()
+                }
+              }}
               placeholder="Search conversations..."
               className="w-full pl-10 pr-10 py-2.5 bg-background/50 border border-border/30 rounded-xl text-sm placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
             />
@@ -571,4 +590,6 @@ export default function Sidebar({
       />
     </div>
   );
-}
+})
+
+export default Sidebar
