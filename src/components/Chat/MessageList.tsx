@@ -548,7 +548,7 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                                 autoplay
                                 style={{ width: 22, height: 22 }}
                               />
-                              <span className="text-sm text-foreground/80 animate-pulse font-medium">{loadingMessage}...</span>
+                              <span className="text-sm text-foreground/80 shimmer-loading-text font-medium">{loadingMessage}...</span>
                             </div>
                           ) : null}
                         </div>
@@ -709,7 +709,7 @@ export default function MessageList({ messages = [], isLoading = false, streamin
                 autoplay
                 style={{ width: 22, height: 22 }}
               />
-              <span className="text-sm text-foreground/80 animate-pulse font-medium">{loadingMessage}...</span>
+              <span className="text-sm text-foreground/80 shimmer-loading-text font-medium">{loadingMessage}...</span>
             </div>
           </div>
         </div>

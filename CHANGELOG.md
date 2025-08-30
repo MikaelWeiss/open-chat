@@ -6,6 +6,7 @@ All notable changes to Open Chat will be documented in this file.
 ### Added
 - Added keyboard shortcut command/control + shift + f to search
 - Added keybaord shortcut command/control + option + f to send feedback
+- Added a shimmer effect
 
 ## [0.2.1] - 2025-08-25
 ### Added
